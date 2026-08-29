@@ -30,7 +30,7 @@ export default function LoginPage() {
       });
 
       if (error) throw error;
-router.push("/home");       
+      router.push("/home");       
     } catch (err: any) {
       setError(err.message || "Erreur de connexion.");
     } finally {
@@ -38,8 +38,8 @@ router.push("/home");
     }
   };
 
-  // Styles inline garantis
-  const styles = {
+  // ✅ STYLES TYPSÉS POUR ÉVITER LES ERREURS VERCEL/TYPESCRIPT
+  const styles: Record<string, React.CSSProperties> = {
     container: {
       minHeight: "100vh",
       display: "flex",
@@ -96,10 +96,7 @@ router.push("/home");
       fontSize: "16px",
       outline: "none",
       transition: "all 0.2s",
-    },
-    inputFocus: {
-      borderColor: "#8B5CF6",
-      boxShadow: "0 0 0 2px rgba(139, 92, 246, 0.2)",
+      boxSizing: "border-box",
     },
     button: {
       width: "100%",
@@ -116,9 +113,6 @@ router.push("/home");
       alignItems: "center",
       justifyContent: "center",
       gap: "8px",
-    },
-    buttonHover: {
-      backgroundColor: "#7C3AED",
     },
     divider: {
       display: "flex",
@@ -142,6 +136,8 @@ router.push("/home");
       border: "1px solid #2A2A2A",
       cursor: "pointer",
       transition: "all 0.2s",
+      color: "#FFFFFF",
+      fontWeight: "bold",
     },
     footer: {
       textAlign: "center",
@@ -156,6 +152,7 @@ router.push("/home");
       background: "none",
       border: "none",
       fontSize: "14px",
+      padding: 0,
     },
   };
 
@@ -176,6 +173,8 @@ router.push("/home");
               onChange={(e) => setIdentifier(e.target.value)}
               style={styles.input}
               placeholder="ton@email.com"
+              onFocus={(e) => (e.target.style.borderColor = "#8B5CF6")}
+              onBlur={(e) => (e.target.style.borderColor = "#2A2A2A")}
             />
           </div>
 
@@ -188,6 +187,8 @@ router.push("/home");
                 onChange={(e) => setPassword(e.target.value)}
                 style={styles.input}
                 placeholder="••••••••"
+                onFocus={(e) => (e.target.style.borderColor = "#8B5CF6")}
+                onBlur={(e) => (e.target.style.borderColor = "#2A2A2A")}
               />
               <button
                 type="button"
@@ -201,6 +202,7 @@ router.push("/home");
                   border: "none",
                   color: "#9CA3AF",
                   cursor: "pointer",
+                  fontSize: "18px",
                 }}
               >
                 {showPassword ? "🙈" : "👁️"}
@@ -208,7 +210,8 @@ router.push("/home");
             </div>
           </div>
 
-          <div style={{ textAlign: "left" }}>
+          {/* ✅ AJOUT DE "as const" ICI POUR SATISFAIRE TYPESCRIPT */}
+          <div style={{ textAlign: "left" as const }}>
             <button type="button" style={styles.link}>
               Mot de passe oublié ?
             </button>
@@ -236,8 +239,9 @@ router.push("/home");
         <div style={{ display: "flex", justifyContent: "center", gap: "16px", marginTop: "24px" }}>
           <button style={styles.socialButton}>G</button>
           <button style={styles.socialButton}>f</button>
-          <button style={styles.socialButton}></button>
+          <button style={styles.socialButton}>X</button>
         </div>
+
 
         <div style={styles.footer}>
           Pas encore de compte ?{" "}
