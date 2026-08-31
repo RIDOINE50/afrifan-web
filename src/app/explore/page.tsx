@@ -40,6 +40,8 @@ export default function ExplorePage() {
       if (session?.user) {
         setUser(session.user);
         await loadData(session.user.id);
+      } else {
+        setIsLoading(false);
       }
     };
     init();
@@ -86,7 +88,7 @@ export default function ExplorePage() {
   const fetchCreators = async (userId: string) => {
     const { data } = await supabase
       .from('profiles')
-      .select('id, username, full_name, avatar_url')
+      .select('id, username, full_name, avatar_url, is_verified')
       .neq('id', userId)
       .limit(50);
     
@@ -94,9 +96,10 @@ export default function ExplorePage() {
   };
 
   const fetchPosts = async () => {
+    // ✅ Ajout de 'caption' et 'title' pour correspondre au schéma de la DB
     const { data: postsData } = await supabase
       .from('posts')
-      .select('id, user_id, media_url, media_type, content, likes_count, comments_count, created_at')
+      .select('id, user_id, media_url, media_type, caption, title, likes_count, comments_count, created_at')
       .order('created_at', { ascending: false })
       .limit(30);
 
@@ -113,7 +116,7 @@ export default function ExplorePage() {
 
     const mergedPosts = postsData.map((post: any) => ({
       ...post,
-      profiles: profilesMap[post.user_id],
+      profile: profilesMap[post.user_id] || { username: 'inconnu' },
       likes_count: post.likes_count ?? 0,
     }));
 
@@ -121,10 +124,12 @@ export default function ExplorePage() {
   };
 
   const toggleFollow = async (creatorId: string) => {
-    if (!user) return;
+    if (!user) {
+      router.push("/login");
+      return;
+    }
     const isFollowing = followedIds.has(creatorId);
 
-    // Optimistic update
     setFollowedIds(prev => {
       const next = new Set(prev);
       if (isFollowing) next.delete(creatorId);
@@ -137,11 +142,9 @@ export default function ExplorePage() {
         await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', creatorId);
       } else {
         await supabase.from('follows').insert({ follower_id: user.id, following_id: creatorId });
-        // Ici tu pourrais ajouter la notification
       }
     } catch (error) {
       console.error("❌ Erreur toggle follow:", error);
-      // Rollback
       setFollowedIds(prev => {
         const next = new Set(prev);
         if (isFollowing) next.add(creatorId);
@@ -157,7 +160,6 @@ export default function ExplorePage() {
     await loadData(user.id);
   };
 
-  // Filtrage des résultats
   const filteredCreators = creators.filter((c) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -169,8 +171,8 @@ export default function ExplorePage() {
   const filteredPosts = posts.filter((p) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
-    const caption = (p.content || '').toLowerCase();
-    const username = (p.profiles?.username || '').toLowerCase();
+    const caption = (p.caption || p.title || '').toLowerCase();
+    const username = (p.profile?.username || '').toLowerCase();
     return caption.includes(query) || username.includes(query);
   });
 
@@ -198,14 +200,7 @@ export default function ExplorePage() {
           <h1 style={{ color: colors.text, fontSize: "28px", fontWeight: "bold", margin: 0 }}>Découvrir</h1>
           <button 
             onClick={() => router.push("/notifications")}
-            style={{ 
-              background: "none", 
-              border: "none", 
-              color: colors.text, 
-              fontSize: "24px", 
-              cursor: "pointer",
-              padding: "8px"
-            }}
+            style={{ background: "none", border: "none", color: colors.text, fontSize: "24px", cursor: "pointer", padding: "8px" }}
           >
             🔔
           </button>
@@ -213,13 +208,8 @@ export default function ExplorePage() {
 
         {/* Barre de recherche */}
         <div style={{ 
-          display: "flex", 
-          alignItems: "center", 
-          backgroundColor: colors.card, 
-          borderRadius: "999px", 
-          padding: "12px 20px", 
-          marginBottom: "32px",
-          border: `1px solid ${colors.border}`
+          display: "flex", alignItems: "center", backgroundColor: colors.card, borderRadius: "999px", 
+          padding: "12px 20px", marginBottom: "32px", border: `1px solid ${colors.border}`
         }}>
           <span style={{ color: colors.textMuted, marginRight: "12px", fontSize: "18px" }}>🔍</span>
           <input
@@ -227,29 +217,10 @@ export default function ExplorePage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Rechercher des créateurs, des vidéos..."
-            style={{
-              background: "transparent",
-              border: "none",
-              outline: "none",
-              color: colors.text,
-              width: "100%",
-              fontSize: "15px",
-            }}
+            style={{ background: "transparent", border: "none", outline: "none", color: colors.text, width: "100%", fontSize: "15px" }}
           />
           {searchQuery && (
-            <button 
-              onClick={() => setSearchQuery("")}
-              style={{ 
-                background: "none", 
-                border: "none", 
-                color: colors.textMuted, 
-                cursor: "pointer",
-                fontSize: "18px",
-                padding: "4px"
-              }}
-            >
-              ✕
-            </button>
+            <button onClick={() => setSearchQuery("")} style={{ background: "none", border: "none", color: colors.textMuted, cursor: "pointer", fontSize: "18px", padding: "4px" }}>✕</button>
           )}
         </div>
 
@@ -260,30 +231,16 @@ export default function ExplorePage() {
               <span style={{ color: colors.purple, fontSize: "20px" }}>⭐</span>
               <h2 style={{ color: colors.text, fontSize: "18px", fontWeight: "bold", margin: 0 }}>Créateurs tendance</h2>
             </div>
+            {/* ✅ ROUTE CORRIGÉE VERS /creators */}
             <button 
-              onClick={() => router.push("/explore/creators")}
-              style={{ 
-                background: "none", 
-                border: "none", 
-                color: colors.primary, 
-                cursor: "pointer",
-                fontWeight: "bold",
-                fontSize: "14px"
-              }}
+              onClick={() => router.push("/creators")}
+              style={{ background: "none", border: "none", color: colors.primary, cursor: "pointer", fontWeight: "bold", fontSize: "14px" }}
             >
               Voir tout →
             </button>
           </div>
 
-          {/* Liste horizontale des créateurs */}
-          <div style={{ 
-            display: "flex", 
-            gap: "16px", 
-            overflowX: "auto", 
-            paddingBottom: "16px",
-            scrollbarWidth: "thin",
-            scrollbarColor: `${colors.border} ${colors.bg}`
-          }}>
+          <div style={{ display: "flex", gap: "16px", overflowX: "auto", paddingBottom: "16px", scrollbarWidth: "thin", scrollbarColor: `${colors.border} ${colors.bg}` }}>
             {filteredCreators.length === 0 ? (
               <div style={{ color: colors.textMuted, padding: "20px" }}>Aucun créateur trouvé</div>
             ) : (
@@ -293,69 +250,32 @@ export default function ExplorePage() {
                   <div
                     key={creator.id}
                     style={{
-                      minWidth: "140px",
-                      maxWidth: "140px",
-                      padding: "16px",
-                      backgroundColor: colors.card,
-                      borderRadius: "16px",
-                      border: `1px solid ${colors.border}`,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: "12px",
-                      cursor: "pointer",
-                      transition: "transform 0.2s",
+                      minWidth: "140px", maxWidth: "140px", padding: "16px", backgroundColor: colors.card,
+                      borderRadius: "16px", border: `1px solid ${colors.border}`, display: "flex",
+                      flexDirection: "column", alignItems: "center", gap: "12px", cursor: "pointer", transition: "transform 0.2s",
                     }}
                     onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-4px)")}
                     onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
-                    onClick={() => router.push(`/profile?id=${creator.id}`)}
+                    onClick={() => router.push(`/createur?id=${creator.id}`)} /* ✅ ROUTE CORRIGÉE */
                   >
                     <div style={{
-                      width: "64px",
-                      height: "64px",
-                      borderRadius: "50%",
-                      backgroundColor: colors.border,
+                      width: "64px", height: "64px", borderRadius: "50%", backgroundColor: colors.border,
                       backgroundImage: creator.avatar_url ? `url(${creator.avatar_url})` : undefined,
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "28px",
-                      color: colors.textMuted,
+                      backgroundSize: "cover", backgroundPosition: "center", display: "flex",
+                      alignItems: "center", justifyContent: "center", fontSize: "28px", color: colors.textMuted,
                     }}>
                       {!creator.avatar_url && "👤"}
                     </div>
                     
-                    <div style={{ 
-                      color: colors.text, 
-                      fontWeight: "bold", 
-                      fontSize: "14px", 
-                      textAlign: "center",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      width: "100%"
-                    }}>
+                    <div style={{ color: colors.text, fontWeight: "bold", fontSize: "14px", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>
                       {creator.full_name || creator.username}
                     </div>
 
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFollow(creator.id);
-                      }}
+                      onClick={(e) => { e.stopPropagation(); toggleFollow(creator.id); }}
                       style={{
-                        width: "100%",
-                        padding: "8px",
-                        backgroundColor: isFollowing ? colors.border : colors.primary,
-                        color: colors.text,
-                        border: "none",
-                        borderRadius: "12px",
-                        fontWeight: "bold",
-                        fontSize: "12px",
-                        cursor: "pointer",
-                        transition: "background 0.2s"
+                        width: "100%", padding: "8px", backgroundColor: isFollowing ? colors.border : colors.primary,
+                        color: colors.text, border: "none", borderRadius: "12px", fontWeight: "bold", fontSize: "12px", cursor: "pointer", transition: "background 0.2s"
                       }}
                     >
                       {isFollowing ? "Suivi" : "Suivre"}
@@ -374,44 +294,27 @@ export default function ExplorePage() {
               <span style={{ color: colors.orange, fontSize: "20px" }}>🔥</span>
               <h2 style={{ color: colors.text, fontSize: "18px", fontWeight: "bold", margin: 0 }}>Pour toi</h2>
             </div>
+            {/* ✅ ROUTE CORRIGÉE VERS /posts */}
             <button 
-              onClick={() => router.push("/explore/posts")}
-              style={{ 
-                background: "none", 
-                border: "none", 
-                color: colors.primary, 
-                cursor: "pointer",
-                fontWeight: "bold",
-                fontSize: "14px"
-              }}
+              onClick={() => router.push("/posts")}
+              style={{ background: "none", border: "none", color: colors.primary, cursor: "pointer", fontWeight: "bold", fontSize: "14px" }}
             >
               Voir tout →
             </button>
           </div>
 
-          {/* Grille de posts */}
           {filteredPosts.length === 0 ? (
-            <div style={{ 
-              textAlign: "center", 
-              color: colors.textMuted, 
-              padding: "60px 20px",
-              backgroundColor: colors.card,
-              borderRadius: "16px"
-            }}>
+            <div style={{ textAlign: "center", color: colors.textMuted, padding: "60px 20px", backgroundColor: colors.card, borderRadius: "16px" }}>
               <div style={{ fontSize: "48px", marginBottom: "16px" }}>📭</div>
               <p style={{ fontSize: "16px" }}>Aucun résultat trouvé</p>
             </div>
           ) : (
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: "16px",
-            }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
               {filteredPosts.map((post: any) => {
                 const creatorId = post.user_id;
                 const isMyOwnPost = user?.id === creatorId;
                 const isLocked = !isMyOwnPost && !subscribedCreatorIds.has(creatorId);
-                const username = post.profiles?.username || 'inconnu';
+                const username = post.profile?.username || 'inconnu';
                 const likesCount = post.likes_count || 0;
 
                 return (
@@ -419,160 +322,49 @@ export default function ExplorePage() {
                     key={post.id}
                     onClick={() => {
                       if (isLocked) {
-                        router.push(`/subscribe/${creatorId}?tier=premium&price=2000`);
+                        router.push(`/subscribe/${creatorId}?tier=premium&price=2000&name=${encodeURIComponent(username)}`);
                       } else {
-                        router.push(`/post/${post.id}`);
+                        router.push(`/post/${post.id}?creatorId=${creatorId}`);
                       }
                     }}
                     style={{
-                      position: "relative",
-                      aspectRatio: "3/4",
-                      borderRadius: "16px",
-                      overflow: "hidden",
-                      backgroundColor: colors.card,
-                      cursor: "pointer",
-                      transition: "transform 0.2s, box-shadow 0.2s",
+                      position: "relative", aspectRatio: "3/4", borderRadius: "16px", overflow: "hidden",
+                      backgroundColor: colors.card, cursor: "pointer", transition: "transform 0.2s, box-shadow 0.2s",
                     }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = "translateY(-4px)";
-                      e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.4)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.boxShadow = "none";
-                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.4)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
                   >
-                    {/* Media */}
                     {post.media_url ? (
                       <>
                         {isLocked ? (
                           <>
-                            <div style={{ 
-                              filter: "blur(12px)",
-                              width: "100%",
-                              height: "100%",
-                              backgroundImage: `url(${post.media_url})`,
-                              backgroundSize: "cover",
-                              backgroundPosition: "center",
-                            }} />
-                            <div style={{
-                              position: "absolute",
-                              inset: 0,
-                              backgroundColor: "rgba(0,0,0,0.5)",
-                            }} />
+                            <div style={{ filter: "blur(12px)", width: "100%", height: "100%", backgroundImage: `url(${post.media_url})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                            <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.5)" }} />
                           </>
                         ) : (
-                          <div style={{
-                            width: "100%",
-                            height: "100%",
-                            backgroundImage: `url(${post.media_url})`,
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                          }} />
+                          <div style={{ width: "100%", height: "100%", backgroundImage: `url(${post.media_url})`, backgroundSize: "cover", backgroundPosition: "center" }} />
                         )}
                       </>
                     ) : (
-                      <div style={{
-                        width: "100%",
-                        height: "100%",
-                        background: `linear-gradient(135deg, ${colors.purple}33, ${colors.bg})`,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "48px",
-                        color: colors.textMuted,
-                      }}>
-                        📷
-                      </div>
+                      <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${colors.purple}33, ${colors.bg})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "48px", color: colors.textMuted }}>📷</div>
                     )}
 
-                    {/* Overlay verrouillé */}
                     {isLocked && (
-                      <div style={{
-                        position: "absolute",
-                        inset: 0,
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "12px",
-                        zIndex: 10,
-                      }}>
-                        <div style={{
-                          width: "56px",
-                          height: "56px",
-                          borderRadius: "50%",
-                          backgroundColor: colors.primary,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "28px",
-                        }}>
-                          🔒
-                        </div>
-                        <span style={{
-                          color: colors.text,
-                          fontWeight: "bold",
-                          fontSize: "13px",
-                          backgroundColor: "rgba(0,0,0,0.6)",
-                          padding: "6px 12px",
-                          borderRadius: "20px",
-                        }}>
-                          Contenu Exclusif
-                        </span>
+                      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", zIndex: 10 }}>
+                        <div style={{ width: "56px", height: "56px", borderRadius: "50%", backgroundColor: colors.primary, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px" }}>🔒</div>
+                        <span style={{ color: colors.text, fontWeight: "bold", fontSize: "13px", backgroundColor: "rgba(0,0,0,0.6)", padding: "6px 12px", borderRadius: "20px" }}>Contenu Exclusif</span>
                       </div>
                     )}
 
-                    {/* Icône Play si vidéo */}
                     {post.media_type === 'video' && !isLocked && (
-                      <div style={{
-                        position: "absolute",
-                        top: "12px",
-                        right: "12px",
-                        width: "40px",
-                        height: "40px",
-                        borderRadius: "50%",
-                        backgroundColor: "rgba(0,0,0,0.6)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "20px",
-                        color: "white",
-                      }}>
-                        ▶️
-                      </div>
+                      <div style={{ position: "absolute", top: "12px", right: "12px", width: "40px", height: "40px", borderRadius: "50%", backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", color: "white" }}>▶️</div>
                     )}
 
-                    {/* Infos en bas */}
-                    <div style={{
-                      position: "absolute",
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      padding: "16px",
-                      background: "linear-gradient(transparent, rgba(0,0,0,0.9))",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}>
-                      <div style={{
-                        color: "white",
-                        fontWeight: "bold",
-                        fontSize: "13px",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        maxWidth: "60%",
-                      }}>
+                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "16px", background: "linear-gradient(transparent, rgba(0,0,0,0.9))", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ color: "white", fontWeight: "bold", fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }}>
                         @{username}
                       </div>
-                      <div style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        color: "white",
-                        fontSize: "13px",
-                      }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "white", fontSize: "13px" }}>
                         <span style={{ color: colors.red }}>❤️</span>
                         <span>{formatCount(likesCount)}</span>
                       </div>
@@ -584,38 +376,22 @@ export default function ExplorePage() {
           )}
         </div>
 
-        {/* Bouton Refresh */}
-        <div style={{ 
-          marginTop: "40px", 
-          textAlign: "center",
-          paddingBottom: "40px"
-        }}>
+        <div style={{ marginTop: "40px", textAlign: "center", paddingBottom: "40px" }}>
           <button
             onClick={handleRefresh}
             style={{
-              padding: "12px 32px",
-              backgroundColor: colors.primary,
-              color: "white",
-              border: "none",
-              borderRadius: "12px",
-              fontWeight: "bold",
-              fontSize: "14px",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
+              padding: "12px 32px", backgroundColor: colors.primary, color: "white", border: "none",
+              borderRadius: "12px", fontWeight: "bold", fontSize: "14px", cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: "8px",
             }}
           >
-             Actualiser
+            🔄 Actualiser
           </button>
         </div>
       </div>
 
       <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       `}</style>
     </DashboardLayout>
   );

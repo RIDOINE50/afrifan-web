@@ -164,13 +164,16 @@ export default function MyProfileScreen() {
     }
   };
 
-  const handleCreatorAction = () => {
+    const handleCreatorAction = () => {
     if (applicationStatus === 'accepted') {
-      router.push("/creator/dashboard"); // À adapter selon ton chemin
+      // ✅ Si déjà accepté, on va vers le tableau de bord créateur
+      router.push("/creator/dashboard");
     } else if (applicationStatus === 'pending') {
-      alert("Votre demande est en cours de vérification. Veuillez patienter.");
+      // ✅ Si en attente, on informe l'utilisateur (le bouton est déjà désactivé visuellement)
+      alert("Votre demande est en cours de vérification par notre équipe. Veuillez patienter.");
     } else {
-      router.push("/profile/activate"); // À adapter selon ton chemin (PersonalInfoStep)
+      // ✅ Si 'none' ou 'rejected', on lance le parcours d'activation depuis l'étape 1
+      router.push("/creator/activate/step-1"); 
     }
   };
 

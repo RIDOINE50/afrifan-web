@@ -4,7 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function CreateScreen() {
+// ─── COMPOSANT CONTENU (utilise useSearchParams) ──────────
+function CreateContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -40,11 +41,10 @@ export default function CreateScreen() {
   };
 
   // 1. Initialisation : Charger les sons ET vérifier si on vient de l'IA
-    // 1. Initialisation : Charger les sons ET vérifier si on vient de l'IA
   useEffect(() => {
     fetchSounds();
     
-    // ✅ DÉTECTION DE L'IMAGE VENANT DE L'IA (via sessionStorage)
+    // Détection de l'image venant de l'IA (via sessionStorage)
     const aiImageBase64 = sessionStorage.getItem('ai_generated_image');
     const aiDesc = sessionStorage.getItem('ai_generated_desc');
 
@@ -128,8 +128,7 @@ export default function CreateScreen() {
       let fileToUpload: File | null = selectedFile;
       let mediaUrl = previewUrl;
 
-      // ✅ GESTION SPÉCIALE POUR LES IMAGES IA (Conversion URL -> File)
-            // ✅ NOUVEAU CODE (gère HTTP et Base64)
+      // Gestion spéciale pour les images IA (Conversion URL -> File)
       if (!fileToUpload && previewUrl) {
         const response = await fetch(previewUrl);
         const blob = await response.blob();
@@ -138,7 +137,7 @@ export default function CreateScreen() {
         });
       }
 
-      // ✅ UPLOAD VERS LE BUCKET 'post-images'
+      // Upload vers le bucket 'post-images'
       if (fileToUpload) {
         const fileExt = fileToUpload.name.split('.').pop() || 'jpg';
         const fileName = `${user.id}/${Date.now()}.${fileExt}`;
@@ -154,7 +153,7 @@ export default function CreateScreen() {
         mediaUrl = data.publicUrl;
       }
 
-      // ✅ INSERTION EN BASE DE DONNÉES
+      // Insertion en base de données
       if (target === "feed") {
         const { error: dbError } = await supabase.from("posts").insert({
           user_id: user.id,
@@ -176,7 +175,7 @@ export default function CreateScreen() {
         if (dbError) throw dbError;
       }
 
-      // ✅ SUCCÈS : Nettoyage et redirection
+      // Succès : Nettoyage et redirection
       alert(`✅ Publié avec succès dans ${target === "story" ? "vos Stories" : "votre Feed"} !`);
       
       // On nettoie l'URL des paramètres IA pour éviter de republier la même chose par erreur
@@ -349,6 +348,7 @@ export default function CreateScreen() {
   );
 }
 
+// ─── COMPOSANT D'ENVELOPPE AVEC SUSPENSE ──────────────────
 function PublishCard({ icon, title, subtitle, color, onClick }: { icon: string; title: string; subtitle: string; color: string; onClick: () => void }) {
   return (
     <button onClick={onClick} style={{ width: "100%", padding: "16px", marginBottom: "12px", backgroundColor: `${color}26`, border: `1.5px solid ${color}80`, borderRadius: "16px", display: "flex", alignItems: "center", gap: "16px", cursor: "pointer", textAlign: "left", transition: "transform 0.1s" }}
@@ -362,5 +362,20 @@ function PublishCard({ icon, title, subtitle, color, onClick }: { icon: string; 
       </div>
       <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "18px" }}>›</div>
     </button>
+  );
+}
+
+// ─── EXPORT AVEC SUSPENSE ─────────────────────────────────
+import { Suspense } from "react";
+
+export default function CreatePage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", backgroundColor: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center", color: "#FFFFFF" }}>
+        Chargement...
+      </div>
+    }>
+      <CreateContent />
+    </Suspense>
   );
 }

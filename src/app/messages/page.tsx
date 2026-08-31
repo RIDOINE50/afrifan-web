@@ -1,23 +1,38 @@
 "use client";
 
+import { Suspense } from "react";
 import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function MessagesPage() {
+// ─── COMPOSANT CONTENU (utilise useSearchParams) ──────────
+function MessagesContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const targetUserId = searchParams.get("to");
+
   const [user, setUser] = useState<any>(null);
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [showMobileChat, setShowMobileChat] = useState(false);
   
+  // États pour la saisie et les fonctionnalités avancées
+  const [inputText, setInputText] = useState("");
+  const [replyTo, setReplyTo] = useState<any>(null);
+  const [editingMsg, setEditingMsg] = useState<any>(null);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  
+  // États pour l'enregistrement vocal (Web API)
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<any>(null);
+  const audioChunksRef = useRef<any[]>([]);
+  const recordingTimerRef = useRef<any>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const colors = {
     bg: "#0A0A0A",
@@ -27,633 +42,499 @@ export default function MessagesPage() {
     text: "#FFFFFF",
     textMuted: "#9CA3AF",
     green: "#22C55E",
-    orange: "#F59E0B",
     red: "#EF4444",
   };
 
-  // Initialisation
+  // 1. Initialisation
   useEffect(() => {
+    let realtimeChannel: any = null;
+
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         setUser(session.user);
         await fetchInbox(session.user.id);
-        setupRealtime(session.user.id);
+        realtimeChannel = setupRealtime(session.user.id);
+      } else {
+        router.push("/login");
       }
     };
     init();
 
     return () => {
-      if (user) supabase.removeChannel(supabase.channel('messages_channel'));
+      if (realtimeChannel) {
+        supabase.removeChannel(realtimeChannel);
+      }
     };
   }, []);
 
-  // Scroll automatique vers le bas
+  // 2. Ouvrir le chat si ?to=... est dans l'URL
+  useEffect(() => {
+    if (user && targetUserId && !selectedUserId) {
+      selectConversation(targetUserId);
+    }
+  }, [user, targetUserId]);
+
+  // Scroll automatique
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Focus sur l'input quand on sélectionne une conversation
-  useEffect(() => {
-    if (selectedUserId) {
-      inputRef.current?.focus();
-    }
-  }, [selectedUserId]);
+  // --- FONCTIONS DE BASE ---
 
-  // Récupérer la liste des conversations
   const fetchInbox = async (userId: string) => {
-    setIsLoading(true);
-    try {
-      const { data: messagesData, error } = await supabase
-        .from('messages')
-        .select('*')
-        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-        .order('created_at', { ascending: false })
-        .limit(500);
+    const { data: messagesData } = await supabase
+      .from("messages")
+      .select("*")
+      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+      .order("created_at", { ascending: false })
+      .limit(100);
 
-      if (error) throw error;
-      if (!messagesData || messagesData.length === 0) {
-        setConversations([]);
-        setIsLoading(false);
-        return;
+    if (!messagesData) return;
+
+    const conversationsMap: Record<string, any> = {};
+    const unreadCountMap: Record<string, number> = {};
+
+    for (const msg of messagesData) {
+      const otherUserId = msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
+      if (!conversationsMap[otherUserId]) {
+        conversationsMap[otherUserId] = msg;
+        unreadCountMap[otherUserId] = 0;
       }
-
-      const conversationsMap: Record<string, any> = {};
-      const unreadCountMap: Record<string, number> = {};
-
-      for (const msg of messagesData) {
-        const otherUserId = msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
-
-        if (!conversationsMap[otherUserId]) {
-          conversationsMap[otherUserId] = msg;
-          unreadCountMap[otherUserId] = 0;
-        }
-
-        if (msg.receiver_id === userId && msg.is_read === false) {
-          unreadCountMap[otherUserId] = (unreadCountMap[otherUserId] || 0) + 1;
-        }
+      if (msg.receiver_id === userId && msg.is_read === false) {
+        unreadCountMap[otherUserId]++;
       }
-
-      const otherUserIds = Object.keys(conversationsMap);
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, username, full_name, avatar_url, online_status')
-        .in('id', otherUserIds);
-
-      const profilesMap: Record<string, any> = {};
-      profiles?.forEach((p: any) => { profilesMap[p.id] = p; });
-
-      const finalConversations = Object.entries(conversationsMap).map(([otherUserId, lastMessage]: [string, any]) => ({
-        other_user_id: otherUserId,
-        other_user_profile: profilesMap[otherUserId] || { username: 'Utilisateur', full_name: 'Utilisateur' },
-        last_message: lastMessage.content,
-        last_message_type: lastMessage.type || 'text',
-        last_message_duration: lastMessage.duration || 0,
-        last_message_time: lastMessage.created_at,
-        last_message_is_mine: lastMessage.sender_id === userId,
-        unread_count: unreadCountMap[otherUserId] || 0,
-      }));
-
-      finalConversations.sort((a, b) => 
-        new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime()
-      );
-
-      setConversations(finalConversations);
-    } catch (error) {
-      console.error("❌ Erreur fetchInbox:", error);
-    } finally {
-      setIsLoading(false);
     }
+
+    const otherUserIds = Object.keys(conversationsMap);
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, username, full_name, avatar_url")
+      .in("id", otherUserIds);
+
+    const profilesMap: Record<string, any> = {};
+    profiles?.forEach((p: any) => { profilesMap[p.id] = p; });
+
+    const finalConversations = Object.entries(conversationsMap).map(([otherUserId, lastMessage]: [string, any]) => ({
+      other_user_id: otherUserId,
+      other_user_profile: profilesMap[otherUserId] || { username: "Utilisateur" },
+      last_message: lastMessage.content,
+      last_message_type: lastMessage.type || "text",
+      last_message_time: lastMessage.created_at,
+      last_message_is_mine: lastMessage.sender_id === userId,
+      unread_count: unreadCountMap[otherUserId] || 0,
+    }));
+
+    finalConversations.sort((a, b) => new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime());
+    setConversations(finalConversations);
   };
 
-  // Temps réel
   const setupRealtime = (userId: string) => {
+    const channelName = `messages_${userId}_${Date.now()}`;
+    
     const channel = supabase
-      .channel('messages_channel')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => {
-          const newMsg = payload.new;
-          
-          // Mettre à jour la liste des conversations
-          fetchInbox(userId);
-          
-          // Si c'est la conversation active, ajouter le message
-          if (newMsg.sender_id === selectedUserId || newMsg.receiver_id === selectedUserId) {
-            setMessages(prev => {
-              const exists = prev.some(m => m.id === newMsg.id);
-              if (exists) return prev;
-              return [...prev, newMsg].sort((a, b) => 
-                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-              );
-            });
-            
-            // Marquer comme lu si on est le destinataire
-            if (newMsg.receiver_id === userId && newMsg.sender_id === selectedUserId) {
-              markAsRead(newMsg.id);
-            }
+      .channel(channelName)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+        const newMsg = payload.new;
+        fetchInbox(userId);
+        if (newMsg.sender_id === selectedUserId || newMsg.receiver_id === selectedUserId) {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+          });
+          if (newMsg.receiver_id === userId && newMsg.sender_id === selectedUserId) {
+            markAsRead(newMsg.id);
           }
         }
-      )
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages" }, (payload) => {
+        const updated = payload.new;
+        setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "messages" }, (payload) => {
+        const deletedId = payload.old.id;
+        setMessages((prev) => prev.filter((m) => m.id !== deletedId));
+      })
       .subscribe();
+      
+    return channel;
   };
 
-  // Sélectionner une conversation
   const selectConversation = async (otherUserId: string) => {
     setSelectedUserId(otherUserId);
-    setShowMobileChat(true);
-    
-    // Récupérer le profil de l'utilisateur
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', otherUserId)
-      .single();
-    
+    const { data: profile } = await supabase.from("profiles").select("*").eq("id", otherUserId).single();
     setSelectedUser(profile);
-    await fetchMessages(otherUserId);
     
-    // Marquer tous les messages comme lus
-    await markConversationAsRead(otherUserId);
+    const { data: messagesData } = await supabase
+      .from("messages")
+      .select("*")
+      .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
+      .order("created_at", { ascending: true });
+      
+    setMessages(messagesData || []);
+    markConversationAsRead(otherUserId);
   };
 
-  // Récupérer les messages d'une conversation
-  const fetchMessages = async (otherUserId: string) => {
-    if (!user) return;
-    
-    try {
-      const { data: messagesData, error } = await supabase
-        .from('messages')
-        .select('*')
-        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
-        .order('created_at', { ascending: true })
-        .limit(100);
+  // --- ENVOI DE MESSAGE (TEXTE, RÉPONSE, MODIFICATION) ---
 
-      if (error) throw error;
-      setMessages(messagesData || []);
+  const handleSend = async () => {
+    if (!inputText.trim() && !editingMsg) return;
+    setIsSending(true);
+
+    try {
+      if (editingMsg) {
+        await supabase.from("messages").update({ content: inputText.trim(), is_edited: true }).eq("id", editingMsg.id);
+        setEditingMsg(null);
+      } else {
+        await supabase.from("messages").insert({
+          sender_id: user.id,
+          receiver_id: selectedUserId,
+          type: "text",
+          content: inputText.trim(),
+          reply_to_id: replyTo?.id || null,
+          reply_to_content: replyTo?.content || null,
+          reply_to_name: replyTo?.name || null,
+          is_read: false,
+        });
+        setReplyTo(null);
+      }
+      setInputText("");
+      fetchInbox(user.id);
     } catch (error) {
-      console.error("❌ Erreur fetchMessages:", error);
+      console.error("Erreur envoi:", error);
+    } finally {
+      setIsSending(false);
     }
   };
 
-  // Envoyer un message
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedUserId || !user) return;
+  // --- ENVOI D'IMAGE ---
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    const content = newMessage.trim();
-    setNewMessage("");
-
+    setIsSending(true);
     try {
-      const { data: newMsg, error } = await supabase
-        .from('messages')
+      const fileName = `img_${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage.from("chat_images").upload(fileName, file);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from("chat_images").getPublicUrl(fileName);
+
+      await supabase.from("messages").insert({
+        sender_id: user.id,
+        receiver_id: selectedUserId,
+        type: "image",
+        content: publicUrl,
+        is_read: false,
+      });
+      fetchInbox(user.id);
+    } catch (error) {
+      console.error("Erreur image:", error);
+      alert("Échec de l'envoi de l'image");
+    } finally {
+      setIsSending(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  // --- ENREGISTREMENT VOCAL (WEB API) ---
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (event: any) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const fileName = `voice_${Date.now()}.webm`;
+        
+        const { error: uploadError } = await supabase.storage.from("voice_messages").upload(fileName, audioBlob);
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabase.storage.from("voice_messages").getPublicUrl(fileName);
+          await supabase.from("messages").insert({
+            sender_id: user.id,
+            receiver_id: selectedUserId,
+            type: "voice",
+            content: publicUrl,
+            duration: recordingTime,
+            is_read: false,
+          });
+          fetchInbox(user.id);
+        }
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      recorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      alert("Veuillez autoriser l'accès au microphone.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      clearInterval(recordingTimerRef.current);
+      setIsRecording(false);
+    }
+  };
+
+  // --- ACTIONS SUR LES MESSAGES ---
+  const deleteMessage = async (msgId: string) => {
+    if (!confirm("Supprimer ce message ?")) return;
+    await supabase.from("messages").delete().eq("id", msgId);
+    setMessages((prev) => prev.filter((m) => m.id !== msgId));
+  };
+
+  const markAsRead = async (msgId: string) => {
+    await supabase.from("messages").update({ is_read: true }).eq("id", msgId);
+  };
+
+  const markConversationAsRead = async (otherUserId: string) => {
+    await supabase.from("messages").update({ is_read: true }).eq("sender_id", otherUserId).eq("receiver_id", user.id).eq("is_read", false);
+  };
+
+  // --- APPELS (VOCAL & VIDÉO) ---
+  const initiateCall = async (callType: "audio" | "video") => {
+    try {
+      const { data, error } = await supabase
+        .from("calls")
         .insert({
-          sender_id: user.id,
+          caller_id: user.id,
           receiver_id: selectedUserId,
-          content: content,
-          type: 'text',
-          is_read: false,
+          call_type: callType,
+          status: "ongoing",
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      // Ajouter immédiatement à la liste
-      setMessages(prev => [...prev, newMsg]);
-      
-      // Mettre à jour la liste des conversations
-      fetchInbox(user.id);
+      router.push(`/calls/${callType}?callId=${data.id}&otherId=${selectedUserId}&name=${encodeURIComponent(selectedUser.full_name || selectedUser.username)}`);
     } catch (error) {
-      console.error("❌ Erreur sendMessage:", error);
-      setNewMessage(content);
+      console.error("Erreur appel:", error);
+      alert("Impossible de lancer l'appel pour le moment.");
     }
   };
 
-  // Marquer un message comme lu
-  const markAsRead = async (messageId: string) => {
-    try {
-      await supabase
-        .from('messages')
-        .update({ is_read: true, read_at: new Date().toISOString() })
-        .eq('id', messageId);
-    } catch (error) {
-      console.error("❌ Erreur markAsRead:", error);
-    }
-  };
+  // --- HELPERS D'AFFICHAGE ---
+  const formatTime = (dateString: string) => new Date(dateString).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const formatDuration = (seconds: number) => `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, "0")}`;
 
-  // Marquer toute la conversation comme lue
-  const markConversationAsRead = async (otherUserId: string) => {
-    if (!user) return;
-    
-    try {
-      await supabase
-        .from('messages')
-        .update({ is_read: true, read_at: new Date().toISOString() })
-        .eq('sender_id', otherUserId)
-        .eq('receiver_id', user.id)
-        .eq('is_read', false);
-    } catch (error) {
-      console.error("❌ Erreur markConversationAsRead:", error);
-    }
-  };
+  const emojis = ["😀", "😂", "😍", "🥺", "😎", "👍", "🔥", "❤️", "😭", "🎉", "🤔", "👏"];
 
-  // Helpers
-  const getName = (c: any) => c.other_user_profile?.full_name || c.other_user_profile?.username || "Utilisateur";
-  const getAvatar = (c: any) => c.other_user_profile?.avatar_url;
-  
-  const formatTime = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return "";
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online': return colors.green;
-      case 'away': return colors.orange;
-      case 'busy': return colors.red;
-      default: return colors.textMuted;
-    }
-  };
-
-  const filteredConversations = conversations.filter((c) => {
-    if (!searchQuery.trim()) return true;
-    return getName(c).toLowerCase().includes(searchQuery.toLowerCase());
-  });
-
-  if (isLoading) {
-    return (
-      <div style={{ height: "100vh", backgroundColor: colors.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ width: "40px", height: "40px", border: `4px solid ${colors.border}`, borderTop: `4px solid ${colors.primary}`, borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
-      </div>
-    );
-  }
-
+  // ==========================================
+  // RENDU DE L'INTERFACE
+  // ==========================================
   return (
     <div style={{ height: "100vh", backgroundColor: colors.bg, color: colors.text, display: "flex", overflow: "hidden" }}>
       
-      {/* COLONNE GAUCHE - Liste des conversations */}
-      <div style={{ 
-        width: showMobileChat ? "0" : "100%",
-        maxWidth: showMobileChat ? "0" : "400px",
-        borderRight: `1px solid ${colors.border}`,
-        display: showMobileChat ? "none" : "flex",
-        flexDirection: "column",
-        overflow: "hidden"
-      }} className="conversation-list">
-        
-        {/* Header */}
-        <div style={{ padding: "16px 24px", borderBottom: `1px solid ${colors.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <button onClick={() => router.back()} style={{ background: "none", border: "none", color: colors.text, fontSize: "24px", cursor: "pointer" }}>←</button>
-            <h1 style={{ margin: 0, fontSize: "24px", fontWeight: "bold" }}>Messages</h1>
-          </div>
-          <button onClick={() => fetchInbox(user.id)} style={{ background: "none", border: "none", color: colors.textMuted, fontSize: "20px", cursor: "pointer" }}>🔄</button>
+      {/* COLONNE GAUCHE : Liste des conversations */}
+      <div style={{ width: "350px", borderRight: `1px solid ${colors.border}`, display: "flex", flexDirection: "column" }} className="hidden-mobile">
+        <div style={{ padding: "20px", borderBottom: `1px solid ${colors.border}` }}>
+          <h1 style={{ margin: 0, fontSize: "24px", fontWeight: "bold" }}>Messages</h1>
         </div>
-
-        {/* Recherche */}
-        <div style={{ padding: "16px" }}>
-          <div style={{ display: "flex", alignItems: "center", backgroundColor: colors.card, borderRadius: "999px", padding: "10px 16px", border: `1px solid ${colors.border}` }}>
-            <span style={{ color: colors.textMuted, marginRight: "12px" }}>🔍</span>
-            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Rechercher..." style={{ background: "transparent", border: "none", outline: "none", color: colors.text, width: "100%", fontSize: "14px" }} />
-            {searchQuery && <button onClick={() => setSearchQuery("")} style={{ background: "none", border: "none", color: colors.textMuted, cursor: "pointer" }}>✕</button>}
-          </div>
-        </div>
-
-        {/* Liste scrollable */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "0 16px 16px" }}>
-          {conversations.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "60px 20px", color: colors.textMuted }}>
-              <div style={{ fontSize: "64px", marginBottom: "16px" }}>💬</div>
-              <p>Aucune conversation</p>
-            </div>
-          ) : (
-            <>
-              <h3 style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "12px", color: colors.text }}>TOUTES LES CONVERSATIONS</h3>
-              
-              {filteredConversations.map((c: any) => (
-                <div
-                  key={c.other_user_id}
-                  onClick={() => selectConversation(c.other_user_id)}
-                  style={{
-                    padding: "12px",
-                    borderBottom: `1px solid ${colors.border}`,
-                    cursor: "pointer",
-                    display: "flex",
-                    gap: "12px",
-                    alignItems: "center",
-                    backgroundColor: selectedUserId === c.other_user_id ? `${colors.primary}20` : "transparent",
-                    borderRadius: "8px",
-                    marginBottom: "4px",
-                    transition: "background 0.2s"
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${colors.card}40`}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = selectedUserId === c.other_user_id ? `${colors.primary}20` : "transparent"}
-                >
-                  <div style={{ position: "relative" }}>
-                    <div style={{
-                      width: "52px",
-                      height: "52px",
-                      borderRadius: "50%",
-                      backgroundColor: colors.card,
-                      backgroundImage: getAvatar(c) ? `url(${getAvatar(c)})` : undefined,
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "24px"
-                    }}>
-                      {!getAvatar(c) && "👤"}
-                    </div>
-                    <div style={{
-                      position: "absolute",
-                      bottom: "0",
-                      right: "0",
-                      width: "14px",
-                      height: "14px",
-                      borderRadius: "50%",
-                      backgroundColor: getStatusColor(c.other_user_profile?.online_status),
-                      border: `2px solid ${colors.bg}`
-                    }} />
-                  </div>
-                  
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
-                      <div style={{ fontWeight: c.unread_count > 0 ? "bold" : "600", fontSize: "16px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                        {getName(c)}
-                      </div>
-                      <div style={{ fontSize: "12px", color: colors.textMuted, marginLeft: "8px" }}>
-                        {formatTime(c.last_message_time)}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: "14px", color: c.unread_count > 0 ? colors.text : colors.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {c.last_message_is_mine ? "Vous : " : ""}{c.last_message}
-                    </div>
-                  </div>
-                  
-                  {c.unread_count > 0 && (
-                    <div style={{
-                      minWidth: "20px",
-                      height: "20px",
-                      backgroundColor: colors.primary,
-                      borderRadius: "50%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "11px",
-                      fontWeight: "bold",
-                      marginLeft: "8px"
-                    }}>
-                      {c.unread_count > 99 ? "99+" : c.unread_count}
-                    </div>
-                  )}
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {conversations.map((c: any) => (
+            <div
+              key={c.other_user_id}
+              onClick={() => selectConversation(c.other_user_id)}
+              style={{
+                padding: "16px", borderBottom: `1px solid ${colors.border}`, cursor: "pointer",
+                backgroundColor: selectedUserId === c.other_user_id ? `${colors.primary}20` : "transparent",
+                display: "flex", gap: "12px", alignItems: "center"
+              }}
+            >
+              <div style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: colors.card, backgroundImage: c.other_user_profile?.avatar_url ? `url(${c.other_user_profile.avatar_url})` : undefined, backgroundSize: "cover" }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: "bold", fontSize: "15px" }}>{c.other_user_profile?.full_name || c.other_user_profile?.username}</div>
+                <div style={{ fontSize: "13px", color: colors.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {c.last_message_type === "voice" ? "🎤 Message vocal" : c.last_message}
                 </div>
-              ))}
-            </>
-          )}
+              </div>
+              {c.unread_count > 0 && (
+                <div style={{ backgroundColor: colors.primary, borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "bold" }}>
+                  {c.unread_count}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* COLONNE DROITE - Zone de chat */}
-      <div style={{ 
-        flex: 1, 
-        display: selectedUserId ? "flex" : "none",
-        flexDirection: "column",
-        overflow: "hidden"
-      }} className="chat-area">
-        
-        {selectedUserId && selectedUser && (
+      {/* COLONNE DROITE : Zone de Chat Avancée */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", backgroundColor: colors.bg }}>
+        {selectedUserId && selectedUser ? (
           <>
-            {/* Header de la conversation */}
-            <div style={{ 
-              padding: "16px 24px", 
-              borderBottom: `1px solid ${colors.border}`,
-              display: "flex",
-              alignItems: "center",
-              gap: "16px",
-              backgroundColor: colors.bg
-            }}>
-              <button 
-                onClick={() => {
-                  setShowMobileChat(false);
-                  setSelectedUserId(null);
-                  setSelectedUser(null);
-                  setMessages([]);
-                }}
-                style={{ 
-                  background: "none", 
-                  border: "none", 
-                  color: colors.text, 
-                  fontSize: "24px", 
-                  cursor: "pointer"
-                }}
-                className="mobile-only"
-              >
-                ←
-              </button>
-              
-              <div style={{ position: "relative" }}>
-                <div style={{
-                  width: "48px",
-                  height: "48px",
-                  borderRadius: "50%",
-                  backgroundColor: colors.card,
-                  backgroundImage: selectedUser?.avatar_url ? `url(${selectedUser.avatar_url})` : undefined,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "24px"
-                }}>
-                  {!selectedUser?.avatar_url && ""}
+            {/* 1. HEADER AVEC BOUTONS D'APPEL */}
+            <div style={{ padding: "16px 24px", borderBottom: `1px solid ${colors.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "50%", backgroundColor: colors.card, backgroundImage: selectedUser.avatar_url ? `url(${selectedUser.avatar_url})` : undefined, backgroundSize: "cover" }} />
+                <div>
+                  <div style={{ fontWeight: "bold", fontSize: "16px" }}>{selectedUser.full_name || selectedUser.username}</div>
+                  <div style={{ fontSize: "12px", color: colors.green }}>En ligne</div>
                 </div>
-                <div style={{
-                  position: "absolute",
-                  bottom: "0",
-                  right: "0",
-                  width: "14px",
-                  height: "14px",
-                  borderRadius: "50%",
-                  backgroundColor: getStatusColor(selectedUser?.online_status),
-                  border: `2px solid ${colors.bg}`
-                }} />
               </div>
               
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: "bold", fontSize: "16px" }}>
-                  {selectedUser?.full_name || selectedUser?.username || "Utilisateur"}
-                </div>
-                <div style={{ fontSize: "13px", color: colors.textMuted }}>
-                  {selectedUser?.online_status === 'online' ? "En ligne" : "Hors ligne"}
-                </div>
+              {/* 📞 BOUTONS D'APPEL */}
+              <div style={{ display: "flex", gap: "16px" }}>
+                <button onClick={() => initiateCall("audio")} style={{ background: "none", border: "none", color: colors.primary, fontSize: "24px", cursor: "pointer" }} title="Appel Vocal">📞</button>
+                <button onClick={() => initiateCall("video")} style={{ background: "none", border: "none", color: colors.primary, fontSize: "24px", cursor: "pointer" }} title="Appel Vidéo">📹</button>
               </div>
             </div>
 
-            {/* Zone des messages */}
-            <div style={{ 
-              flex: 1, 
-              overflowY: "auto", 
-              padding: "24px",
-              backgroundColor: colors.bg,
-              display: "flex",
-              flexDirection: "column",
-              gap: "12px"
-            }}>
-              {messages.length === 0 ? (
-                <div style={{ textAlign: "center", color: colors.textMuted, padding: "40px" }}>
-                  <div style={{ fontSize: "48px", marginBottom: "16px" }}></div>
-                  <p>Début de la conversation</p>
-                  <p style={{ fontSize: "14px", marginTop: "8px" }}>Envoyez un message pour commencer</p>
-                </div>
-              ) : (
-                messages.map((msg: any) => {
-                  const isMine = msg.sender_id === user?.id;
-                  return (
+            {/* 2. LISTE DES MESSAGES */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+              {messages.map((msg: any) => {
+                const isMine = msg.sender_id === user.id;
+                return (
+                  <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: isMine ? "flex-end" : "flex-start", maxWidth: "75%" }}>
+                    
+                    {/* Contexte de réponse */}
+                    {msg.reply_to_content && (
+                      <div style={{ backgroundColor: "rgba(255,255,255,0.1)", padding: "8px 12px", borderRadius: "12px 12px 0 0", fontSize: "12px", color: colors.textMuted, borderLeft: `3px solid ${colors.primary}`, marginBottom: "-8px", zIndex: 1 }}>
+                        <div style={{ fontWeight: "bold", color: colors.primary }}>{msg.reply_to_name}</div>
+                        <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{msg.reply_to_content}</div>
+                      </div>
+                    )}
+
+                    {/* Bulle de message */}
                     <div
-                      key={msg.id}
+                      onContextMenu={(e) => { e.preventDefault(); if(isMine) deleteMessage(msg.id); }}
                       style={{
-                        display: "flex",
-                        justifyContent: isMine ? "flex-end" : "flex-start",
-                        marginBottom: "8px"
+                        backgroundColor: isMine ? colors.primary : colors.card,
+                        color: "white", padding: "12px 16px", borderRadius: "18px",
+                        borderBottomRightRadius: isMine ? "4px" : "18px",
+                        borderBottomLeftRadius: isMine ? "18px" : "4px",
+                        wordBreak: "break-word"
                       }}
                     >
-                      <div style={{
-                        maxWidth: "70%",
-                        padding: "12px 16px",
-                        borderRadius: "18px",
-                        backgroundColor: isMine ? colors.primary : colors.card,
-                        color: "white"
-                      }}>
-                        <div style={{ fontSize: "15px", lineHeight: "1.4", wordBreak: "break-word" }}>
-                          {msg.content}
+                      {msg.type === "image" ? (
+                        <img src={msg.content} alt="Image" style={{ maxWidth: "250px", borderRadius: "12px", cursor: "pointer" }} onClick={() => window.open(msg.content, "_blank")} />
+                      ) : msg.type === "voice" ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: "150px" }}>
+                          <span>🎤</span>
+                          <audio controls src={msg.content} style={{ height: "30px", maxWidth: "150px" }} />
+                          <span style={{ fontSize: "12px" }}>{formatDuration(msg.duration)}</span>
                         </div>
-                        <div style={{
-                          fontSize: "11px",
-                          color: "rgba(255,255,255,0.7)",
-                          marginTop: "4px",
-                          textAlign: "right"
-                        }}>
-                          {formatTime(msg.created_at)}
-                        </div>
-                      </div>
+                      ) : (
+                        <span>{msg.content} {msg.is_edited && <span style={{ fontSize: "10px", opacity: 0.7 }}>(modifié)</span>}</span>
+                      )}
                     </div>
-                  );
-                })
-              )}
+                    
+                    <span style={{ fontSize: "11px", color: colors.textMuted, marginTop: "4px", marginRight: "4px" }}>
+                      {formatTime(msg.created_at)} {isMine && (msg.is_read ? "✓✓" : "✓")}
+                    </span>
+                  </div>
+                );
+              })}
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Zone de saisie */}
-            <div style={{ 
-              padding: "16px 24px", 
-              borderTop: `1px solid ${colors.border}`,
-              backgroundColor: colors.bg,
-              display: "flex",
-              gap: "12px",
-              alignItems: "center"
-            }}>
-              <input
-                ref={inputRef}
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                placeholder="Tapez votre message..."
-                style={{
-                  flex: 1,
-                  padding: "14px 20px",
-                  backgroundColor: colors.card,
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: "999px",
-                  color: colors.text,
-                  fontSize: "15px",
-                  outline: "none"
-                }}
-              />
-              <button
-                onClick={sendMessage}
-                disabled={!newMessage.trim()}
-                style={{
-                  width: "48px",
-                  height: "48px",
-                  borderRadius: "50%",
-                  backgroundColor: newMessage.trim() ? colors.primary : colors.border,
-                  border: "none",
-                  color: "white",
-                  fontSize: "20px",
-                  cursor: newMessage.trim() ? "pointer" : "not-allowed",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-              >
-                ➤
-              </button>
+            {/* 3. ZONE DE SAISIE AVANCÉE */}
+            <div style={{ padding: "16px", borderTop: `1px solid ${colors.border}`, backgroundColor: colors.bg, position: "relative" }}>
+              
+              {/* Barre de réponse */}
+              {replyTo && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: colors.card, padding: "8px 12px", borderRadius: "8px", marginBottom: "8px", borderLeft: `3px solid ${colors.primary}` }}>
+                  <div style={{ fontSize: "13px" }}>
+                    <span style={{ fontWeight: "bold", color: colors.primary }}>Réponse à {replyTo.name} : </span>
+                    <span style={{ color: colors.textMuted }}>{replyTo.content}</span>
+                  </div>
+                  <button onClick={() => setReplyTo(null)} style={{ background: "none", border: "none", color: colors.textMuted, cursor: "pointer" }}>✕</button>
+                </div>
+              )}
+
+              {/* Panneau Emoji */}
+              {showEmoji && (
+                <div style={{ position: "absolute", bottom: "80px", left: "16px", backgroundColor: colors.card, border: `1px solid ${colors.border}`, borderRadius: "12px", padding: "12px", display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.5)", zIndex: 10 }}>
+                  {emojis.map((emoji) => (
+                    <button key={emoji} onClick={() => { setInputText(prev => prev + emoji); setShowEmoji(false); }} style={{ background: "none", border: "none", fontSize: "24px", cursor: "pointer" }}>
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Barre d'enregistrement */}
+              {isRecording ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px", backgroundColor: "rgba(239, 68, 68, 0.1)", borderRadius: "12px", border: "1px solid rgba(239, 68, 68, 0.3)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "12px", height: "12px", backgroundColor: colors.red, borderRadius: "50%", animation: "pulse 1s infinite" }} />
+                    <span style={{ fontWeight: "bold", color: colors.red }}>{formatDuration(recordingTime)}</span>
+                  </div>
+                  <button onClick={stopRecording} style={{ backgroundColor: colors.red, color: "white", border: "none", borderRadius: "50%", width: "40px", height: "40px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>⏹</button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", alignItems: "flex-end", gap: "12px" }}>
+                  {/* Input fichier caché pour les images */}
+                  <input type="file" ref={fileInputRef} accept="image/*" style={{ display: "none" }} onChange={handleImageSelect} />
+                  
+                  <button onClick={() => fileInputRef.current?.click()} style={{ background: "none", border: "none", color: colors.textMuted, fontSize: "24px", cursor: "pointer", padding: "8px" }}>📎</button>
+                  <button onClick={() => setShowEmoji(!showEmoji)} style={{ background: "none", border: "none", color: showEmoji ? colors.primary : colors.textMuted, fontSize: "24px", cursor: "pointer", padding: "8px" }}>😊</button>
+                  
+                  <div style={{ flex: 1, backgroundColor: colors.card, borderRadius: "24px", border: `1px solid ${colors.border}`, display: "flex", alignItems: "center", padding: "4px 16px" }}>
+                    <textarea
+                      value={inputText}
+                      onChange={(e) => setInputText(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                      placeholder="Écrivez un message..."
+                      rows={1}
+                      style={{ flex: 1, backgroundColor: "transparent", border: "none", color: colors.text, fontSize: "15px", outline: "none", resize: "none", maxHeight: "100px", padding: "8px 0" }}
+                    />
+                  </div>
+
+                  {inputText.trim() ? (
+                    <button onClick={handleSend} disabled={isSending} style={{ backgroundColor: colors.primary, border: "none", borderRadius: "50%", width: "48px", height: "48px", color: "white", fontSize: "20px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {isSending ? "..." : "➤"}
+                    </button>
+                  ) : (
+                    <button onClick={startRecording} style={{ backgroundColor: colors.primary, border: "none", borderRadius: "50%", width: "48px", height: "48px", color: "white", fontSize: "24px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      🎤
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </>
+        ) : (
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: colors.textMuted }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "64px", marginBottom: "16px" }}>💬</div>
+              <h2>Sélectionnez une conversation</h2>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* État vide quand aucune conversation n'est sélectionnée */}
-      {!selectedUserId && (
-        <div style={{ 
-          flex: 1, 
-          display: "flex", 
-          alignItems: "center", 
-          justifyContent: "center",
-          color: colors.textMuted,
-          textAlign: "center"
-        }} className="empty-state">
-          <div>
-            <div style={{ fontSize: "80px", marginBottom: "24px" }}>💬</div>
-            <h2 style={{ fontSize: "24px", marginBottom: "12px", color: colors.text }}>Vos messages</h2>
-            <p style={{ fontSize: "16px" }}>Sélectionnez une conversation pour commencer à discuter</p>
-          </div>
-        </div>
-      )}
-
       <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        
-        @media (min-width: 769px) {
-          .conversation-list {
-            display: flex !important;
-            width: 400px !important;
-            max-width: 400px !important;
-          }
-          .chat-area {
-            display: ${selectedUserId ? 'flex' : 'none'} !important;
-          }
-          .empty-state {
-            display: ${selectedUserId ? 'none' : 'flex'} !important;
-          }
-          .mobile-only {
-            display: none !important;
-          }
-        }
-        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         @media (max-width: 768px) {
-          .conversation-list {
-            display: ${showMobileChat ? 'none' : 'flex'} !important;
-            width: 100% !important;
-          }
-          .chat-area {
-            display: ${showMobileChat ? 'flex' : 'none'} !important;
-          }
-          .empty-state {
-            display: none !important;
-          }
+          .hidden-mobile { display: none !important; }
         }
       `}</style>
     </div>
+  );
+}
+
+// ─── EXPORT PAR DÉFAUT AVEC SUSPENSE ──────────────────────
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#0A0A0A", color: "#FFFFFF" }}>
+        Chargement des messages...
+      </div>
+    }>
+      <MessagesContent />
+    </Suspense>
   );
 }
