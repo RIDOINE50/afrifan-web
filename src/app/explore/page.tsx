@@ -96,7 +96,6 @@ export default function ExplorePage() {
   };
 
   const fetchPosts = async () => {
-    // ✅ Ajout de 'caption' et 'title' pour correspondre au schéma de la DB
     const { data: postsData } = await supabase
       .from('posts')
       .select('id, user_id, media_url, media_type, caption, title, likes_count, comments_count, created_at')
@@ -189,7 +188,7 @@ export default function ExplorePage() {
   return (
     <DashboardLayout>
       <div style={{ 
-        maxWidth: "1200px", 
+        maxWidth: "1400px", 
         margin: "0 auto", 
         padding: "20px", 
         backgroundColor: colors.bg,
@@ -231,7 +230,6 @@ export default function ExplorePage() {
               <span style={{ color: colors.purple, fontSize: "20px" }}>⭐</span>
               <h2 style={{ color: colors.text, fontSize: "18px", fontWeight: "bold", margin: 0 }}>Créateurs tendance</h2>
             </div>
-            {/* ✅ ROUTE CORRIGÉE VERS /creators */}
             <button 
               onClick={() => router.push("/creators")}
               style={{ background: "none", border: "none", color: colors.primary, cursor: "pointer", fontWeight: "bold", fontSize: "14px" }}
@@ -256,7 +254,7 @@ export default function ExplorePage() {
                     }}
                     onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-4px)")}
                     onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
-                    onClick={() => router.push(`/createur?id=${creator.id}`)} /* ✅ ROUTE CORRIGÉE */
+                    onClick={() => router.push(`/createur?id=${creator.id}`)}
                   >
                     <div style={{
                       width: "64px", height: "64px", borderRadius: "50%", backgroundColor: colors.border,
@@ -294,7 +292,6 @@ export default function ExplorePage() {
               <span style={{ color: colors.orange, fontSize: "20px" }}>🔥</span>
               <h2 style={{ color: colors.text, fontSize: "18px", fontWeight: "bold", margin: 0 }}>Pour toi</h2>
             </div>
-            {/* ✅ ROUTE CORRIGÉE VERS /posts */}
             <button 
               onClick={() => router.push("/posts")}
               style={{ background: "none", border: "none", color: colors.primary, cursor: "pointer", fontWeight: "bold", fontSize: "14px" }}
@@ -305,11 +302,12 @@ export default function ExplorePage() {
 
           {filteredPosts.length === 0 ? (
             <div style={{ textAlign: "center", color: colors.textMuted, padding: "60px 20px", backgroundColor: colors.card, borderRadius: "16px" }}>
-              <div style={{ fontSize: "48px", marginBottom: "16px" }}>📭</div>
+              <div style={{ fontSize: "48px", marginBottom: "16px" }}></div>
               <p style={{ fontSize: "16px" }}>Aucun résultat trouvé</p>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
+            /* ✅ GRILLE RESPONSIVE OPTIMISÉE */
+            <div className="responsive-posts-grid">
               {filteredPosts.map((post: any) => {
                 const creatorId = post.user_id;
                 const isMyOwnPost = user?.id === creatorId;
@@ -327,12 +325,7 @@ export default function ExplorePage() {
                         router.push(`/post/${post.id}?creatorId=${creatorId}`);
                       }
                     }}
-                    style={{
-                      position: "relative", aspectRatio: "3/4", borderRadius: "16px", overflow: "hidden",
-                      backgroundColor: colors.card, cursor: "pointer", transition: "transform 0.2s, box-shadow 0.2s",
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.4)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
+                    className="post-card"
                   >
                     {post.media_url ? (
                       <>
@@ -392,6 +385,50 @@ export default function ExplorePage() {
 
       <style>{`
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* ✅ RESPONSIVITÉ DE LA GRILLE DE POSTS */
+        .responsive-posts-grid {
+          display: grid;
+          gap: 16px;
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        }
+
+        .post-card {
+          position: relative;
+          /* ✅ FORMAT VIDÉO VERTICAL (9/16) comme sur mobile/TikTok */
+          aspect-ratio: 9 / 16; 
+          border-radius: 16px;
+          overflow: hidden;
+          background-color: ${colors.card};
+          cursor: pointer;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .post-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+
+        /* Ajustement pour très grands écrans (PC large) */
+        @media (min-width: 1200px) {
+          .responsive-posts-grid {
+            grid-template-columns: repeat(4, 1fr);
+          }
+        }
+        
+        /* Ajustement pour tablette et PC moyen */
+        @media (max-width: 1199px) and (min-width: 768px) {
+          .responsive-posts-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+        }
+
+        /* Ajustement pour petit écran / mobile */
+        @media (max-width: 767px) {
+          .responsive-posts-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
       `}</style>
     </DashboardLayout>
   );

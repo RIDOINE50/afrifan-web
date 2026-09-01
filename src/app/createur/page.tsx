@@ -47,6 +47,14 @@ function CreatorProfileContent() {
     success: "#10B981",
   };
 
+  // ✅ CORRECTION DÉFINITIVE : Si je visite mon propre profil via cette page publique, 
+  // on me redirige immédiatement vers mon vrai tableau de bord éditable (/profile).
+  useEffect(() => {
+    if (user && creatorId && user.id === creatorId) {
+      router.replace("/profile");
+    }
+  }, [user, creatorId, router]);
+
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -232,7 +240,7 @@ function CreatorProfileContent() {
           <div style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}>
             <div style={{ position: "relative", flexShrink: 0 }}>
               <div 
-                onClick={hasActiveStories ? () => router.push(`/stories/${creatorId}`) : undefined}
+                onClick={hasActiveStories ? () => router.push(`/stories/view?creatorId=${creatorId}`) : undefined}
                 style={{ 
                   padding: hasActiveStories ? "3px" : "0", 
                   borderRadius: "50%", 
@@ -388,7 +396,6 @@ function CreatorProfileContent() {
         )}
       </div>
 
-      {/* ✅ Correction : vérification que creatorId existe avant d'afficher TipDialog */}
       {showTipModal && creatorId && (
         <TipDialog 
           creatorId={creatorId} 

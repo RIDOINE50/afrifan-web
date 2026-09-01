@@ -54,7 +54,6 @@ export default function MyProfileScreen() {
       }
       setUser(user);
 
-      // 1. Profil
       const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
@@ -70,7 +69,6 @@ export default function MyProfileScreen() {
       };
       setProfile(currentProfile);
 
-      // 2. Statut de la demande créateur
       if (currentProfile.role === 'creator' && currentProfile.is_verified) {
         setApplicationStatus('accepted');
       } else {
@@ -85,7 +83,6 @@ export default function MyProfileScreen() {
         setApplicationStatus(appData?.status || 'none');
       }
 
-      // 3. Posts et Stats
       const { data: postsData } = await supabase
         .from('posts')
         .select('id, media_url, title, created_at, likes_count, views_count, media_type')
@@ -103,7 +100,6 @@ export default function MyProfileScreen() {
       setTotalLikes(likes);
       setTotalViews(views);
 
-      // 4. Stories
       const { data: storiesData } = await supabase
         .from('stories')
         .select('id, media_url, media_type, text_content, background_color, created_at')
@@ -119,7 +115,6 @@ export default function MyProfileScreen() {
     }
   };
 
-  // Gestion de l'upload de l'avatar
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
   };
@@ -132,19 +127,16 @@ export default function MyProfileScreen() {
     try {
       const fileName = `${user.id}/avatar.jpg`;
       
-      // Upload vers Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(fileName, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
-      // Récupérer l'URL publique
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(fileName);
 
-      // Mettre à jour la table profiles
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: publicUrl })
@@ -159,20 +151,16 @@ export default function MyProfileScreen() {
       alert("Échec de la mise à jour de la photo.");
     } finally {
       setIsUploading(false);
-      // Reset input pour permettre de réuploader le même fichier si besoin
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-    const handleCreatorAction = () => {
+  const handleCreatorAction = () => {
     if (applicationStatus === 'accepted') {
-      // ✅ Si déjà accepté, on va vers le tableau de bord créateur
       router.push("/creator/dashboard");
     } else if (applicationStatus === 'pending') {
-      // ✅ Si en attente, on informe l'utilisateur (le bouton est déjà désactivé visuellement)
       alert("Votre demande est en cours de vérification par notre équipe. Veuillez patienter.");
     } else {
-      // ✅ Si 'none' ou 'rejected', on lance le parcours d'activation depuis l'étape 1
       router.push("/creator/activate/step-1"); 
     }
   };
@@ -188,8 +176,7 @@ export default function MyProfileScreen() {
   const isCreator = profile?.is_verified && profile?.role === 'creator';
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: colors.bg, color: colors.text, fontFamily: "Arial, sans-serif" }}>
-      {/* Input fichier caché pour l'upload */}
+    <div className="profile-container">
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -198,13 +185,13 @@ export default function MyProfileScreen() {
         onChange={handleFileChange} 
       />
 
-      <div style={{ maxWidth: "800px", margin: "0 auto", padding: "20px" }}>
+      <div className="profile-content">
         
         {/* Header avec Paramètres */}
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px" }}>
           <button 
             onClick={() => router.push("/settings")}
-            style={{ background: "none", border: "none", color: colors.text, cursor: "pointer", padding: "8px" }}
+            style={{ background: "none", border: "none", color: colors.text, cursor: "pointer", padding: "8px", fontSize: "24px" }}
           >
             ⚙️
           </button>
@@ -213,7 +200,6 @@ export default function MyProfileScreen() {
         {/* Section Profil */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "30px" }}>
           <div style={{ position: "relative", cursor: "pointer" }} onClick={handleAvatarClick}>
-            {/* Bordure dégradée */}
             <div style={{
               width: "126px", height: "126px", borderRadius: "50%",
               background: `linear-gradient(135deg, ${colors.primary}, ${colors.pink})`,
@@ -231,7 +217,6 @@ export default function MyProfileScreen() {
               </div>
             </div>
             
-            {/* Icône Appareil Photo */}
             <div style={{
               position: "absolute", bottom: "5px", right: "5px",
               width: "36px", height: "36px", borderRadius: "50%",
@@ -265,7 +250,6 @@ export default function MyProfileScreen() {
             @{profile?.username || 'username'}
           </p>
 
-          {/* Boutons d'action */}
           <div style={{ display: "flex", gap: "12px", width: "100%", maxWidth: "400px" }}>
             <button
               onClick={handleCreatorAction}
@@ -286,8 +270,9 @@ export default function MyProfileScreen() {
                applicationStatus === 'pending' ? 'En cours...' : 'Activer le compte'}
             </button>
 
+            {/* ✅ CORRECTION 1 : Redirection vers /settings/personal-info */}
             <button
-              onClick={() => router.push("/profile/edit")}
+              onClick={() => router.push("/settings/personal-info")}
               style={{
                 flex: 1, padding: "14px", border: `2px solid ${colors.primary}`, borderRadius: "12px",
                 backgroundColor: "transparent", color: colors.text, fontWeight: "bold", fontSize: "13px",
@@ -347,7 +332,6 @@ export default function MyProfileScreen() {
 
         {/* Contenu des Onglets */}
         {selectedTab === 0 ? (
-          // ONGLET STATUTS
           <div>
             {stories.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 20px" }}>
@@ -358,6 +342,8 @@ export default function MyProfileScreen() {
                 }}>📷</div>
                 <h3 style={{ color: colors.text, fontSize: "16px", fontWeight: "bold", marginBottom: "8px" }}>Partagez un moment éphémère</h3>
                 <p style={{ color: colors.textMuted, fontSize: "13px", marginBottom: "24px" }}>Votre statut disparaîtra après 24h.</p>
+                
+                {/* ✅ CORRECTION 2 : Créer un statut */}
                 <button 
                   onClick={() => router.push("/stories/create")}
                   style={{
@@ -375,7 +361,6 @@ export default function MyProfileScreen() {
                   Vos statuts récents
                 </h4>
                 <div style={{ display: "flex", gap: "12px", overflowX: "auto", paddingBottom: "12px" }}>
-                  {/* Bouton Ajouter */}
                   <div 
                     onClick={() => router.push("/stories/create")}
                     style={{ minWidth: "65px", display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", cursor: "pointer" }}
@@ -387,11 +372,11 @@ export default function MyProfileScreen() {
                     <span style={{ color: colors.text, fontSize: "11px" }}>Ajouter</span>
                   </div>
                   
-                  {/* Stories existantes */}
-                  {stories.map((story: any) => (
+                  {stories.map((story: any, index: number) => (
                     <div 
                       key={story.id} 
-                      onClick={() => router.push(`/stories/view?initialIndex=${stories.indexOf(story)}`)}
+                      /* ✅ CORRECTION 3 : Voir un statut avec creatorId et storyId */
+                      onClick={() => router.push(`/stories/view?creatorId=${user.id}&storyId=${story.id}`)}
                       style={{ minWidth: "65px", display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", cursor: "pointer" }}
                     >
                       <div style={{
@@ -416,7 +401,6 @@ export default function MyProfileScreen() {
             )}
           </div>
         ) : (
-          // ONGLET POSTS
           <div>
             {posts.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 20px" }}>
@@ -437,6 +421,7 @@ export default function MyProfileScreen() {
                 {posts.map((post: any) => (
                   <div 
                     key={post.id}
+                    /* ✅ CORRECTION 4 : Voir un post */
                     onClick={() => router.push(`/post/${post.id}`)}
                     style={{ 
                       aspectRatio: "3/4", borderRadius: "8px", overflow: "hidden", 
@@ -453,17 +438,14 @@ export default function MyProfileScreen() {
                       <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: colors.textMuted }}>🖼️</div>
                     )}
                     
-                    {/* Overlay sombre */}
                     <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.2)" }} />
                     
-                    {/* Icône Vidéo */}
                     {post.media_type === 'video' && (
                       <div style={{ position: "absolute", top: "6px", right: "6px", color: "white", fontSize: "20px" }}>
                         ▶️
                       </div>
                     )}
                     
-                    {/* Stats en bas */}
                     <div style={{
                       position: "absolute", bottom: 0, left: 0, right: 0, padding: "6px",
                       background: "linear-gradient(transparent, rgba(0,0,0,0.8))",
@@ -478,13 +460,90 @@ export default function MyProfileScreen() {
             )}
           </div>
         )}
-
       </div>
+
+      {/* BARRE DE NAVIGATION MOBILE (Invisible sur PC) */}
+      <nav className="mobile-bottom-nav">
+        <button onClick={() => router.push("/abonnements")} className="nav-item">
+          <span>⭐</span>
+          <span>Abonnements</span>
+        </button>
+        <button onClick={() => router.push("/suivis")} className="nav-item">
+          <span>👥</span>
+          <span>Suivis</span>
+        </button>
+        <button onClick={() => router.push("/live")} className="nav-item">
+          <span>📡</span>
+          <span>Live</span>
+        </button>
+        <button onClick={() => router.push("/settings")} className="nav-item">
+          <span>⚙️</span>
+          <span>Paramètres</span>
+        </button>
+      </nav>
 
       <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+
+        .profile-container {
+          min-height: 100vh;
+          background-color: ${colors.bg};
+          color: ${colors.text};
+          font-family: Arial, sans-serif;
+          padding-bottom: 80px; 
+        }
+
+        .profile-content {
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+
+        .mobile-bottom-nav {
+          display: flex;
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background-color: ${colors.bg};
+          border-top: 1px solid ${colors.border};
+          padding: 8px 0;
+          z-index: 1000;
+          justify-content: space-around;
+          align-items: center;
+        }
+
+        .nav-item {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+          background: none;
+          border: none;
+          color: ${colors.textMuted};
+          font-size: 11px;
+          cursor: pointer;
+          transition: color 0.2s;
+        }
+
+        .nav-item:hover, .nav-item:active {
+          color: ${colors.primary};
+        }
+
+        .nav-item span:first-child {
+          font-size: 22px;
+        }
+
+        @media (min-width: 768px) {
+          .mobile-bottom-nav {
+            display: none !important;
+          }
+          .profile-container {
+            padding-bottom: 0;
+          }
         }
       `}</style>
     </div>
