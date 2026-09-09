@@ -5,6 +5,9 @@ import "./globals.css";
 // ✅ 1. Import du composant modal d'appel entrant
 import IncomingCallModal from "@/components/IncomingCallModal";
 
+// ✅ 2. Import du Provider Chakra UI qu'on vient de créer
+import Providers from "@/components/Providers";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -28,10 +31,14 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        {children}
         
-        {/* ✅ 2. Le modal est chargé globalement, prêt à apparaître quand un appel arrive */}
-        <IncomingCallModal />
+        {/* ✅ 3. On enveloppe TOUT avec le Providers pour que Chakra UI fonctionne */}
+        <Providers>
+          {children}
+          
+          {/* Le modal est chargé globalement, prêt à apparaître quand un appel arrive */}
+          <IncomingCallModal />
+        </Providers>
         
       </body>
     </html>

@@ -11,15 +11,21 @@ const PAYMENT_METHODS = [
   { id: 'wave', name: 'Wave', color: '#00BFFF', icon: '🌊' },
 ];
 
-export default function SubscriptionPaymentPage() {
+export default function PaymentPage() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
   
-  const creatorId = params.creatorId as string;
+  // ✅ Détection du type de paiement (produit ou abonnement)
+  const paymentType = searchParams.get('type') || 'subscription'; 
+  
+  // ✅ Récupération des paramètres (compatibles avec les deux flux)
+  const productId = searchParams.get('productId');
+  const productName = searchParams.get('productName') || 'Produit numérique';
   const tierType = searchParams.get('tier') || 'premium';
   const price = parseFloat(searchParams.get('price') || '0');
-  const creatorName = searchParams.get('name') || 'Ce créateur';
+  const creatorId = searchParams.get('creatorId') || (params.creatorId as string);
+  const creatorName = searchParams.get('creatorName') || 'Ce créateur';
 
   const [user, setUser] = useState<any>(null);
   const [selectedMethod, setSelectedMethod] = useState<string>("");
@@ -58,27 +64,42 @@ export default function SubscriptionPaymentPage() {
     setError("");
 
     try {
-      // 1. Simuler un délai de traitement (comme dans Flutter)
+      // 1. Simuler un délai de traitement (remplacer plus tard par l'API de paiement réelle)
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // 2. Calcul des dates (maintenant + 30 jours)
-      const startDate = new Date().toISOString();
-      const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      // ✅ 2. Insertion dans Supabase selon le type de paiement
+      if (paymentType === 'product' && productId) {
+        // --- CAS D'UN ACHAT DE PRODUIT ---
+        const { error: dbError } = await supabase.from('product_purchases').insert({
+          product_id: productId,
+          buyer_id: user.id,
+          creator_id: creatorId,
+          amount_paid: price,
+          payment_status: 'completed',
+          purchase_date: new Date().toISOString(),
+        });
 
-      // 3. Insertion dans Supabase (EXACTEMENT comme le code Flutter)
-      const { error: dbError } = await supabase.from('subscriptions').insert({
-        fan_id: user.id,
-        creator_id: creatorId,
-        tier_type: tierType,
-        amount_paid: price,
-        start_date: startDate,
-        end_date: endDate,
-        status: 'active',
-      });
+        if (dbError) throw dbError;
 
-      if (dbError) throw dbError;
+      } else {
+        // --- CAS D'UN ABONNEMENT ---
+        const startDate = new Date().toISOString();
+        const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-      // 4. Succès
+        const { error: dbError } = await supabase.from('subscriptions').insert({
+          fan_id: user.id,
+          creator_id: creatorId,
+          tier_type: tierType,
+          amount_paid: price,
+          start_date: startDate,
+          end_date: endDate,
+          status: 'active',
+        });
+
+        if (dbError) throw dbError;
+      }
+
+      // 3. Succès
       setShowSuccess(true);
       
     } catch (err: any) {
@@ -91,10 +112,17 @@ export default function SubscriptionPaymentPage() {
 
   const handleSuccessClose = () => {
     setShowSuccess(false);
-    router.push(`/createur?id=${creatorId}`);
+    // ✅ Redirection adaptée selon le type d'achat
+    if (paymentType === 'product' && productId) {
+      router.push(`/product/${productId}`); // Retourne au produit pour le télécharger
+    } else {
+      router.push(`/createur?id=${creatorId}`); // Retourne au profil du créateur
+    }
   };
 
   if (!user) return null; // Redirection en cours
+
+  const isProduct = paymentType === 'product';
 
   return (
     <div style={{ 
@@ -105,7 +133,6 @@ export default function SubscriptionPaymentPage() {
       justifyContent: "center",
       padding: "16px"
     }}>
-      {/* Conteneur principal (Responsive : plein écran sur mobile, carte centrée sur PC) */}
       <div style={{
         width: "100%",
         maxWidth: "480px",
@@ -131,41 +158,42 @@ export default function SubscriptionPaymentPage() {
             ←
           </button>
           <h1 style={{ color: "#FFF", fontSize: "18px", fontWeight: "bold", margin: 0 }}>
-            Finaliser l'abonnement
+            {isProduct ? "Finaliser l'achat" : "Finaliser l'abonnement"}
           </h1>
         </div>
 
         <div style={{ padding: "24px 20px", maxHeight: "80vh", overflowY: "auto" }}>
           
-          {/* 📋 RÉCAPITULATIF DE L'ABONNEMENT */}
+          {/* 📋 RÉCAPITULATIF */}
           <div style={{
             width: "100%",
             padding: "20px",
             borderRadius: "16px",
-            background: isPro 
+            background: (!isProduct && isPro) 
               ? `linear-gradient(135deg, ${brandViolet}, ${brandVioletDark})` 
               : "linear-gradient(135deg, #1A1A1A, #1A1A1A)",
-            border: `2px solid ${isPro ? brandViolet : "#333"}`,
+            border: `2px solid ${(!isProduct && isPro) ? brandViolet : "#333"}`,
             marginBottom: "32px",
             boxSizing: "border-box"
           }}>
             <div style={{ 
-              color: isPro ? "#FFF" : brandViolet, 
+              color: (!isProduct && isPro) ? "#FFF" : brandViolet, 
               fontSize: "12px", 
               fontWeight: "bold",
-              marginBottom: "8px"
+              marginBottom: "8px",
+              textTransform: "uppercase"
             }}>
-              {tierType.toUpperCase()}
+              {isProduct ? "Produit Numérique" : tierType}
             </div>
             <div style={{ color: "#FFF", fontSize: "18px", fontWeight: "bold", marginBottom: "16px" }}>
-              Abonnement à {creatorName}
+              {isProduct ? productName : `Abonnement à ${creatorName}`}
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
               <span style={{ color: "#FFF", fontSize: "32px", fontWeight: "bold" }}>
                 {price.toFixed(0)}
               </span>
               <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "14px" }}>FCFA</span>
-              <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px" }}>/mois</span>
+              {!isProduct && <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px" }}>/mois</span>}
             </div>
           </div>
 
@@ -290,7 +318,7 @@ export default function SubscriptionPaymentPage() {
                 Traitement...
               </>
             ) : (
-              "Confirmer le paiement"
+              `Confirmer le paiement de ${price.toFixed(0)} FCFA`
             )}
           </button>
 
@@ -317,7 +345,9 @@ export default function SubscriptionPaymentPage() {
               Paiement réussi !
             </h2>
             <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "15px", lineHeight: 1.5, marginBottom: "24px" }}>
-              Vous êtes maintenant abonné. Profitez du contenu exclusif de {creatorName} !
+              {isProduct 
+                ? "Votre achat est confirmé. Vous pouvez maintenant accéder à votre contenu." 
+                : `Vous êtes maintenant abonné. Profitez du contenu exclusif de ${creatorName} !`}
             </p>
             <button
               onClick={handleSuccessClose}

@@ -10,6 +10,8 @@ import SubscribersTab from "./SubscribersTab";
 import StatsTab from "./StatsTab";
 import SettingsTab from "./SettingsTab";
 import TipsTab from "./TipsTab";
+import CreatorShopTab from "./CreatorShopTab"; // ✅ NOUVEAU
+import SalesTab from "./SalesTab";             // ✅ NOUVEAU
 
 export default function CreatorDashboard() {
   const router = useRouter();
@@ -42,7 +44,8 @@ export default function CreatorDashboard() {
     const init = async () => {
       const params = new URLSearchParams(window.location.search);
       const tabFromUrl = params.get('tab');
-      const validTabs = ['overview', 'wallet', 'subscribers', 'stats', 'tips', 'settings'];
+      // ✅ Ajout de 'shop' et 'sales' dans les onglets valides
+      const validTabs = ['overview', 'wallet', 'subscribers', 'stats', 'tips', 'shop', 'sales', 'settings'];
       if (tabFromUrl && validTabs.includes(tabFromUrl)) {
         setActiveTab(tabFromUrl);
       }
@@ -83,14 +86,14 @@ export default function CreatorDashboard() {
       const { data: posts } = await supabase
         .from('posts')
         .select('views_count')
-        .eq('user_id', userId); // ou 'creator_id' selon ta table posts
+        .eq('user_id', userId);
       
       const totalViews = posts?.reduce((acc: number, curr: any) => acc + (curr.views_count || 0), 0) || 0;
 
       // 4. ✅ CALCUL DU SOLDE (Exactement comme le Flutter)
       let balance = 0;
 
-      // 4a. Essayer de lire la table 'wallets' avec 'creator_id' (Correction majeure ici !)
+      // 4a. Essayer de lire la table 'wallets' avec 'creator_id'
       const { data: walletData, error: walletError } = await supabase
         .from('wallets')
         .select('balance')
@@ -101,10 +104,10 @@ export default function CreatorDashboard() {
         balance = walletData.balance;
         console.log("✅ Solde trouvé dans la table 'wallets':", balance);
       } else {
-        // 4b. Calcul de secours si la table wallets est vide (Réplique exacte du DashboardService)
+        // 4b. Calcul de secours si la table wallets est vide
         console.log("⚠️ Table 'wallets' vide. Calcul de secours depuis les transactions...");
         
-        // Revenus des abonnements (match Flutter: active, upgraded, expired)
+        // Revenus des abonnements
         const { data: subs } = await supabase
           .from('subscriptions')
           .select('amount')
@@ -113,7 +116,7 @@ export default function CreatorDashboard() {
         
         const subsIncome = subs?.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0) || 0;
 
-        // Revenus des pourboires (match Flutter: status = 'completed')
+        // Revenus des pourboires
         const { data: tips } = await supabase
           .from('tips')
           .select('amount')
@@ -122,7 +125,7 @@ export default function CreatorDashboard() {
         
         const tipsIncome = tips?.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0) || 0;
 
-        // Retraits (on soustrait tout ce qui a été demandé ou validé)
+        // Retraits
         const { data: withdrawals } = await supabase
           .from('withdrawals')
           .select('amount')
@@ -200,6 +203,9 @@ export default function CreatorDashboard() {
           <SidebarItem icon="👥" label="Abonnés" isActive={activeTab === "subscribers"} onClick={() => handleTabChange("subscribers")} />
           <SidebarItem icon="📈" label="Statistiques" isActive={activeTab === "stats"} onClick={() => handleTabChange("stats")} />
           <SidebarItem icon="☕" label="Pourboires" isActive={activeTab === "tips"} onClick={() => handleTabChange("tips")} />
+          {/* ✅ NOUVEAUX ONGLETS DANS LA SIDEBAR */}
+          <SidebarItem icon="🛍️" label="Boutique" isActive={activeTab === "shop"} onClick={() => handleTabChange("shop")} />
+          <SidebarItem icon="💳" label="Ventes" isActive={activeTab === "sales"} onClick={() => handleTabChange("sales")} />
           <SidebarItem icon="⚙️" label="Paramètres" isActive={activeTab === "settings"} onClick={() => handleTabChange("settings")} />
         </nav>
 
@@ -259,6 +265,11 @@ export default function CreatorDashboard() {
           {activeTab === "subscribers" && <SubscribersTab />}
           {activeTab === "stats" && <StatsTab />}
           {activeTab === "tips" && <TipsTab />}
+          
+          {/* ✅ RENDU DES NOUVEAUX ONGLETS */}
+          {activeTab === "shop" && <CreatorShopTab />}
+          {activeTab === "sales" && <SalesTab />}
+          
           {activeTab === "settings" && <SettingsTab />}
 
         </div>
@@ -335,6 +346,8 @@ function getTabName(tab: string): string {
     subscribers: "Abonnés", 
     stats: "Statistiques", 
     tips: "Pourboires", 
+    shop: "Boutique",      // ✅ AJOUTÉ
+    sales: "Ventes",       // ✅ AJOUTÉ
     settings: "Paramètres" 
   };
   return names[tab] || "Tableau de bord";

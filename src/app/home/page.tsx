@@ -1,11 +1,82 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { downloadForOffline } from "@/lib/offlineManager";
 import DashboardLayout from "@/components/DashboardLayout";
+import { useToast } from "@chakra-ui/react";
+import { FaPlay, FaPause } from "react-icons/fa";
 
-// ✅ CORRECTION : Formatage des nombres avec virgule (style français)
+import {
+  Box,
+  Flex,
+  Text,
+  Image,
+  Button,
+  Input,
+  Textarea,
+  Select,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  ModalFooter,
+  VStack,
+  HStack,
+  Avatar,
+  Spinner,
+  Center,
+  useDisclosure,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  Slider,
+  SliderTrack,
+  SliderFilledTrack,
+  SliderThumb,
+} from "@chakra-ui/react";
+
+interface CreatorProfile {
+  id: string;
+  username: string;
+  full_name: string;
+  avatar_url: string | null;
+  is_verified: boolean;
+  followers_count?: number;
+}
+
+interface Post {
+  id: string;
+  user_id: string;
+  media_url: string;
+  media_type: string;
+  content: string;
+  background_color?: string;
+  likes_count: number;
+  comments_count: number;
+  shares_count: number;
+  created_at: string;
+  profiles: CreatorProfile;
+}
+
+interface CommentData {
+  id: string;
+  post_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  profiles: { username: string; avatar_url: string | null; is_verified: boolean };
+}
+
+interface HashtagCount {
+  count: number;
+  image: string | null;
+}
+
 function formatCount(num: number | null | undefined): string {
   if (!num) return "0";
   if (num >= 1000000) return (num / 1000000).toFixed(1).replace('.', ',') + "M";
@@ -13,130 +84,391 @@ function formatCount(num: number | null | undefined): string {
   return num.toString();
 }
 
+function timeAgo(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}j`;
+}
+
+const formatTime = (seconds: number) => {
+  if (!seconds || isNaN(seconds)) return "0:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+const FAKE_LOCATIONS = [
+  "Cotonou, Bénin", "Lomé, Togo", "Abidjan, Côte d'Ivoire", "Dakar, Sénégal",
+  "Yaoundé, Cameroun", "Accra, Ghana", "Lagos, Nigeria", "Kinshasa, RDC"
+];
+
+const HeartIcon = ({ filled = false }: { filled?: boolean }) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill={filled ? "#EC4899" : "none"} stroke={filled ? "#EC4899" : "white"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+  </svg>
+);
+
+const CommentIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+  </svg>
+);
+
+const ShareIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+    <polyline points="16 6 12 2 8 6" />
+    <line x1="12" y1="2" x2="12" y2="15" />
+  </svg>
+);
+
+const MoneyIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="6" width="20" height="12" rx="2" />
+    <circle cx="12" cy="12" r="2" />
+    <path d="M6 12h.01M18 12h.01" />
+  </svg>
+);
+
+const MoreIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="5" r="1.5" fill="white" />
+    <circle cx="12" cy="12" r="1.5" fill="white" />
+    <circle cx="12" cy="19" r="1.5" fill="white" />
+  </svg>
+);
+
+const LockIcon = () => (
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
+
+const VolumeOffIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+    <line x1="23" y1="9" x2="17" y2="15" />
+    <line x1="17" y1="9" x2="23" y2="15" />
+  </svg>
+);
+
+const VolumeOnIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+  </svg>
+);
+
+const CrownIcon = () => (
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 20h20M4 17l2-10 4 5 2-7 2 7 4-5 2 10" />
+  </svg>
+);
+
+const FlagIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+    <line x1="4" y1="22" x2="4" y2="15" />
+  </svg>
+);
+
+function TipDialog({ isOpen, onClose, creatorId, creatorName, onSuccess }: { isOpen: boolean; onClose: () => void; creatorId: string; creatorName: string; onSuccess?: () => void }) {
+  const toast = useToast();
+  const [amount, setAmount] = useState<string>("");
+  const [phone, setPhone] = useState<string>("");
+  const [message, setMessage] = useState<string>("");
+  const [paymentMethod, setPaymentMethod] = useState<string>("Orange Money");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string>("");
+
+  const quickAmounts = [500, 1000, 2000, 5000];
+  const paymentMethods = ["Orange Money", "MTN Mobile Money", "Moov Money"];
+
+  const handleSendTip = async () => {
+    const numAmount = parseFloat(amount);
+    if (!numAmount || numAmount <= 0) { setError("Montant invalide"); return; }
+    if (phone.trim().length < 8) { setError("Numéro invalide"); return; }
+
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: "Connexion requise", status: "warning" });
+        return;
+      }
+
+      const { error: dbError } = await supabase.from('tips').insert({
+        fan_id: user.id, creator_id: creatorId, amount: numAmount,
+        payment_method: paymentMethod, fan_phone_number: phone.trim(),
+        message: message.trim() || null, status: 'completed',
+      });
+      if (dbError) throw dbError;
+
+      onSuccess?.();
+      onClose();
+      toast({ title: `Pourboire de ${numAmount} FCFA envoyé !`, status: "success", duration: 3000 });
+    } catch (err: any) {
+      setError("Échec de l'envoi");
+      toast({ title: "Échec de l'envoi", status: "error" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} isCentered>
+      <ModalOverlay bg="blackAlpha.700" />
+      <ModalContent bg="#1A1A1A" color="white" maxW="400px" borderRadius="16px">
+        <ModalHeader>Soutenir {creatorName}</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody>
+          <VStack spacing="4">
+            <Input type="number" value={amount} onChange={(e) => { setAmount(e.target.value); setError(""); }} placeholder="Montant FCFA" bg="#0A0A0A" border="1px solid #2A2A2A" _focus={{ borderColor: "#8B5CF6" }} />
+            <HStack spacing="2" w="100%" flexWrap="wrap">
+              {quickAmounts.map(val => (
+                <Button key={val} size="sm" onClick={() => setAmount(val.toString())} bg={amount === val.toString() ? "#8B5CF6" : "#0A0A0A"} border="1px solid #2A2A2A" _hover={{ bg: "#8B5CF6" }}>{val}</Button>
+              ))}
+            </HStack>
+            <Select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} bg="#0A0A0A" border="1px solid #2A2A2A">
+              {paymentMethods.map(m => <option key={m} value={m}>{m}</option>)}
+            </Select>
+            <Input type="tel" value={phone} onChange={(e) => { setPhone(e.target.value); setError(""); }} placeholder="Numéro Mobile Money" bg="#0A0A0A" border="1px solid #2A2A2A" />
+            <Textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Message (optionnel)" bg="#0A0A0A" border="1px solid #2A2A2A" />
+            {error && <Text color="red.400" fontSize="sm" w="100%" textAlign="center">{error}</Text>}
+          </VStack>
+        </ModalBody>
+        <ModalFooter>
+          <VStack w="100%" spacing="2">
+            <Button w="100%" bg="#8B5CF6" _hover={{ bg: "#7C3AED" }} onClick={handleSendTip} isLoading={isLoading}>
+              Envoyer {amount || 0} FCFA
+            </Button>
+            <Button w="100%" variant="ghost" onClick={onClose}>Annuler</Button>
+          </VStack>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  );
+}
+
+function ReportModal({ isOpen, onClose, postId }: { isOpen: boolean; onClose: () => void; postId: string }) {
+  const toast = useToast();
+  const [selectedReason, setSelectedReason] = useState("");
+
+  const handleReport = async () => {
+    if (!selectedReason) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      await supabase.from('reports').insert({ post_id: postId, reporter_id: session.user.id, reason: selectedReason });
+      toast({ title: "✅ Signalement envoyé", status: "success", duration: 3000 });
+      onClose();
+    } catch (error) {
+      console.error("Erreur signalement:", error);
+      toast({ title: "Erreur lors du signalement", status: "error" });
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} isCentered>
+      <ModalOverlay bg="blackAlpha.700" />
+      <ModalContent bg="#1A1A1A" color="white" maxW="400px" borderRadius="16px">
+        <ModalHeader>Signaler ce post</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody>
+          <VStack spacing="2" align="stretch">
+            {["Spam", "Violence", "Harcèlement", "Droits d'auteur", "Autre"].map(reason => (
+              <Button key={reason} justifyContent="flex-start" bg={selectedReason === reason ? "#8B5CF6" : "#0A0A0A"} border="1px solid #2A2A2A" _hover={{ bg: "#8B5CF6" }} onClick={() => setSelectedReason(reason)}>
+                {reason}
+              </Button>
+            ))}
+          </VStack>
+        </ModalBody>
+        <ModalFooter>
+          <VStack w="100%" spacing="2">
+            <Button w="100%" bg="#8B5CF6" _hover={{ bg: "#7C3AED" }} onClick={handleReport} isDisabled={!selectedReason}>Envoyer</Button>
+            <Button w="100%" variant="ghost" onClick={onClose}>Annuler</Button>
+          </VStack>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  );
+}
+
 export default function HomePage() {
   const router = useRouter();
-  
+  const toast = useToast();
+
   const [user, setUser] = useState<any>(null);
-  const [posts, setPosts] = useState<any[]>([]);
-  const [filteredPosts, setFilteredPosts] = useState<any[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
   const [isMuted, setIsMuted] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  
-  // Comments State
+  const [stories, setStories] = useState<any[]>([]);
+  const [recommendedCreators, setRecommendedCreators] = useState<CreatorProfile[]>([]);
+  const [trendingHashtags, setTrendingHashtags] = useState<any[]>([]);
+
   const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<CommentData[]>([]);
   const [newComment, setNewComment] = useState("");
-  const [replyTo, setReplyTo] = useState<any>(null);
   const [currentPostId, setCurrentPostId] = useState<string>("");
-  
-  // Interaction State
-  const [heartAnimation, setHeartAnimation] = useState(false);
+
+  const [heartAnimation, setHeartAnimation] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"foryou" | "following">("foryou");
-  const [showReportModal, setShowReportModal] = useState(false);
-  
+
+  const { isOpen: isTipOpen, onOpen: onTipOpen, onClose: onTipClose } = useDisclosure();
+  const [tipCreator, setTipCreator] = useState({ id: "", name: "" });
+
+  const { isOpen: isReportOpen, onOpen: onReportOpen, onClose: onReportClose } = useDisclosure();
+  const [reportPostId, setReportPostId] = useState<string>("");
+
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
   const [followedCreatorIds, setFollowedCreatorIds] = useState<Set<string>>(new Set());
   const [subscribedCreatorIds, setSubscribedCreatorIds] = useState<Set<string>>(new Set());
-  
-  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
+
+  const [videoStates, setVideoStates] = useState<Record<string, { isPlaying: boolean; currentTime: number; duration: number }>>({});
+
+  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const lastTapRef = useRef<number>(0);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  const pageRef = useRef(1);
 
-  // ✅ 1. INITIALISATION & CHARGEMENT
+  const updateVideoState = (postId: string, updates: Partial<{ isPlaying: boolean; currentTime: number; duration: number }>) => {
+    setVideoStates(prev => ({
+      ...prev,
+      [postId]: { ...prev[postId], ...updates }
+    }));
+  };
+
+  // Intercepter les flèches du clavier
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+      if (!containerRef.current) return;
+      const containerHeight = containerRef.current.clientHeight;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        containerRef.current.scrollBy({ top: containerHeight, behavior: 'smooth' });
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        containerRef.current.scrollBy({ top: -containerHeight, behavior: 'smooth' });
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalKeyDown, { capture: true });
+    return () => {
+      document.removeEventListener('keydown', handleGlobalKeyDown, { capture: true });
+    };
+  }, []);
+
+  // Interception de la molette sur les contrôles
+  useEffect(() => {
+    const controls = document.querySelectorAll('.video-controls-zone');
+    const handlers: Array<() => void> = [];
+
+    controls.forEach((el) => {
+      const handleWheel = (e: WheelEvent) => {
+        if (containerRef.current) {
+          containerRef.current.scrollTop += e.deltaY;
+        }
+        e.stopPropagation();
+      };
+      // ✅ Cast explicite pour TypeScript
+      el.addEventListener('wheel', handleWheel as EventListener, { passive: false, capture: true });
+      handlers.push(() => el.removeEventListener('wheel', handleWheel as EventListener, { capture: true }));
+    });
+
+    return () => {
+      handlers.forEach(cleanup => cleanup());
+    };
+  }, [filteredPosts]);
+
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push("/login");
-        return;
-      }
+      if (!session) { router.push("/login"); return; }
       setUser(session.user);
-      await fetchData(session.user.id, true);
+      await Promise.all([fetchData(session.user.id), fetchStories(), fetchRecommendedCreators(), fetchTrendingHashtags()]);
     };
     init();
   }, [router]);
 
-  const fetchData = async (userId: string, isInitial = false) => {
-    if (isInitial) setIsLoading(true);
-    else setIsLoadingMore(true);
+  const fetchStories = async () => {
+    const { data } = await supabase.from('stories').select(`id, creator_id, media_url, media_type, profiles:user_id (id, username, avatar_url, is_verified)`).order('created_at', { ascending: false }).limit(10);
+    if (data) setStories(data);
+  };
 
+  const fetchRecommendedCreators = async () => {
+    const { data } = await supabase.from('profiles').select('id, username, full_name, avatar_url, is_verified, followers_count').eq('role', 'creator').order('followers_count', { ascending: false }).limit(5);
+    if (data) setRecommendedCreators(data);
+  };
+
+  // ✅ Correction du typage du paramètre 'tag'
+  const fetchTrendingHashtags = async () => {
+    const { data } = await supabase.from('posts').select('content, media_url').order('created_at', { ascending: false }).limit(30);
+    if (!data) return;
+    const hashtagCount: Record<string, HashtagCount> = {};
+    data.forEach((post: any) => {
+      if (post.content) {
+        const hashtags = post.content.match(/#\w+/g) || [];
+        hashtags.forEach((tag: string) => {
+          const cleanTag = tag.toLowerCase();
+          if (!hashtagCount[cleanTag]) hashtagCount[cleanTag] = { count: 0, image: post.media_url };
+          hashtagCount[cleanTag].count++;
+        });
+      }
+    });
+    // ✅ Typage explicite pour le map
+    const trending = Object.entries(hashtagCount)
+      .map(([tag, data]: [string, HashtagCount]) => ({
+        tag: tag.replace('#', ''),
+        count: data.count,
+        image: data.image
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+    setTrendingHashtags(trending);
+  };
+
+  const fetchData = async (userId: string) => {
+    setIsLoading(true);
     try {
-      if (isInitial) {
-        const { data: followsData } = await supabase.from('follows').select('following_id').eq('follower_id', userId);
-        setFollowedCreatorIds(new Set(followsData?.map((f: any) => f.following_id) || []));
+      const { data: followsData } = await supabase.from('follows').select('following_id').eq('follower_id', userId);
+      setFollowedCreatorIds(new Set(followsData?.map((f: any) => f.following_id) || []));
+      const { data: subsData } = await supabase.from('subscriptions').select('creator_id').eq('fan_id', userId).eq('status', 'active');
+      setSubscribedCreatorIds(new Set(subsData?.map((s: any) => s.creator_id) || []));
 
-        const { data: subsData } = await supabase.from('subscriptions').select('creator_id').eq('fan_id', userId).eq('status', 'active');
-        setSubscribedCreatorIds(new Set(subsData?.map((s: any) => s.creator_id) || []));
-      }
-
-      const limit = 10;
-      const from = (pageRef.current - 1) * limit;
-      const to = from + limit - 1;
-
-      const { data: postsData } = await supabase
-        .from('posts')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .range(from, to);
-
-      if (!postsData || postsData.length === 0) {
-        if (isInitial) { setPosts([]); setFilteredPosts([]); }
-        return;
-      }
+      const { data: postsData } = await supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(20);
+      if (!postsData || postsData.length === 0) { setPosts([]); setFilteredPosts([]); setIsLoading(false); return; }
 
       const userIds = [...new Set(postsData.map((p: any) => p.user_id))];
       const { data: profilesData } = await supabase.from('profiles').select('id, username, full_name, avatar_url, is_verified').in('id', userIds);
-      const profilesMap: Record<string, any> = {};
+      const profilesMap: Record<string, CreatorProfile> = {};
       profilesData?.forEach((p: any) => { profilesMap[p.id] = p; });
 
-      const postIds = postsData.map((p: any) => p.id);
-      const { data: likesData } = await supabase.from('post_likes').select('post_id').in('post_id', postIds).eq('user_id', userId);
-      
-      if (isInitial) {
-        setLikedPostIds(new Set(likesData?.map((l: any) => l.post_id) || []));
-      } else {
-        setLikedPostIds(prev => {
-          const next = new Set(prev);
-          likesData?.forEach((l: any) => next.add(l.post_id));
-          return next;
-        });
-      }
+      const { data: likesData } = await supabase.from('post_likes').select('post_id').in('post_id', postsData.map(p => p.id)).eq('user_id', userId);
+      setLikedPostIds(new Set(likesData?.map((l: any) => l.post_id) || []));
 
-      const mergedPosts = postsData.map((post: any) => ({
-        ...post,
-        profiles: profilesMap[post.user_id] || { username: 'Utilisateur', full_name: 'Utilisateur', avatar_url: null, is_verified: false },
-      }));
-
-      if (isInitial) {
-        setPosts(mergedPosts);
-        setHasLoadedOnce(true);
-      } else {
-        setPosts(prev => [...prev, ...mergedPosts]);
-      }
-      
-    } catch (error) {
-      console.error("❌ Erreur chargement:", error);
-    } finally {
-      setIsLoading(false);
-      setIsLoadingMore(false);
-    }
+      const mergedPosts = postsData.map(post => ({ ...post, profiles: profilesMap[post.user_id] || { id: post.user_id, username: 'User', full_name: 'User', avatar_url: null, is_verified: false } }));
+      setPosts(mergedPosts);
+      setFilteredPosts(activeTab === "following" ? mergedPosts.filter(post => followedCreatorIds.has(post.user_id)) : mergedPosts);
+    } catch (error) { console.error(" Erreur:", error); }
+    finally { setIsLoading(false); }
   };
 
-  // ✅ 2. FILTRAGE "POUR TOI" vs "ABONNEMENTS"
   useEffect(() => {
-    if (activeTab === "following") {
-      const followed = posts.filter(post => followedCreatorIds.has(post.user_id));
-      setFilteredPosts(followed);
-    } else {
-      setFilteredPosts(posts);
-    }
-    pageRef.current = 1;
+    setFilteredPosts(activeTab === "following" ? posts.filter(post => followedCreatorIds.has(post.user_id)) : posts);
   }, [activeTab, posts, followedCreatorIds]);
 
-  // ✅ 3. AUTO-PLAY & PAUSE AU SCROLL (Intersection Observer)
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
@@ -149,99 +481,36 @@ export default function HomePage() {
       });
     }, { threshold: 0.6 });
 
-    videoRefs.current.forEach(video => {
+    Object.values(videoRefs.current).forEach(video => {
       if (video) observer.observe(video);
     });
 
     return () => observer.disconnect();
   }, [filteredPosts]);
 
-  // ✅ 4. INFINITE SCROLL
-  const handleScroll = useCallback(() => {
-    if (!containerRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-    if (scrollHeight - scrollTop - clientHeight < 200 && !isLoadingMore && hasLoadedOnce) {
-      pageRef.current += 1;
-      fetchData(user.id, false);
-    }
-  }, [isLoadingMore, hasLoadedOnce, user]);
-
-  // ✅ 5. GESTION DES COMMENTAIRES & RÉPONSES
-  const fetchComments = async (postId: string) => {
-    const { data: commentsData } = await supabase
-      .from('comments')
-      .select('*')
-      .eq('post_id', postId)
-      .order('created_at', { ascending: false });
-    
-    if (!commentsData) { setComments([]); return; }
-
-    const userIds = [...new Set(commentsData.map((c: any) => c.user_id))];
-    const { data: profilesData } = await supabase.from('profiles').select('id, username, full_name, avatar_url, is_verified').in('id', userIds);
-    const profilesMap: Record<string, any> = {};
-    profilesData?.forEach((p: any) => { profilesMap[p.id] = p; });
-
-    setComments(commentsData.map((c: any) => ({
-      ...c,
-      profiles: profilesMap[c.user_id] || { username: 'Utilisateur', full_name: 'Utilisateur', avatar_url: null, is_verified: false }
-    })));
-  };
-
-  const submitComment = async () => {
-    if (!newComment.trim() || !user) return;
-    
-    try {
-      await supabase.from('comments').insert({
-        post_id: currentPostId,
-        user_id: user.id,
-        user_name: user.email?.split('@')[0] || 'Utilisateur',
-        content: newComment.trim(),
-        parent_id: replyTo?.id || null,
-      });
-
-      const currentPost = posts.find(p => p.id === currentPostId);
-      if (currentPost) {
-        const newCount = (currentPost.comments_count || 0) + 1;
-        await supabase.from('posts').update({ comments_count: newCount }).eq('id', currentPostId);
-        setPosts(prev => prev.map(p => p.id === currentPostId ? { ...p, comments_count: newCount } : p));
-        setFilteredPosts(prev => prev.map(p => p.id === currentPostId ? { ...p, comments_count: newCount } : p));
-      }
-
-      setNewComment("");
-      setReplyTo(null);
-      await fetchComments(currentPostId);
-    } catch (error) {
-      console.error("❌ Erreur commentaire:", error);
-    }
-  };
-
-  // ✅ 6. INTERACTIONS (LIKE, FOLLOW, DOUBLE TAP)
-  const handleLike = async (postId: string, e?: React.MouseEvent) => {
-    e?.stopPropagation();
+  const handleLike = async (postId: string) => {
     if (!user) return;
-
     const isLiked = likedPostIds.has(postId);
-    const currentPost = posts.find(p => p.id === postId);
-    if (!currentPost) return;
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
 
-    const newCount = isLiked ? Math.max(0, (currentPost.likes_count || 0) - 1) : (currentPost.likes_count || 0) + 1;
+    const newCount = isLiked ? Math.max(0, post.likes_count - 1) : post.likes_count + 1;
+
+    setLikedPostIds(prev => { const next = new Set(prev); isLiked ? next.delete(postId) : next.add(postId); return next; });
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: newCount } : p));
 
     try {
-      if (isLiked) await supabase.from('post_likes').delete().eq('post_id', postId).eq('user_id', user.id);
-      else await supabase.from('post_likes').insert({ post_id: postId, user_id: user.id });
-
+      if (isLiked) {
+        await supabase.from('post_likes').delete().eq('post_id', postId).eq('user_id', user.id);
+      } else {
+        await supabase.from('post_likes').insert({ post_id: postId, user_id: user.id });
+      }
       await supabase.from('posts').update({ likes_count: newCount }).eq('id', postId);
-
-      setLikedPostIds(prev => {
-        const next = new Set(prev);
-        isLiked ? next.delete(postId) : next.add(postId);
-        return next;
-      });
-      
-      setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: newCount } : p));
-      setFilteredPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: newCount } : p));
     } catch (error) {
-      console.error("❌ Erreur like:", error);
+      console.error("Erreur like:", error);
+      setLikedPostIds(prev => { const next = new Set(prev); isLiked ? next.add(postId) : next.delete(postId); return next; });
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: post.likes_count } : p));
+      toast({ title: "Erreur de connexion", description: "Impossible de mettre à jour le like", status: "error" });
     }
   };
 
@@ -249,491 +518,438 @@ export default function HomePage() {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
       if (!likedPostIds.has(postId)) handleLike(postId);
-      setHeartAnimation(true);
-      setTimeout(() => setHeartAnimation(false), 800);
+      setHeartAnimation(postId);
+      setTimeout(() => setHeartAnimation(null), 800);
     }
     lastTapRef.current = now;
   };
 
-  const handleFollow = async (creatorId: string, e?: React.MouseEvent) => {
-    e?.stopPropagation();
+  const handleFollow = async (creatorId: string) => {
     if (!user) return;
     const isFollowed = followedCreatorIds.has(creatorId);
 
+    setFollowedCreatorIds(prev => { const next = new Set(prev); isFollowed ? next.delete(creatorId) : next.add(creatorId); return next; });
+
     try {
-      if (isFollowed) await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', creatorId);
-      else await supabase.from('follows').insert({ follower_id: user.id, following_id: creatorId });
-      
-      setFollowedCreatorIds(prev => {
-        const next = new Set(prev);
-        isFollowed ? next.delete(creatorId) : next.add(creatorId);
-        return next;
+      if (isFollowed) {
+        await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', creatorId);
+      } else {
+        await supabase.from('follows').insert({ follower_id: user.id, following_id: creatorId });
+      }
+    } catch (error) {
+      console.error("Erreur follow:", error);
+      setFollowedCreatorIds(prev => { const next = new Set(prev); isFollowed ? next.add(creatorId) : next.delete(creatorId); return next; });
+      toast({ title: "Erreur de connexion", status: "error" });
+    }
+  };
+
+  const fetchComments = async (postId: string) => {
+    const { data } = await supabase.from('comments').select('*').eq('post_id', postId).order('created_at', { ascending: false });
+    if (!data) { setComments([]); return; }
+    const userIds = [...new Set(data.map((c: any) => c.user_id))];
+    const { data: profilesData } = await supabase.from('profiles').select('id, username, avatar_url, is_verified').in('id', userIds);
+    const profilesMap: Record<string, any> = {};
+    profilesData?.forEach((p: any) => { profilesMap[p.id] = p; });
+    setComments(data.map(c => ({ ...c, profiles: profilesMap[c.user_id] || { username: 'User', avatar_url: null, is_verified: false } })));
+  };
+
+  const submitComment = async () => {
+    if (!newComment.trim() || !user) return;
+    try {
+      await supabase.from('comments').insert({ post_id: currentPostId, user_id: user.id, user_name: user.email?.split('@')[0], content: newComment.trim() });
+      const post = posts.find(p => p.id === currentPostId);
+      if (post) {
+        const newCount = post.comments_count + 1;
+        await supabase.from('posts').update({ comments_count: newCount }).eq('id', currentPostId);
+        setPosts(prev => prev.map(p => p.id === currentPostId ? { ...p, comments_count: newCount } : p));
+      }
+      setNewComment("");
+      fetchComments(currentPostId);
+    } catch (error) { console.error("Erreur commentaire:", error); }
+  };
+
+  const handleDownload = async (post: Post) => {
+    if (!post.media_url) return;
+    setDownloadingId(post.id);
+    try {
+      const success = await downloadForOffline(post.id, post.media_url, post);
+      toast({
+        title: success ? "✅ Sauvegardé !" : "❌ Échec",
+        description: success ? "Disponible dans 'Mes Téléchargements'" : "Vérifiez votre connexion",
+        status: success ? "success" : "error",
+        duration: 3000
       });
     } catch (error) {
-      console.error("❌ Erreur follow:", error);
+      toast({ title: "❌ Erreur", status: "error", duration: 3000 });
+    } finally {
+      setDownloadingId(null);
     }
   };
 
-  const handleShare = async (post: any) => {
-    const creatorName = post.profiles?.full_name || post.profiles?.username || 'Créateur';
-    const caption = post.content || '';
-    const url = typeof window !== 'undefined' ? window.location.href : '';
-
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `Post de ${creatorName}`, text: caption, url });
-      } catch (err) { console.log("Partage annulé"); }
-    } else {
-      try {
-        await navigator.clipboard.writeText(`${url}\n\n${caption} - par ${creatorName}`);
-        alert("Lien copié !");
-      } catch (err) { console.error("Erreur copie:", err); }
-    }
-  };
-
-  // ✅ 7. REDIRECTION PROFIL CORRIGÉE
-  const handleProfileClick = (e: React.MouseEvent, targetUserId: string) => {
-    e.stopPropagation();
-    if (user?.id === targetUserId) {
-      router.push("/profile");
-    } else {
-      router.push(`/createur?id=${targetUserId}`);
-    }
-  };
-
-  const colors = {
-    bg: "#0A0A0A", card: "#1A1A1A", border: "#2A2A2A", primary: "#8B5CF6",
-    text: "#FFFFFF", textMuted: "#9CA3AF", danger: "#EF4444", green: "#10B981",
-  };
-
-  if (!user || (isLoading && !hasLoadedOnce)) {
-    return (
-      <DashboardLayout>
-        <div style={{ height: "100dvh", backgroundColor: colors.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ width: "40px", height: "40px", border: `4px solid ${colors.border}`, borderTop: `4px solid ${colors.primary}`, borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (filteredPosts.length === 0 && hasLoadedOnce) {
-    return (
-      <DashboardLayout>
-        <div style={{ height: "100dvh", backgroundColor: colors.bg, display: "flex", alignItems: "center", justifyContent: "center", color: colors.textMuted, flexDirection: "column" }}>
-          <span style={{ fontSize: "48px" }}>🎬</span>
-          <p style={{ marginTop: "16px" }}>{activeTab === "following" ? "Aucune publication de vos abonnements" : "Aucune publication"}</p>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  if (!user || isLoading) return (
+    <DashboardLayout>
+      <Center h="100dvh" bg="#0A0A0A">
+        <Spinner thickness="4px" speed="0.65s" emptyColor="#2A2A2A" color="#8B5CF6" size="xl" />
+      </Center>
+    </DashboardLayout>
+  );
 
   return (
     <DashboardLayout>
-      <div className="main-layout">
-        <main ref={containerRef} onScroll={handleScroll} className="video-scroll-container">
-          
-          <div className="header-tabs">
-            <button onClick={() => setActiveTab("following")} className={`tab-btn ${activeTab === "following" ? "active" : ""}`}>Abonnements</button>
-            <button onClick={() => setActiveTab("foryou")} className={`tab-btn ${activeTab === "foryou" ? "active" : ""}`}>Pour toi</button>
-          </div>
+      <Flex h="100dvh" bg="#0A0A0A" color="white" overflow="hidden" direction={{ base: "column", lg: "row" }}>
 
-          {filteredPosts.map((post, index) => {
+        {/* FEED PRINCIPAL */}
+        <Box
+          flex="1"
+          h="100dvh"
+          overflowY="auto"
+          css={{ scrollSnapType: "y mandatory" }}
+          ref={containerRef}
+          sx={{ '&::-webkit-scrollbar': { display: 'none' } }}
+          maxW={{ base: "100%", lg: "680px" }}
+          mx="auto"
+          px={{ base: 0, lg: 4 }}
+          tabIndex={-1}
+        >
+          {filteredPosts.map((post) => {
             const creator = post.profiles;
-            const isMyOwnPost = user?.id === post.user_id;
-            const isLocked = !isMyOwnPost && !subscribedCreatorIds.has(post.user_id);
             const isLiked = likedPostIds.has(post.id);
             const isFollowed = followedCreatorIds.has(post.user_id);
+            const isLocked = user.id !== post.user_id && !subscribedCreatorIds.has(post.user_id);
+            const showHeart = heartAnimation === post.id;
+            const videoState = videoStates[post.id] || { isPlaying: false, currentTime: 0, duration: 0 };
 
             return (
-              <div key={post.id} className="video-wrapper" onClick={() => handleDoubleTap(post.id)}>
-                <div className="video-content">
-                  {post.media_type === 'video' ? (
-                    <video 
-                      ref={el => { videoRefs.current[index] = el; }} 
-                      src={post.media_url} 
-                      loop 
-                      muted={isMuted} 
-                      playsInline 
-                      className="media-element"
+              <Box
+                key={post.id}
+                h="100dvh"
+                w="100%"
+                css={{ scrollSnapAlign: "start" }}
+                position="relative"
+                onDoubleClick={() => handleDoubleTap(post.id)}
+              >
+                {/* HEADER */}
+                <Flex position="absolute" top="0" left="0" right="0" zIndex="10" p="4" justifyContent="space-between" alignItems="center" bgGradient="linear(to-b, blackAlpha.600, transparent)">
+                  <HStack spacing="3">
+                    <Avatar
+                      size="sm"
+                      name={creator.username}
+                      src={creator.avatar_url || ''}
+                      border="2px solid #8B5CF6"
+                      cursor="pointer"
+                      onClick={() => router.push(`/createur?id=${creator.id}`)}
                     />
-                  ) : (
-                    <img src={post.media_url} alt="Post" className="media-element" />
+                    <Box cursor="pointer" onClick={() => router.push(`/createur?id=${creator.id}`)}>
+                      <Text fontWeight="bold" fontSize="sm">{creator.full_name || creator.username} {creator.is_verified && <Text as="span" color="#10B981">✓</Text>}</Text>
+                      <Text fontSize="xs" color="gray.400">{FAKE_LOCATIONS[0]} • {timeAgo(post.created_at)}</Text>
+                    </Box>
+                  </HStack>
+                  {!isFollowed && user.id !== post.user_id && (
+                    <Button size="xs" bg="#8B5CF6" _hover={{ bg: "#7C3AED" }} onClick={() => handleFollow(post.user_id)}>Suivre</Button>
                   )}
+                </Flex>
 
-                  <div className="video-overlay" />
+                {/* GESTION DES 3 TYPES DE MÉDIA */}
+                {post.media_type === 'text' ? (
+                  <Box
+                    w="100%"
+                    h="100%"
+                    bg={post.background_color || "#1A1A1A"}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    p={8}
+                    cursor={isLocked ? "pointer" : "default"}
+                    onClick={isLocked ? () => router.push(`/subscribe/${post.user_id}?tier=premium`) : undefined}
+                  >
+                    <Text
+                      color="white"
+                      fontSize={{ base: "2xl", md: "3xl" }}
+                      fontWeight="bold"
+                      textAlign="center"
+                      lineHeight="1.4"
+                      filter={isLocked ? "blur(25px)" : "none"}
+                    >
+                      {post.content || "..."}
+                    </Text>
+                  </Box>
+                ) : post.media_type === 'video' ? (
+                  <Box flex="1" position="relative" display="flex" alignItems="center" justifyContent="center" bg="black" h="100%">
+                    <video
+                      ref={el => { if (el) videoRefs.current[post.id] = el; }}
+                      src={post.media_url}
+                      loop
+                      muted={isMuted}
+                      playsInline
+                      style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", filter: isLocked ? "blur(25px)" : "none" }}
+                      onPlay={() => updateVideoState(post.id, { isPlaying: true })}
+                      onPause={() => updateVideoState(post.id, { isPlaying: false })}
+                      onLoadedMetadata={(e) => {
+                        const video = e.target as HTMLVideoElement;
+                        updateVideoState(post.id, { duration: video.duration, currentTime: video.currentTime });
+                      }}
+                      onTimeUpdate={(e) => {
+                        const video = e.target as HTMLVideoElement;
+                        updateVideoState(post.id, { currentTime: video.currentTime });
+                      }}
+                    />
 
-                  {isLocked && (
-                    <div className="locked-overlay">
-                      <div className="lock-icon">🔒</div>
-                      <h3>Contenu réservé aux abonnés</h3>
-                    </div>
-                  )}
+                    {/* BARRE DE CONTRÔLE VIDÉO */}
+                    {!isLocked && (
+                      <Box
+                        className="video-controls-zone"
+                        position="absolute"
+                        bottom="0"
+                        left="0"
+                        right="0"
+                        px={4}
+                        pb={4}
+                        pt={12}
+                        bgGradient="linear(to-t, blackAlpha.800, transparent)"
+                        zIndex="20"
+                        pointerEvents="none"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <HStack spacing={4} mb={2}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            color="white"
+                            p={0}
+                            w="30px"
+                            h="30px"
+                            pointerEvents="auto"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const video = videoRefs.current[post.id];
+                              if (video) {
+                                if (video.paused) { video.play(); } else { video.pause(); }
+                              }
+                            }}
+                          >
+                            {videoState.isPlaying ? <FaPause size={16} /> : <FaPlay size={16} />}
+                          </Button>
+                          <Text fontSize="xs" color="white" fontWeight="bold">
+                            {formatTime(videoState.currentTime)} / {formatTime(videoState.duration)}
+                          </Text>
+                        </HStack>
 
-                  {heartAnimation && index === 0 && (
-                    <div className="heart-animation"><span>❤️</span></div>
-                  )}
+                        <Slider
+                          value={videoState.duration ? ((videoState.currentTime / videoState.duration) * 100) : 0}
+                          onChange={(val) => {
+                            const video = videoRefs.current[post.id];
+                            if (video && video.duration) {
+                              video.currentTime = (val / 100) * video.duration;
+                              updateVideoState(post.id, { currentTime: video.currentTime });
+                            }
+                          }}
+                          h="4px"
+                          pointerEvents="auto"
+                          focusThumbOnChange={false}
+                        >
+                          <SliderTrack h="4px" borderRadius="full" bg="whiteAlpha.300">
+                            <SliderFilledTrack h="4px" borderRadius="full" bg="white" />
+                          </SliderTrack>
+                          <SliderThumb boxSize={3} borderRadius="full" bg="white" border="none" tabIndex={-1} />
+                        </Slider>
+                      </Box>
+                    )}
+                  </Box>
+                ) : (
+                  <Box flex="1" position="relative" display="flex" alignItems="center" justifyContent="center" bg="black" h="100%">
+                    <Image
+                      src={post.media_url}
+                      alt="Post"
+                      maxW="100%"
+                      maxH="100%"
+                      objectFit="contain"
+                      filter={isLocked ? "blur(25px)" : "none"}
+                    />
+                  </Box>
+                )}
 
-                  <button onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }} className="mute-btn">
-                    {isMuted ? "🔇" : "🔊"}
-                  </button>
+                {/* CADENAS */}
+                {isLocked && (
+                  <Center position="absolute" inset="0" bg="blackAlpha.800" flexDirection="column" zIndex="20" cursor="pointer" onClick={() => router.push(`/subscribe/${post.user_id}?tier=premium`)}>
+                    <Box mb="3"><LockIcon /></Box>
+                    <Text fontWeight="bold" textAlign="center" px={4}>
+                      Contenu réservé aux abonnés
+                      <Text as="span" display="block" fontSize="sm" color="gray.300" mt={2}>Cliquez pour vous abonner</Text>
+                    </Text>
+                  </Center>
+                )}
 
-                  <div className="video-info">
-                    <div onClick={(e) => handleProfileClick(e, post.user_id)} className="creator-info">
-                      <div className="avatar" style={{ backgroundImage: `url(${creator.avatar_url || ''})` }}>
-                        {!creator.avatar_url && "👤"}
-                      </div>
-                      <span className="creator-name">{creator.full_name || creator.username}</span>
-                      {creator.is_verified && <span className="verified-badge">✓</span>}
-                      {!isFollowed && !isMyOwnPost && (
-                        <button onClick={(e) => { e.stopPropagation(); handleFollow(post.user_id); }} className="follow-btn">Suivre</button>
-                      )}
-                    </div>
-                    <p className="caption">{post.content || "(Pas de légende)"}</p>
-                    <div className="music-info"><span>🎵</span><span>Son original - {creator.username}</span></div>
-                  </div>
+                {showHeart && (
+                  <Text position="absolute" top="50%" left="50%" transform="translate(-50%, -50%)" fontSize="120px" animation="heartPop 0.8s ease-out forwards" pointerEvents="none" zIndex="100">❤️</Text>
+                )}
 
-                  {/* ✅ BOUTONS DROITE - DESIGN VERTICAL EXACT COMME L'IMAGE 2 */}
-                  <div className="action-buttons">
-                    <div className="action-item avatar-item" onClick={(e) => handleProfileClick(e, post.user_id)}>
-                      <div className="action-icon-wrapper avatar-action" style={{ backgroundImage: `url(${creator.avatar_url || ''})` }}>
-                        {!creator.avatar_url && "👤"}
-                      </div>
-                      {!isFollowed && !isMyOwnPost && (
-                        <button onClick={(e) => { e.stopPropagation(); handleFollow(post.user_id); }} className="add-follow-btn">+</button>
-                      )}
-                    </div>
+                <Button position="absolute" top="20" left="4" bg="blackAlpha.50" borderRadius="full" w="40px" h="40px" onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }} _hover={{ bg: "blackAlpha.700" }} display="flex" alignItems="center" justifyContent="center" zIndex="30">
+                  {isMuted ? <VolumeOffIcon /> : <VolumeOnIcon />}
+                </Button>
 
-                    {/* Like Button (SVG Cœur) */}
-                    <button onClick={(e) => handleLike(post.id, e)} className="action-item">
-                      <div className={`action-icon-wrapper ${isLiked ? "liked" : ""}`}>
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill={isLiked ? "#EF4444" : "none"} stroke={isLiked ? "#EF4444" : "#FFFFFF"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                        </svg>
-                      </div>
-                      <span className="action-count">{formatCount(post.likes_count)}</span>
-                    </button>
+                {/* BOUTONS D'ACTION (DROITE) */}
+                <VStack position="absolute" right={{ base: "2", md: "3" }} bottom={{ base: "16", md: "20" }} spacing="4" zIndex="30">
+                  <Flex direction="column" align="center" cursor="pointer" onClick={() => handleLike(post.id)}>
+                    <Box w="48px" h="48px" borderRadius="full" bg={isLiked ? "pink.500/40" : "whiteAlpha.200"} backdropFilter="blur(10px)" display="flex" alignItems="center" justifyContent="center" _hover={{ transform: "scale(1.1)", transition: "0.2s" }}>
+                      <HeartIcon filled={isLiked} />
+                    </Box>
+                    <Text fontSize="xs" fontWeight="bold" textShadow="0 1px 2px black" mt="1">{formatCount(post.likes_count)}</Text>
+                  </Flex>
 
-                    {/* Comment Button (SVG Bulle) */}
-                    <button onClick={(e) => { e.stopPropagation(); setCurrentPostId(post.id); setShowComments(true); fetchComments(post.id); }} className="action-item">
-                      <div className="action-icon-wrapper">
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-                          <circle cx="9" cy="12" r="1" fill="#FFFFFF" stroke="none"></circle>
-                          <circle cx="15" cy="12" r="1" fill="#FFFFFF" stroke="none"></circle>
-                        </svg>
-                      </div>
-                      <span className="action-count">{formatCount(post.comments_count)}</span>
-                    </button>
+                  <Flex direction="column" align="center" cursor="pointer" onClick={(e) => { e.stopPropagation(); setCurrentPostId(post.id); setShowComments(true); fetchComments(post.id); }}>
+                    <Box w="48px" h="48px" borderRadius="full" bg="whiteAlpha.200" backdropFilter="blur(10px)" display="flex" alignItems="center" justifyContent="center" _hover={{ transform: "scale(1.1)", transition: "0.2s" }}>
+                      <CommentIcon />
+                    </Box>
+                    <Text fontSize="xs" fontWeight="bold" textShadow="0 1px 2px black" mt="1">{formatCount(post.comments_count)}</Text>
+                  </Flex>
 
-                    {/* Share Button (SVG Flèche) */}
-                    <button onClick={(e) => { e.stopPropagation(); handleShare(post); }} className="action-item">
-                      <div className="action-icon-wrapper">
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M13 19l-4-7 4-7" transform="rotate(180 12 12)"></path>
-                          <path d="M7 12h14" transform="rotate(180 12 12)"></path>
-                        </svg>
-                      </div>
-                      <span className="action-count">{formatCount(post.shares_count || 0)}</span>
-                    </button>
+                  <Flex direction="column" align="center" cursor="pointer" onClick={(e) => {
+                    e.stopPropagation();
+                    const url = typeof window !== 'undefined' ? window.location.href : '';
+                    navigator.clipboard.writeText(`${url}\n\n${post.content || ''} - par ${creator.full_name || creator.username}`);
+                    toast({ title: "Lien copié !", status: "success", duration: 2000 });
+                  }}>
+                    <Box w="48px" h="48px" borderRadius="full" bg="whiteAlpha.200" backdropFilter="blur(10px)" display="flex" alignItems="center" justifyContent="center" _hover={{ transform: "scale(1.1)", transition: "0.2s" }}>
+                      <ShareIcon />
+                    </Box>
+                    <Text fontSize="xs" fontWeight="bold" textShadow="0 1px 2px black" mt="1">{formatCount(post.shares_count || 0)}</Text>
+                  </Flex>
 
-                    {/* Save Button (SVG Signet) */}
-                    <button onClick={(e) => { e.stopPropagation(); /* Logique de save */ }} className="action-item">
-                      <div className="action-icon-wrapper">
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                        </svg>
-                      </div>
-                      <span className="action-count">{formatCount(post.saves_count || 0)}</span>
-                    </button>
+                  <Flex direction="column" align="center" cursor="pointer" onClick={(e) => { e.stopPropagation(); setTipCreator({ id: post.user_id, name: creator.full_name || creator.username }); onTipOpen(); }}>
+                    <Box w="48px" h="48px" borderRadius="full" bg="whiteAlpha.200" backdropFilter="blur(10px)" display="flex" alignItems="center" justifyContent="center" _hover={{ transform: "scale(1.1)", transition: "0.2s" }}>
+                      <MoneyIcon />
+                    </Box>
+                    <Text fontSize="xs" fontWeight="bold" textShadow="0 1px 2px black" mt="1">Tips</Text>
+                  </Flex>
 
-                    {/* More Button (SVG Points) */}
-                    <button onClick={(e) => { e.stopPropagation(); setShowReportModal(true); setCurrentPostId(post.id); }} className="action-item">
-                      <div className="action-icon-wrapper" style={{ fontSize: "20px" }}>
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill="#FFFFFF">
-                          <circle cx="12" cy="12" r="1.5"></circle>
-                          <circle cx="6" cy="12" r="1.5"></circle>
-                          <circle cx="18" cy="12" r="1.5"></circle>
-                        </svg>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              </div>
+                  <Menu>
+                    <MenuButton>
+                      <Flex direction="column" align="center">
+                        <Box w="48px" h="48px" borderRadius="full" bg="whiteAlpha.200" backdropFilter="blur(10px)" display="flex" alignItems="center" justifyContent="center" _hover={{ transform: "scale(1.1)", transition: "0.2s" }}>
+                          <MoreIcon />
+                        </Box>
+                      </Flex>
+                    </MenuButton>
+                    <MenuList bg="#1A1A1A" border="1px solid #2A2A2A" color="white">
+                      <MenuItem onClick={(e) => { e.stopPropagation(); handleDownload(post); }} bg="#1A1A1A" _hover={{ bg: "#2A2A2A" }} icon={<Text>⬇️</Text>}>Télécharger</MenuItem>
+                      <MenuItem onClick={(e) => { e.stopPropagation(); setReportPostId(post.id); onReportOpen(); }} bg="#1A1A1A" _hover={{ bg: "#2A2A2A" }} color="red.400" icon={<FlagIcon />}>Signaler</MenuItem>
+                    </MenuList>
+                  </Menu>
+                </VStack>
+
+                {/* INFO BAS */}
+                {post.media_type !== 'text' && (
+                  <Box position="absolute" bottom="0" left="0" right="0" p="4" bgGradient="linear(to-t, blackAlpha.800, transparent)" zIndex="10" onClick={(e) => e.stopPropagation()}>
+                    <Text fontSize="sm" lineHeight="1.4" mb="2" wordBreak="break-word">{post.content || "(Pas de légende)"}</Text>
+                  </Box>
+                )}
+              </Box>
             );
           })}
-          
-          {isLoadingMore && (
-            <div style={{ padding: "20px", textAlign: "center", color: colors.textMuted }}>Chargement de plus de vidéos...</div>
-          )}
-        </main>
+        </Box>
 
-        {/* ✅ PANNEAU DE COMMENTAIRES RESPONSIVE */}
-        {showComments && (
-          <div className="comments-panel">
-            <div className="comments-header">
-              <h3>Commentaires</h3>
-              <button onClick={() => { setShowComments(false); setReplyTo(null); }}>✕</button>
-            </div>
-            
-            <div className="comments-list">
-              {comments.length === 0 ? (
-                <div className="empty-comments"><span>💬</span><p>Aucun commentaire</p></div>
-              ) : (
-                comments.map((comment: any) => (
-                  <div key={comment.id} className="comment-item">
-                    <div onClick={(e) => handleProfileClick(e, comment.user_id)} className="comment-avatar" style={{ backgroundImage: `url(${comment.profiles?.avatar_url || ''})` }}>
-                      {!comment.profiles?.avatar_url && "👤"}
-                    </div>
-                    <div className="comment-content">
-                      <div className="comment-header">
-                        <span className="comment-name">{comment.profiles?.full_name || comment.user_name}</span>
-                        {comment.profiles?.is_verified && <span className="verified-badge">✓</span>}
-                      </div>
-                      <p className="comment-text">
-                        {comment.parent_id && <span style={{ color: colors.primary, fontWeight: "bold", marginRight: "4px" }}>@{comments.find(c => c.id === comment.parent_id)?.user_name || 'Utilisateur'}</span>}
-                        {comment.content}
-                      </p>
-                      <button onClick={() => setReplyTo(comment)} className="reply-btn">Répondre</button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+        {/* SIDEBAR DROITE */}
+        <Box
+          w={{ base: "0", lg: "350px" }}
+          display={{ base: "none", lg: "block" }}
+          borderLeft="1px solid #1A1A1A"
+          p="4"
+          overflowY="auto"
+        >
+          <VStack spacing="4" align="stretch">
+            <Box bg="#1A1A1A" borderRadius="12px" p="4">
+              <Text fontWeight="bold" mb="3">Recommandé</Text>
+              {recommendedCreators.map(creator => {
+                const isFollowed = followedCreatorIds.has(creator.id);
+                return (
+                  <HStack
+                    key={creator.id}
+                    mb="3"
+                    spacing="3"
+                    cursor="pointer"
+                    onClick={() => router.push(`/createur?id=${creator.id}`)}
+                    _hover={{ bg: "whiteAlpha.50" }}
+                    borderRadius="8px"
+                    p="2"
+                  >
+                    <Avatar size="sm" name={creator.username} src={creator.avatar_url || ''} />
+                    <Box flex="1">
+                      <Text fontWeight="bold" fontSize="sm">{creator.full_name || creator.username} {creator.is_verified && "✓"}</Text>
+                      <Text fontSize="xs" color="gray.400">{formatCount(creator.followers_count)} abonnés</Text>
+                    </Box>
+                    <Button
+                      size="xs"
+                      bg={isFollowed ? "gray.700" : "#8B5CF6"}
+                      _hover={{ bg: isFollowed ? "gray.600" : "#7C3AED" }}
+                      onClick={(e) => { e.stopPropagation(); handleFollow(creator.id); }}
+                    >
+                      {isFollowed ? "Suivi" : "Suivre"}
+                    </Button>
+                  </HStack>
+                );
+              })}
+            </Box>
 
-            <div className="comment-input-area">
-              {replyTo && (
-                <div className="replying-to">
-                  <span>Réponse à <b>{replyTo.user_name}</b></span>
-                  <button onClick={() => setReplyTo(null)}>✕</button>
-                </div>
-              )}
-              <input 
-                type="text" 
-                value={newComment} 
-                onChange={(e) => setNewComment(e.target.value)} 
-                onKeyDown={(e) => e.key === 'Enter' && submitComment()} 
-                placeholder={replyTo ? "Écrire une réponse..." : "Ajouter un commentaire..."} 
-              />
-              <button onClick={submitComment} disabled={!newComment.trim()} className="send-btn">↑</button>
-            </div>
-          </div>
-        )}
+            <Box bg="#1A1A1A" borderRadius="12px" p="4">
+              <Text fontWeight="bold" mb="3">🔥 Tendances</Text>
+              {trendingHashtags.map((trend, i) => (
+                <Flex key={i} justifyContent="space-between" py="2" borderBottom="1px solid #2A2A2A" _last={{ borderBottom: "none" }}>
+                  <Text fontWeight="bold" fontSize="sm">#{trend.tag}</Text>
+                  <Text fontSize="xs" color="gray.400">{formatCount(trend.count)} vues</Text>
+                </Flex>
+              ))}
+            </Box>
 
-        {showReportModal && (
-          <div className="modal-overlay" onClick={() => setShowReportModal(false)}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
-              <h3>Signaler ce post</h3>
-              <div className="report-options">
-                {["spam", "violence", "harcèlement", "droits d'auteur", "autre"].map((reason) => (
-                  <button key={reason} onClick={() => { /* Logique d'envoi à ajouter */ setShowReportModal(false); }} className="report-option">{reason}</button>
+            <Box bgGradient="linear(135deg, rgba(139, 92, 246, 0.2), rgba(167, 139, 250, 0.2))" border="1px solid rgba(139, 92, 246, 0.3)" borderRadius="12px" p="5" textAlign="center">
+              <Box display="flex" justifyContent="center" mb="3"><CrownIcon /></Box>
+              <Text fontWeight="bold" mb="2">Gagne de l'argent</Text>
+              <Text fontSize="sm" color="gray.400" mb="4">Deviens créateur sur Afrifan</Text>
+              <Button w="100%" bgGradient="linear(135deg, #8B5CF6, #A78BFA)" _hover={{ opacity: 0.9 }} onClick={() => router.push('/creator-info')}>
+                En savoir plus →
+              </Button>
+            </Box>
+          </VStack>
+        </Box>
+      </Flex>
+
+      <TipDialog isOpen={isTipOpen} onClose={onTipClose} creatorId={tipCreator.id} creatorName={tipCreator.name} />
+      <ReportModal isOpen={isReportOpen} onClose={onReportClose} postId={reportPostId} />
+
+      <Modal isOpen={showComments} onClose={() => setShowComments(false)} size={{ base: "full", md: "md" }}>
+        <ModalOverlay bg="blackAlpha.700" />
+        <ModalContent bg="#1A1A1A" color="white" borderRadius={{ base: "20px 20px 0 0", md: "16px" }} h={{ base: "70vh", md: "auto" }} maxH="70vh" m={{ base: "0", md: "auto" }}>
+          <ModalHeader display="flex" justifyContent="space-between" alignItems="center">
+            Commentaires ({comments.length})
+            <ModalCloseButton position="static" />
+          </ModalHeader>
+          <ModalBody overflowY="auto" flex="1">
+            {comments.length === 0 ? (
+              <Center h="100px" color="gray.400">Aucun commentaire</Center>
+            ) : (
+              <VStack align="stretch" spacing="4">
+                {comments.map(comment => (
+                  <HStack key={comment.id} align="start" spacing="3">
+                    <Avatar size="sm" name={comment.profiles?.username} src={comment.profiles?.avatar_url || ''} />
+                    <Box>
+                      <Text fontWeight="bold" fontSize="sm">{comment.profiles?.username || 'User'}</Text>
+                      <Text fontSize="sm" color="gray.300">{comment.content}</Text>
+                    </Box>
+                  </HStack>
                 ))}
-              </div>
-              <button onClick={() => setShowReportModal(false)} className="cancel-btn">Annuler</button>
-            </div>
-          </div>
-        )}
-      </div>
+              </VStack>
+            )}
+          </ModalBody>
+          <ModalFooter borderTop="1px solid #2A2A2A">
+            <HStack w="100%">
+              <Input value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Ajouter un commentaire..." bg="#0A0A0A" border="1px solid #2A2A2A" onKeyDown={(e) => e.key === 'Enter' && submitComment()} />
+              <Button bg="#8B5CF6" _hover={{ bg: "#7C3AED" }} onClick={submitComment} isDisabled={!newComment.trim()}>↑</Button>
+            </HStack>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       <style>{`
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes heartPop { 0% { transform: translate(-50%, -50%) scale(0); opacity: 0; } 50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 0; } }
-
-        .main-layout { display: flex; height: 100dvh; background-color: #000; color: #fff; }
-        
-        .video-scroll-container {
-          flex: 1;
-          overflow-y: scroll;
-          scroll-snap-type: y mandatory;
-          height: 100dvh;
-          scrollbar-width: none;
-        }
-        .video-scroll-container::-webkit-scrollbar { display: none; }
-
-        .video-wrapper {
-          height: 100dvh;
-          width: 100%;
-          scroll-snap-align: start;
-          position: relative;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-        }
-
-        .video-content {
-          height: 100%;
-          width: 100%;
-          max-width: 600px;
-          position: relative;
-        }
-
-        .media-element { width: 100%; height: 100%; object-fit: cover; }
-        .video-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.8) 100%); pointer-events: none; }
-        
-        .locked-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.6); display: flex; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
-        .lock-icon { font-size: 32px; margin-bottom: 12px; }
-        
-        .heart-animation { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100; pointer-events: none; font-size: 120px; animation: heartPop 0.8s ease-out forwards; }
-        
-        .mute-btn { position: absolute; top: 70px; left: 16px; background: rgba(0,0,0,0.5); border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
-
-        .header-tabs { position: absolute; top: 0; left: 0; right: 0; z-index: 40; display: flex; justify-content: center; gap: 32px; padding: 16px; background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 100%); }
-        .tab-btn { background: none; border: none; color: rgba(255,255,255,0.6); font-size: 16px; font-weight: bold; cursor: pointer; padding-bottom: 4px; border-bottom: 2px solid transparent; transition: all 0.2s; }
-        .tab-btn.active { color: #fff; border-bottom-color: #fff; }
-
-        .video-info { position: absolute; bottom: 20px; left: 16px; right: 100px; z-index: 20; }
-        .creator-info { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; cursor: pointer; }
-        .avatar { width: 40px; height: 40px; border-radius: 50%; background-color: #333; background-size: cover; background-position: center; border: 2px solid white; display: flex; align-items: center; justify-content: center; }
-        .creator-name { font-weight: bold; font-size: 17px; color: white; }
-        .verified-badge { color: #10B981; margin-left: 4px; }
-        .follow-btn { padding: 6px 16px; background-color: #8B5CF6; border: none; border-radius: 20px; color: white; font-weight: bold; font-size: 13px; cursor: pointer; margin-left: 8px; }
-        
-        .caption { font-size: 14px; line-height: 1.4; color: white; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .music-info { display: flex; align-items: center; gap: 6px; color: white; font-size: 13px; }
-
-        /* ✅ BOUTONS D'ACTION - DESIGN EXACT COMME L'IMAGE 2 */
-        .action-buttons {
-          position: absolute;
-          right: 8px;
-          bottom: 120px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 6px;
-          z-index: 30;
-        }
-
-        .action-item {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 4px;
-          background: none;
-          border: none;
-          cursor: pointer;
-          padding: 0;
-          min-width: 52px;
-        }
-
-        .action-icon-wrapper {
-          width: 48px;
-          height: 48px;
-          border-radius: 50%;
-          background-color: rgba(0, 0, 0, 0.4);
-          backdrop-filter: blur(4px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: transform 0.15s ease;
-        }
-
-        .action-item:active .action-icon-wrapper {
-          transform: scale(0.9);
-        }
-
-        .action-icon-wrapper.liked {
-          background-color: rgba(239, 68, 68, 0.2);
-        }
-
-        .action-count {
-          font-size: 12px;
-          font-weight: 600;
-          color: white;
-          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-          text-align: center;
-          line-height: 1.2;
-        }
-
-        .action-item.avatar-item {
-          position: relative;
-        }
-
-        .avatar-action {
-          background-size: cover;
-          background-position: center;
-          border: 2px solid white;
-          font-size: 20px;
-        }
-
-        .add-follow-btn {
-          position: absolute;
-          bottom: -4px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background-color: #EF4444;
-          border: none;
-          color: white;
-          font-size: 14px;
-          font-weight: bold;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        /* ✅ COMMENTAIRES RESPONSIVE */
-        .comments-panel {
-          position: fixed;
-          right: 0;
-          top: 0;
-          bottom: 0;
-          width: 400px;
-          background-color: #1A1A1A;
-          border-left: 1px solid #2A2A2A;
-          display: flex;
-          flex-direction: column;
-          z-index: 1000;
-          transition: transform 0.3s ease;
-        }
-
-        .comments-header { padding: 20px; border-bottom: 1px solid #2A2A2A; display: flex; justify-content: space-between; align-items: center; }
-        .comments-header h3 { margin: 0; font-size: 16px; font-weight: bold; }
-        .comments-header button { background: none; border: none; color: #9CA3AF; font-size: 24px; cursor: pointer; }
-        
-        .comments-list { flex: 1; overflow-y: auto; padding: 20px; }
-        .empty-comments { text-align: center; color: #9CA3AF; margin-top: 40px; }
-        .empty-comments span { font-size: 48px; display: block; margin-bottom: 12px; }
-        
-        .comment-item { display: flex; gap: 12px; margin-bottom: 20px; }
-        .comment-avatar { width: 36px; height: 36px; border-radius: 50%; background-color: #333; background-size: cover; background-position: center; flex-shrink: 0; cursor: pointer; }
-        .comment-content { flex: 1; }
-        .comment-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-        .comment-name { font-weight: bold; font-size: 14px; }
-        .comment-text { font-size: 14px; line-height: 1.4; margin: 0 0 6px 0; color: #E5E7EB; }
-        .reply-btn { background: none; border: none; color: #9CA3AF; font-size: 12px; cursor: pointer; padding: 0; }
-        .reply-btn:hover { color: #fff; }
-
-        .comment-input-area { padding: 16px; border-top: 1px solid #2A2A2A; display: flex; flex-direction: column; gap: 8px; }
-        .replying-to { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #8B5CF6; background: rgba(139, 92, 246, 0.1); padding: 8px 12px; border-radius: 8px; }
-        .replying-to button { background: none; border: none; color: #9CA3AF; cursor: pointer; }
-        .comment-input-area input { flex: 1; background-color: #0A0A0A; border: 1px solid #2A2A2A; border-radius: 24px; padding: 12px 20px; color: #fff; font-size: 14px; outline: none; width: 100%; box-sizing: border-box; }
-        .send-btn { background-color: #8B5CF6; border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; font-size: 18px; flex-shrink: 0; }
-        .send-btn:disabled { background-color: transparent; color: #9CA3AF; cursor: not-allowed; }
-
-        .modal-overlay { position: fixed; inset: 0; background-color: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 2000; }
-        .modal-content { background-color: #1A1A1A; border-radius: 16px; padding: 24px; max-width: 400px; width: 90%; }
-        .modal-content h3 { margin: 0 0 16px 0; color: #fff; font-size: 18px; font-weight: bold; }
-        .report-options { display: flex; flex-direction: column; gap: 12px; }
-        .report-option { padding: 12px 16px; background-color: #0A0A0A; border: 1px solid #2A2A2A; border-radius: 8px; color: #fff; text-align: left; cursor: pointer; font-size: 14px; }
-        .cancel-btn { margin-top: 20px; width: 100%; padding: 12px; background-color: transparent; border: 1px solid #2A2A2A; border-radius: 8px; color: #9CA3AF; cursor: pointer; }
-
-        @media (max-width: 768px) {
-          .comments-panel {
-            width: 100%;
-            top: auto;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 70vh;
-            border-left: none;
-            border-top: 1px solid #2A2A2A;
-            border-radius: 20px 20px 0 0;
-            transform: translateY(0);
-          }
-          .video-content { max-width: 100%; }
-        }
+        @keyframes heartPop { 0% { transform: translate(-50%, -50%) scale(0); opacity: 0; } 50% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 0; } }
       `}</style>
     </DashboardLayout>
   );
