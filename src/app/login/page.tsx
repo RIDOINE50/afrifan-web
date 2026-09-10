@@ -24,12 +24,35 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      // 1. Tentative de connexion
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: identifier,
         password: password,
       });
 
-      if (error) throw error;
+      if (signInError) throw signInError;
+
+      // 2. ✅ VÉRIFICATION DU STATUT DE BANNISSEMENT
+      if (data.user) {
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("is_banned")
+          .eq("id", data.user.id)
+          .single();
+
+        // Si le profil existe et est marqué comme banni
+        if (profile?.is_banned === true) {
+          // On déconnecte immédiatement l'utilisateur
+          await supabase.auth.signOut();
+          
+          // On affiche le message d'erreur spécifique
+          setError("🚫 Votre compte a été banni de la plateforme Afrifan. Veuillez contacter le support pour plus d'informations.");
+          setIsLoading(false);
+          return; // ⛔ ON ARRÊTE TOUT ICI. Pas de redirection vers /home.
+        }
+      }
+
+      // 3. Si tout est bon (pas banni), on redirige vers l'accueil
       router.push("/home");       
     } catch (err: any) {
       setError(err.message || "Erreur de connexion.");
@@ -78,6 +101,7 @@ export default function LoginPage() {
       color: "#F87171",
       fontSize: "14px",
       textAlign: "center",
+      lineHeight: "1.5",
     },
     label: {
       display: "block",
@@ -210,7 +234,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* ✅ AJOUT DE "as const" ICI POUR SATISFAIRE TYPESCRIPT */}
           <div style={{ textAlign: "left" as const }}>
             <button type="button" style={styles.link}>
               Mot de passe oublié ?
@@ -242,10 +265,15 @@ export default function LoginPage() {
           <button style={styles.socialButton}>X</button>
         </div>
 
-
         <div style={styles.footer}>
           Pas encore de compte ?{" "}
-          <button style={styles.link}>S'inscrire</button>
+          <button 
+            type="button"
+            style={styles.link}
+            onClick={() => router.push("/register")} // Assure-toi que cette route existe
+          >
+            S'inscrire
+          </button>
         </div>
       </div>
     </div>

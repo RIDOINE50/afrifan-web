@@ -392,10 +392,25 @@ export default function HomePage() {
     };
   }, [filteredPosts]);
 
+  // ✅ MODIFICATION UNIQUE : Vérification du statut is_banned avant de charger la page
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push("/login"); return; }
+
+      // ✅ VÉRIFICATION : Est-ce que l'utilisateur est banni ?
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_banned')
+        .eq('id', session.user.id)
+        .single();
+
+      if (profile?.is_banned === true) {
+        await supabase.auth.signOut();
+        router.push("/login?error=banned");
+        return;
+      }
+
       setUser(session.user);
       await Promise.all([fetchData(session.user.id), fetchStories(), fetchRecommendedCreators(), fetchTrendingHashtags()]);
     };
@@ -891,7 +906,7 @@ export default function HomePage() {
             </Box>
 
             <Box bg="#1A1A1A" borderRadius="12px" p="4">
-              <Text fontWeight="bold" mb="3">🔥 Tendances</Text>
+              <Text fontWeight="bold" mb="3"> Tendances</Text>
               {trendingHashtags.map((trend, i) => (
                 <Flex key={i} justifyContent="space-between" py="2" borderBottom="1px solid #2A2A2A" _last={{ borderBottom: "none" }}>
                   <Text fontWeight="bold" fontSize="sm">#{trend.tag}</Text>
