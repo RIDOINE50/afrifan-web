@@ -54,6 +54,7 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
       await verifyAndConfirmTip(transactionId, customData);
     });
 
+    
     window.addKkiapayListener('failed', (err: any) => {
       console.error("❌ Paiement échoué:", err);
       setError("Échec du paiement. Vérifiez votre solde.");
