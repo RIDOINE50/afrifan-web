@@ -64,40 +64,38 @@ export default function RegisterPage() {
     setIsLoading(true)
 
     try {
-      // ✅ ÉTAPE UNIQUE : Tenter d'inscrire l'utilisateur.
-      // Supabase vérifie AUTOMATIQUEMENT et de manière sécurisée si l'email existe déjà.
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      // ✅ ÉTAPE 1 : VÉRIFICATION STRICTE DANS LA BASE DE DONNÉES
+      // On vérifie si l'email existe déjà dans la table 'profiles'
+      const { data: existingProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email.trim())
+        .maybeSingle()
+
+      // 🛑 SI ON TROUVE UN PROFIL, ON ARRÊTE TOUT. PAS DE CODE ENVOYÉ.
+      if (existingProfile) {
+        toast({
+          title: "Email déjà utilisé",
+          description: "Cet email est déjà enregistré. Veuillez vous connecter.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        })
+        setIsLoading(false)
+        return 
+      }
+
+      // ✅ ÉTAPE 2 : L'EMAIL EST LIBRE, ON CRÉE LE COMPTE (ce qui enverra le code)
+      const { error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
-        password: Math.random().toString(36).slice(-8), // Mot de passe temporaire requis par signUp
+        password: Math.random().toString(36).slice(-8), // Mot de passe temporaire requis
         options: {
           data: { full_name: fullName.trim() },
         },
       })
 
-      if (signUpError) {
-        // Vérifier si l'erreur est due à un email déjà utilisé
-        const errorMsg = signUpError.message.toLowerCase()
-        if (
-          errorMsg.includes("already registered") || 
-          errorMsg.includes("already exists") || 
-          errorMsg.includes("déjà")
-        ) {
-          toast({
-            title: "Email déjà utilisé",
-            description: "Cet email est déjà enregistré. Veuillez vous connecter.",
-            status: "error",
-            duration: 5000,
-            isClosable: true,
-          })
-          setIsLoading(false)
-          return // 🛑 On arrête tout ici, aucun code n'est envoyé !
-        }
-        
-        // Si c'est une autre erreur, on la lance pour l'afficher
-        throw signUpError
-      }
+      if (signUpError) throw signUpError
 
-      // ✅ Si l'inscription réussit, Supabase envoie automatiquement le mail de confirmation (qui contient ton code OTP)
       toast({
         title: "Compte créé avec succès !",
         description: "Vérifiez votre boîte email pour obtenir votre code à 8 chiffres.",
@@ -106,7 +104,6 @@ export default function RegisterPage() {
         isClosable: true,
       })
 
-      // Redirection vers la page de vérification
       router.push(`/verify-otp?email=${encodeURIComponent(email.trim())}`)
       
     } catch (err: any) {
