@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { supabase } from "@/lib/supabaseClient"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, AlertCircle, CheckCircle } from "lucide-react"
 import {
   Box,
   Button,
@@ -15,6 +15,7 @@ import {
   Text,
   VStack,
   useToast,
+  HStack,
 } from "@chakra-ui/react"
 
 export default function RegisterPage() {
@@ -26,9 +27,55 @@ export default function RegisterPage() {
   const [accepted, setAccepted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
+  // ✅ Nouveaux états pour la vérification en temps réel
+  const [emailExists, setEmailExists] = useState(false)
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false)
+  const [emailError, setEmailError] = useState("")
+
   const isValidEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   }
+
+  // ✅ Vérification en temps réel avec debounce (500ms)
+  useEffect(() => {
+    const trimmedEmail = email.trim().toLowerCase()
+
+    // Réinitialiser si l'email est vide ou invalide
+    if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
+      setEmailExists(false)
+      setEmailError("")
+      return
+    }
+
+    // Debounce : attendre 500ms après la dernière frappe
+    const timer = setTimeout(async () => {
+      setIsCheckingEmail(true)
+      setEmailError("")
+
+      try {
+        const { data: existingProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("email", trimmedEmail)
+          .maybeSingle()
+
+        if (existingProfile) {
+          setEmailExists(true)
+          setEmailError("Cet email est déjà utilisé. Veuillez vous connecter.")
+        } else {
+          setEmailExists(false)
+          setEmailError("")
+        }
+      } catch (err) {
+        console.error("Erreur vérification email:", err)
+        setEmailError("")
+      } finally {
+        setIsCheckingEmail(false)
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [email])
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,34 +108,25 @@ export default function RegisterPage() {
       return
     }
 
+    // 🛑 BLOQUER si l'email existe déjà
+    if (emailExists) {
+      toast({
+        title: "Email déjà utilisé",
+        description: "Cet email est déjà enregistré. Veuillez vous connecter.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      })
+      return
+    }
+
     setIsLoading(true)
 
     try {
-      // ✅ ÉTAPE 1 : VÉRIFICATION STRICTE DANS LA BASE DE DONNÉES
-      // On vérifie si l'email existe déjà dans la table 'profiles'
-      const { data: existingProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', email.trim())
-        .maybeSingle()
-
-      // 🛑 SI ON TROUVE UN PROFIL, ON ARRÊTE TOUT. PAS DE CODE ENVOYÉ.
-      if (existingProfile) {
-        toast({
-          title: "Email déjà utilisé",
-          description: "Cet email est déjà enregistré. Veuillez vous connecter.",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        })
-        setIsLoading(false)
-        return 
-      }
-
-      // ✅ ÉTAPE 2 : L'EMAIL EST LIBRE, ON CRÉE LE COMPTE (ce qui enverra le code)
+      // ✅ L'email est libre, on crée le compte (ce qui enverra le code)
       const { error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
-        password: Math.random().toString(36).slice(-8), // Mot de passe temporaire requis
+        password: Math.random().toString(36).slice(-8),
         options: {
           data: { full_name: fullName.trim() },
         },
@@ -105,7 +143,6 @@ export default function RegisterPage() {
       })
 
       router.push(`/verify-otp?email=${encodeURIComponent(email.trim())}`)
-      
     } catch (err: any) {
       toast({
         title: "Erreur",
@@ -119,15 +156,11 @@ export default function RegisterPage() {
     }
   }
 
+  // ✅ Le bouton est désactivé si l'email existe ou si on est en train de vérifier
+  const isButtonDisabled = isLoading || emailExists || isCheckingEmail
+
   return (
-    <Flex
-      minH="100vh"
-      bg="#0A0A0A"
-      color="white"
-      align="center"
-      justify="center"
-      p={4}
-    >
+    <Flex minH="100vh" bg="#0A0A0A" color="white" align="center" justify="center" p={4}>
       <Box w="100%" maxW="400px">
         {/* Bouton Retour */}
         <Button
@@ -155,6 +188,7 @@ export default function RegisterPage() {
           {/* Formulaire */}
           <Box as="form" onSubmit={handleRegister}>
             <VStack spacing={4}>
+              {/* Champ Nom complet */}
               <Input
                 placeholder="Nom complet"
                 value={fullName}
@@ -166,19 +200,95 @@ export default function RegisterPage() {
                 color="white"
                 _placeholder={{ color: "gray.500" }}
               />
-              <Input
-                type="email"
-                placeholder="Adresse email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                bg="#1A1A1A"
-                border="1px solid #2A2A2A"
-                _focus={{ borderColor: "#8B5CF6", boxShadow: "none" }}
-                h="50px"
-                color="white"
-                _placeholder={{ color: "gray.500" }}
-              />
 
+              {/* Champ Email avec vérification en temps réel */}
+              <Box w="100%">
+                <Input
+                  type="email"
+                  placeholder="Adresse email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  bg="#1A1A1A"
+                  border="1px solid"
+                  borderColor={
+                    emailError ? "red.500" : emailExists ? "red.500" : "#2A2A2A"
+                  }
+                  _focus={{
+                    borderColor: emailExists ? "red.500" : "#8B5CF6",
+                    boxShadow: "none",
+                  }}
+                  h="50px"
+                  color="white"
+                  _placeholder={{ color: "gray.500" }}
+                  pr="40px"
+                />
+
+                {/* Indicateur visuel à droite du champ */}
+                {isCheckingEmail && (
+                  <Flex
+                    position="absolute"
+                    right="12px"
+                    top="50%"
+                    transform="translateY(-50%)"
+                    w="20px"
+                    h="20px"
+                    borderRadius="full"
+                    border="2px solid #8B5CF6"
+                    borderTopColor="transparent"
+                    animation="spin 1s linear infinite"
+                  />
+                )}
+                {emailExists && !isCheckingEmail && (
+                  <Flex
+                    position="absolute"
+                    right="12px"
+                    top="50%"
+                    transform="translateY(-50%)"
+                    color="red.400"
+                  >
+                    <AlertCircle size={20} />
+                  </Flex>
+                )}
+                {!emailExists && !isCheckingEmail && email.trim() && isValidEmail(email) && (
+                  <Flex
+                    position="absolute"
+                    right="12px"
+                    top="50%"
+                    transform="translateY(-50%)"
+                    color="green.400"
+                  >
+                    <CheckCircle size={20} />
+                  </Flex>
+                )}
+              </Box>
+
+              {/* Message d'erreur sous le champ email */}
+              {emailError && (
+                <HStack
+                  w="100%"
+                  bg="red.500/10"
+                  border="1px solid"
+                  borderColor="red.500/30"
+                  borderRadius="lg"
+                  p={3}
+                  spacing={2}
+                >
+                  <AlertCircle size={16} color="#EF4444" />
+                  <Text fontSize="sm" color="red.400">
+                    {emailError}{" "}
+                    <ChakraLink
+                      color="#8B5CF6"
+                      fontWeight="bold"
+                      onClick={() => router.push("/login")}
+                      cursor="pointer"
+                    >
+                      Se connecter
+                    </ChakraLink>
+                  </Text>
+                </HStack>
+              )}
+
+              {/* Checkbox Conditions */}
               <Flex align="flex-start" w="100%">
                 <Checkbox
                   isChecked={accepted}
@@ -189,29 +299,41 @@ export default function RegisterPage() {
                 >
                   <Text fontSize="sm" color="gray.400" lineHeight="1.4">
                     J'accepte les{" "}
-                    <ChakraLink color="#8B5CF6" _hover={{ textDecoration: "underline" }}>
+                    <ChakraLink
+                      color="#8B5CF6"
+                      _hover={{ textDecoration: "underline" }}
+                    >
                       Conditions d'utilisation
                     </ChakraLink>{" "}
                     et la{" "}
-                    <ChakraLink color="#8B5CF6" _hover={{ textDecoration: "underline" }}>
+                    <ChakraLink
+                      color="#8B5CF6"
+                      _hover={{ textDecoration: "underline" }}
+                    >
                       Politique de confidentialité
                     </ChakraLink>
                   </Text>
                 </Checkbox>
               </Flex>
 
+              {/* Bouton d'action - DÉSACTIVÉ si l'email existe */}
               <Button
                 type="submit"
                 w="100%"
                 h="50px"
-                bg="#8B5CF6"
-                _hover={{ bg: "#7C3AED" }}
+                bg={emailExists ? "gray.600" : "#8B5CF6"}
+                _hover={emailExists ? {} : { bg: "#7C3AED" }}
                 isLoading={isLoading}
                 loadingText="Vérification en cours..."
                 fontWeight="bold"
                 mt={4}
+                isDisabled={isButtonDisabled}
               >
-                Recevoir le code
+                {emailExists
+                  ? "Email déjà utilisé"
+                  : isCheckingEmail
+                  ? "Vérification de l'email..."
+                  : "Recevoir le code"}
               </Button>
             </VStack>
           </Box>
@@ -231,6 +353,14 @@ export default function RegisterPage() {
           </Text>
         </VStack>
       </Box>
+
+      {/* Animation CSS pour le spinner */}
+      <style>{`
+        @keyframes spin {
+          0% { transform: translateY(-50%) rotate(0deg); }
+          100% { transform: translateY(-50%) rotate(360deg); }
+        }
+      `}</style>
     </Flex>
   )
 }
