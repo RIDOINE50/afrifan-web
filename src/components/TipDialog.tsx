@@ -4,6 +4,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
+// Déclaration TypeScript pour Kkiapay
+declare global {
+  interface Window {
+    openKkiapayWidget: (options: any) => void;
+    addKkiapayListener: (event: string, callback: (response: any) => void) => void;
+    removeKkiapayListener: (event: string) => void;
+  }
+}
+
 interface TipDialogProps {
   creatorId: string;
   creatorName: string;
@@ -15,25 +24,62 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
   const router = useRouter();
   
   const [amount, setAmount] = useState<string>("");
-  const [phone, setPhone] = useState<string>("");
   const [message, setMessage] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<string>("Orange Money");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>("");
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const quickAmounts = [500, 1000, 2000, 5000];
-  const paymentMethods = ["Orange Money", "MTN Mobile Money", "Moov Money"];
+
+  // ✅ TA CLÉ PUBLIQUE KKIAPAY
+  const kkiapayPublicKey = "72fc173fbe56f0f477e6bfcaa7349471c844e893";
+  const isSandbox = false;
+  const brandViolet = "#8B5CF6";
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = "auto"; };
   }, []);
 
+  // ==========================================
+  // ÉCOUTE DES ÉVÉNEMENTS KKIAPAY
+  // ==========================================
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.addKkiapayListener) return;
+
+    window.addKkiapayListener('success', async (response: any) => {
+      console.log("✅ Paiement Kkiapay réussi:", response);
+      await saveTipToDatabase();
+    });
+
+    window.addKkiapayListener('failed', (err: any) => {
+      console.error("❌ Paiement échoué:", err);
+      setError("Échec du paiement. Vérifiez votre solde ou réessayez.");
+      setIsLoading(false);
+    });
+
+    window.addKkiapayListener('cancelled', () => {
+      setError("Paiement annulé.");
+      setIsLoading(false);
+    });
+
+    return () => {
+      if (typeof window !== "undefined" && window.removeKkiapayListener) {
+        window.removeKkiapayListener('success');
+        window.removeKkiapayListener('failed');
+        window.removeKkiapayListener('cancelled');
+      }
+    };
+  }, [amount, message, creatorId]);
+
   const handleAmountClick = (val: number) => {
     setAmount(val.toString());
     setError("");
   };
 
+  // ==========================================
+  // OUVRIR LE WIDGET KKIAPAY
+  // ==========================================
   const handleSendTip = async () => {
     const numAmount = parseFloat(amount);
     
@@ -41,49 +87,126 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
       setError("Veuillez entrer un montant valide");
       return;
     }
-    if (phone.trim().length < 8) {
-      setError("Veuillez entrer un numéro de téléphone valide (min. 8 chiffres)");
+
+    if (typeof window === "undefined" || !window.openKkiapayWidget) {
+      setError("Le système de paiement n'est pas encore chargé. Rechargez la page.");
       return;
     }
 
     setIsLoading(true);
     setError("");
 
+    // Vérifier que l'utilisateur est connecté
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    // ✅ Ouvrir le widget Kkiapay
+    window.openKkiapayWidget({
+      amount: Math.round(numAmount),
+      key: kkiapayPublicKey,
+      sandbox: isSandbox,
+      data: creatorId,
+      theme: brandViolet,
+      name: creatorName,
+      reason: `Pourboire pour ${creatorName}`,
+      countries: ["BJ", "CI", "SN", "TG"],
+    });
+  };
+
+  // ==========================================
+  // ENREGISTRER LE POURBOIRE EN BDD (après succès Kkiapay)
+  // ==========================================
+  const saveTipToDatabase = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push("/login");
-        return;
-      }
+      if (!user) throw new Error("Utilisateur non connecté");
 
-      // ✅ INSERTION EXACTEMENT SELON TA STRUCTURE DE TABLE
+      const numAmount = parseFloat(amount);
+
+      // ✅ INSERTION ADAPTÉE À TA TABLE EXACTE
       const { error: dbError } = await supabase.from('tips').insert({
         fan_id: user.id,
         creator_id: creatorId,
         amount: numAmount,
-        payment_method: paymentMethod,
-        fan_phone_number: phone.trim(), // ✅ NOM EXACT DE LA COLONNE
         message: message.trim() || null,
-        status: 'completed', // ✅ Valeur par défaut de ta table
+        payment_method: 'kkiapay',
+        status: 'completed',
+        // fan_phone_number : null (Kkiapay gère le numéro, on ne l'a pas ici)
       });
 
       if (dbError) throw dbError;
 
-      onSuccess?.();
-      onClose();
-      alert(`✅ Pourboire de ${numAmount} FCFA envoyé via ${paymentMethod} !`);
+      setShowSuccess(true);
+      setIsLoading(false);
       
     } catch (err: any) {
-      console.error("❌ Erreur envoi tip:", err);
-      setError("Échec de l'envoi. Vérifiez votre connexion ou réessayez.");
-    } finally {
+      console.error("❌ Erreur enregistrement tip:", err);
+      setError("Paiement effectué mais erreur d'enregistrement. Contactez le support.");
       setIsLoading(false);
     }
   };
 
-  const canSend = parseFloat(amount) > 0 && phone.trim().length >= 8 && !isLoading;
+  const handleSuccessClose = () => {
+    setShowSuccess(false);
+    onSuccess?.();
+    onClose();
+  };
+
   const displayAmount = parseFloat(amount) || 0;
 
+  // ==========================================
+  // MODAL DE SUCCÈS
+  // ==========================================
+  if (showSuccess) {
+    return (
+      <div style={{
+        position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.8)", 
+        display: "flex", alignItems: "center", justifyContent: "center", 
+        zIndex: 1000, padding: "16px"
+      }}>
+        <div style={{
+          backgroundColor: "#1A1A1A",
+          borderRadius: "20px",
+          width: "100%",
+          maxWidth: "380px",
+          padding: "32px 24px",
+          textAlign: "center",
+          boxShadow: "0 20px 50px rgba(0,0,0,0.5)"
+        }}>
+          <div style={{ fontSize: "56px", marginBottom: "16px" }}>🎉</div>
+          <h2 style={{ color: "#FFF", fontSize: "20px", fontWeight: "bold", marginBottom: "12px" }}>
+            Merci pour ton soutien !
+          </h2>
+          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "14px", lineHeight: 1.5, marginBottom: "24px" }}>
+            Ton pourboire de <strong style={{ color: brandViolet }}>{displayAmount} FCFA</strong> a bien été envoyé à {creatorName}.
+          </p>
+          <button
+            onClick={handleSuccessClose}
+            style={{
+              width: "100%",
+              padding: "14px",
+              backgroundColor: brandViolet,
+              border: "none",
+              borderRadius: "12px",
+              color: "#FFF",
+              fontSize: "16px",
+              fontWeight: "bold",
+              cursor: "pointer"
+            }}
+          >
+            Super !
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // FORMULAIRE PRINCIPAL
+  // ==========================================
   return (
     <div style={{
       position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.8)", 
@@ -110,6 +233,7 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
           </p>
         </div>
 
+        {/* MONTANT */}
         <div style={{ marginBottom: "16px" }}>
           <div style={{ position: "relative" }}>
             <input
@@ -145,6 +269,7 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
           </div>
         </div>
 
+        {/* MONTANTS RAPIDES */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center", marginBottom: "24px" }}>
           {quickAmounts.map((val) => {
             const isSelected = parseFloat(amount) === val;
@@ -154,8 +279,8 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
                 onClick={() => handleAmountClick(val)}
                 style={{
                   padding: "8px 16px",
-                  backgroundColor: isSelected ? "#8B5CF6" : "#2A2A2A",
-                  border: isSelected ? "1px solid #8B5CF6" : "1px solid transparent",
+                  backgroundColor: isSelected ? brandViolet : "#2A2A2A",
+                  border: isSelected ? `1px solid ${brandViolet}` : "1px solid transparent",
                   borderRadius: "20px",
                   color: isSelected ? "#FFFFFF" : "#9CA3AF",
                   fontWeight: "bold",
@@ -170,58 +295,25 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
           })}
         </div>
 
-        <div style={{ marginBottom: "16px" }}>
-          <label style={{ display: "block", color: "#9CA3AF", fontSize: "14px", marginBottom: "6px" }}>
-            Moyen de paiement
-          </label>
-          <select
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value)}
-            style={{
-              width: "100%",
-              backgroundColor: "#2A2A2A",
-              border: "none",
-              borderRadius: "12px",
-              padding: "12px 16px",
-              color: "#FFFFFF",
-              fontSize: "14px",
-              outline: "none",
-              cursor: "pointer",
-              boxSizing: "border-box"
-            }}
-          >
-            {paymentMethods.map(method => (
-              <option key={method} value={method}>{method}</option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ marginBottom: "16px" }}>
-          <label style={{ display: "block", color: "#9CA3AF", fontSize: "14px", marginBottom: "6px" }}>
-            Ton numéro Mobile Money
-          </label>
-          <div style={{ position: "relative" }}>
-            <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", fontSize: "18px" }}>📱</span>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => { setPhone(e.target.value); setError(""); }}
-              placeholder="Ex: 07 07 07 07"
-              style={{
-                width: "100%",
-                backgroundColor: "#2A2A2A",
-                border: "none",
-                borderRadius: "12px",
-                padding: "12px 16px 12px 44px",
-                color: "#FFFFFF",
-                fontSize: "14px",
-                outline: "none",
-                boxSizing: "border-box"
-              }}
-            />
+        {/* INFO KKIAPAY */}
+        <div style={{
+          backgroundColor: "rgba(139, 92, 246, 0.1)",
+          border: `1px solid ${brandViolet}`,
+          borderRadius: "12px",
+          padding: "16px",
+          marginBottom: "16px",
+          display: "flex",
+          gap: "12px",
+          alignItems: "flex-start"
+        }}>
+          <span style={{ fontSize: "20px" }}>🔒</span>
+          <div style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", lineHeight: 1.5 }}>
+            Le paiement est sécurisé par <strong style={{ color: brandViolet }}>Kkiapay</strong>. 
+            Vous choisirez votre opérateur (MTN, Orange, Wave...) et entrerez votre numéro dans l'interface Kkiapay.
           </div>
         </div>
 
+        {/* MESSAGE OPTIONNEL */}
         <div style={{ marginBottom: "24px" }}>
           <label style={{ display: "block", color: "#9CA3AF", fontSize: "14px", marginBottom: "6px" }}>
             Message d'encouragement (optionnel)
@@ -262,19 +354,20 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
           </div>
         )}
 
+        {/* BOUTON PAYER */}
         <button
           onClick={handleSendTip}
-          disabled={!canSend}
+          disabled={displayAmount <= 0 || isLoading}
           style={{
             width: "100%",
             padding: "16px",
-            backgroundColor: canSend ? "#8B5CF6" : "#374151",
+            backgroundColor: (displayAmount > 0 && !isLoading) ? brandViolet : "#374151",
             border: "none",
             borderRadius: "12px",
             color: "#FFFFFF",
             fontSize: "16px",
             fontWeight: "bold",
-            cursor: canSend ? "pointer" : "not-allowed",
+            cursor: (displayAmount > 0 && !isLoading) ? "pointer" : "not-allowed",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
