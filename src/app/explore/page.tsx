@@ -95,6 +95,7 @@ export default function ExplorePage() {
     setCreators(data || []);
   };
 
+  // ✅ On récupère AUSSI premium_price et pro_price depuis profiles (comme le mobile)
   const fetchPosts = async () => {
     const { data: postsData } = await supabase
       .from('posts')
@@ -105,9 +106,11 @@ export default function ExplorePage() {
     if (!postsData || postsData.length === 0) return;
 
     const userIds = [...new Set(postsData.map((p: any) => p.user_id))];
+    
+    // ✅ AJOUT : premium_price et pro_price dans le select
     const { data: profilesData } = await supabase
       .from('profiles')
-      .select('id, username, avatar_url')
+      .select('id, username, full_name, avatar_url, premium_price, pro_price')
       .in('id', userIds);
 
     const profilesMap: Record<string, any> = {};
@@ -115,7 +118,7 @@ export default function ExplorePage() {
 
     const mergedPosts = postsData.map((post: any) => ({
       ...post,
-      profile: profilesMap[post.user_id] || { username: 'inconnu' },
+      profile: profilesMap[post.user_id] || { username: 'inconnu', premium_price: 0, pro_price: 0 },
       likes_count: post.likes_count ?? 0,
     }));
 
@@ -306,21 +309,24 @@ export default function ExplorePage() {
               <p style={{ fontSize: "16px" }}>Aucun résultat trouvé</p>
             </div>
           ) : (
-            /* ✅ GRILLE RESPONSIVE OPTIMISÉE */
             <div className="responsive-posts-grid">
               {filteredPosts.map((post: any) => {
                 const creatorId = post.user_id;
                 const isMyOwnPost = user?.id === creatorId;
                 const isLocked = !isMyOwnPost && !subscribedCreatorIds.has(creatorId);
                 const username = post.profile?.username || 'inconnu';
+                const displayName = post.profile?.full_name || username;
                 const likesCount = post.likes_count || 0;
+                // ✅ Prix dynamique depuis profiles (comme le mobile)
+                const premiumPrice = post.profile?.premium_price || 0;
 
                 return (
                   <div
                     key={post.id}
                     onClick={() => {
                       if (isLocked) {
-                        router.push(`/subscribe/${creatorId}?tier=premium&price=2000&name=${encodeURIComponent(username)}`);
+                        // ✅ Utilise premiumPrice au lieu de 2000 hardcodé + ajoute le nom
+                        router.push(`/subscribe/${creatorId}?tier=premium&price=${premiumPrice}&name=${encodeURIComponent(displayName)}`);
                       } else {
                         router.push(`/post/${post.id}?creatorId=${creatorId}`);
                       }
@@ -346,6 +352,11 @@ export default function ExplorePage() {
                       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", zIndex: 10 }}>
                         <div style={{ width: "56px", height: "56px", borderRadius: "50%", backgroundColor: colors.primary, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px" }}>🔒</div>
                         <span style={{ color: colors.text, fontWeight: "bold", fontSize: "13px", backgroundColor: "rgba(0,0,0,0.6)", padding: "6px 12px", borderRadius: "20px" }}>Contenu Exclusif</span>
+                        {premiumPrice > 0 && (
+                          <span style={{ color: colors.textMuted, fontSize: "11px", backgroundColor: "rgba(0,0,0,0.6)", padding: "4px 10px", borderRadius: "12px" }}>
+                            {premiumPrice.toFixed(0)} FCFA / mois
+                          </span>
+                        )}
                       </div>
                     )}
 
@@ -386,7 +397,6 @@ export default function ExplorePage() {
       <style>{`
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* ✅ RESPONSIVITÉ DE LA GRILLE DE POSTS */
         .responsive-posts-grid {
           display: grid;
           gap: 16px;
@@ -395,7 +405,6 @@ export default function ExplorePage() {
 
         .post-card {
           position: relative;
-          /* ✅ FORMAT VIDÉO VERTICAL (9/16) comme sur mobile/TikTok */
           aspect-ratio: 9 / 16; 
           border-radius: 16px;
           overflow: hidden;
@@ -409,21 +418,18 @@ export default function ExplorePage() {
           box-shadow: 0 8px 24px rgba(0,0,0,0.4);
         }
 
-        /* Ajustement pour très grands écrans (PC large) */
         @media (min-width: 1200px) {
           .responsive-posts-grid {
             grid-template-columns: repeat(4, 1fr);
           }
         }
         
-        /* Ajustement pour tablette et PC moyen */
         @media (max-width: 1199px) and (min-width: 768px) {
           .responsive-posts-grid {
             grid-template-columns: repeat(3, 1fr);
           }
         }
 
-        /* Ajustement pour petit écran / mobile */
         @media (max-width: 767px) {
           .responsive-posts-grid {
             grid-template-columns: repeat(2, 1fr);

@@ -52,7 +52,6 @@ function CreatorProfileContent() {
   const [daysRemaining, setDaysRemaining] = useState(0);
   const [showTipModal, setShowTipModal] = useState(false);
 
-  // ✅ NOUVEAU : États pour la boutique
   const [shopProducts, setShopProducts] = useState<any[]>([]);
   const [isLoadingShop, setIsLoadingShop] = useState(true);
   
@@ -96,7 +95,7 @@ function CreatorProfileContent() {
         loadCreatorProfile(),
         loadCreatorPosts(),
         loadCreatorStories(),
-        loadCreatorShop(), // ✅ NOUVEAU
+        loadCreatorShop(),
         checkIfFollowing(currentUser),
         loadFollowersCount(),
         loadFollowingCount(),
@@ -110,6 +109,7 @@ function CreatorProfileContent() {
     }
   };
 
+  // ✅ Lit bien premium_price et pro_price depuis profiles
   const loadCreatorProfile = async () => {
     const { data } = await supabase
       .from('profiles')
@@ -143,7 +143,6 @@ function CreatorProfileContent() {
     }
   };
 
-  // ✅ NOUVEAU : Charger les produits publiés de la boutique
   const loadCreatorShop = async () => {
     try {
       const { data } = await supabase
@@ -331,7 +330,6 @@ function CreatorProfileContent() {
               </Flex>
               <Text color={colors.textMuted} fontSize="14px" mb={4}>@{creator.username}</Text>
               
-              {/* STATS */}
               <Flex justify={{ base: "center", md: "flex-start" }} gap={8} mb={4}>
                 <VStack spacing={1}>
                   <Text fontWeight="bold" fontSize="18px">{formatCount(followingCount)}</Text>
@@ -347,7 +345,6 @@ function CreatorProfileContent() {
                 </VStack>
               </Flex>
 
-              {/* BOUTONS */}
               <Flex gap={2} justify={{ base: "center", md: "flex-start" }} flexWrap="wrap" mb={4}>
                 <Button 
                   bg={isFollowing ? "transparent" : colors.primary}
@@ -394,7 +391,6 @@ function CreatorProfileContent() {
                 </Button>
               </Flex>
 
-              {/* BIO */}
               {creator.bio && (
                 <Text color={colors.text} fontSize="14px" lineHeight="1.5" textAlign={{ base: "center", md: "left" }}>
                   {creator.bio}
@@ -403,7 +399,7 @@ function CreatorProfileContent() {
             </Box>
           </Flex>
 
-          {/* ABONNEMENTS */}
+          {/* ✅ ABONNEMENTS - avec prix passés dans l'URL */}
           {(premiumPrice > 0 || proPrice > 0) && (
             <Box mb={6} p={4} bg={colors.card} borderRadius="8px" border={`1px solid ${colors.border}`}>
               <Text fontSize="16px" fontWeight="bold" mb={3}>
@@ -417,7 +413,7 @@ function CreatorProfileContent() {
                     isPro={false} 
                     currentTier={currentSubscription?.tier_type} 
                     daysRemaining={daysRemaining} 
-                    onSubscribe={() => router.push(`/subscribe/${creatorId}?tier=premium`)} 
+                    onSubscribe={() => router.push(`/subscribe/${creatorId}?tier=premium&price=${premiumPrice}&name=${encodeURIComponent(creatorDisplayName)}`)} 
                     colors={colors} 
                   />
                 )}
@@ -428,7 +424,7 @@ function CreatorProfileContent() {
                     isPro={true} 
                     currentTier={currentSubscription?.tier_type} 
                     daysRemaining={daysRemaining} 
-                    onSubscribe={() => router.push(`/subscribe/${creatorId}?tier=pro`)} 
+                    onSubscribe={() => router.push(`/subscribe/${creatorId}?tier=pro&price=${proPrice}&name=${encodeURIComponent(creatorDisplayName)}`)} 
                     colors={colors} 
                   />
                 )}
@@ -443,7 +439,6 @@ function CreatorProfileContent() {
             <Tab _selected={{ color: colors.text, borderBottom: `2px solid ${colors.primary}` }} color={colors.textMuted} flex={1} textTransform="uppercase" fontSize="14px" letterSpacing="0.5px">
               Vidéos
             </Tab>
-            {/* ✅ NOUVEL ONGLET BOUTIQUE */}
             <Tab _selected={{ color: colors.text, borderBottom: `2px solid ${colors.primary}` }} color={colors.textMuted} flex={1} textTransform="uppercase" fontSize="14px" letterSpacing="0.5px">
               Boutique
             </Tab>
@@ -465,13 +460,26 @@ function CreatorProfileContent() {
               ) : (
                 <SimpleGrid columns={{ base: 3, md: 4, lg: 5 }} spacing={{ base: 1, md: 2, lg: 3 }}>
                   {posts.map((post) => (
-                    <PostCard key={post.id} post={post} isSubscribed={isSubscribed} colors={colors} onClick={() => router.push(`/post/${post.id}?creatorId=${creatorId}`)} />
+                    <PostCard 
+                      key={post.id} 
+                      post={post} 
+                      isSubscribed={isSubscribed} 
+                      colors={colors} 
+                      onClick={() => {
+                        if (!isSubscribed) {
+                          // ✅ Passe le prix et le nom si pas abonné
+                          router.push(`/subscribe/${creatorId}?tier=premium&price=${premiumPrice}&name=${encodeURIComponent(creatorDisplayName)}`);
+                        } else {
+                          router.push(`/post/${post.id}?creatorId=${creatorId}`);
+                        }
+                      }} 
+                    />
                   ))}
                 </SimpleGrid>
               )}
             </TabPanel>
 
-            {/* ✅ ONGLET 1 : BOUTIQUE */}
+            {/* ONGLET 1 : BOUTIQUE */}
             <TabPanel p={0} pt={4}>
               {isLoadingShop ? (
                 <Center py={16}>
@@ -491,7 +499,7 @@ function CreatorProfileContent() {
                       key={product.id} 
                       product={product} 
                       colors={colors} 
-                      onClick={() => router.push(`/product/${product.id}`)} // Redirige vers la page de détail du produit
+                      onClick={() => router.push(`/product/${product.id}`)}
                     />
                   ))}
                 </SimpleGrid>
@@ -531,7 +539,6 @@ function CreatorProfileContent() {
   );
 }
 
-// ✅ COMPOSANT CARTE PRODUIT POUR LA BOUTIQUE (Style identique au Flutter)
 function ShopProductCard({ product, colors, onClick }: { product: any, colors: any, onClick: () => void }) {
   const title = product.title || "Sans titre";
   const price = (product.price as number) || 0;
@@ -573,6 +580,7 @@ function ShopProductCard({ product, colors, onClick }: { product: any, colors: a
     </Box>
   );
 }
+
 function SubscriptionCard({ badge, title, price, features, isPro, currentTier, daysRemaining, onSubscribe, colors }: any) {
   const isCurrentTier = currentTier === (isPro ? 'pro' : 'premium');
   
@@ -609,7 +617,6 @@ function SubscriptionCard({ badge, title, price, features, isPro, currentTier, d
           </Text>
         ))}
       </VStack>
-      {/* ✅ CORRECTION : Ajout de onClick={onSubscribe} */}
       <Button 
         w="100%" 
         size="sm"
@@ -617,7 +624,7 @@ function SubscriptionCard({ badge, title, price, features, isPro, currentTier, d
         color={isCurrentTier ? colors.textMuted : (isPro ? colors.primary : colors.text)} 
         isDisabled={isCurrentTier}
         cursor={isCurrentTier ? "not-allowed" : "pointer"}
-        onClick={onSubscribe}  // ⬅️ C'EST ÇA QUI MANQUAIT !
+        onClick={onSubscribe}
         _hover={!isCurrentTier ? { opacity: 0.9, transform: "scale(1.02)" } : {}}
         transition="all 0.2s"
       >
@@ -627,6 +634,7 @@ function SubscriptionCard({ badge, title, price, features, isPro, currentTier, d
   );
 }
 
+// ✅ PostCard avec FLOU RENFORCÉ (blur 25px au lieu de 0)
 function PostCard({ post, isSubscribed, colors, onClick }: any) {
   return (
     <Box 
@@ -641,11 +649,30 @@ function PostCard({ post, isSubscribed, colors, onClick }: any) {
     >
       {post.media_url ? (
         <>
-          <Box as="img" src={post.media_url} alt={post.caption || "Post"} w="100%" h="100%" objectFit="cover" />
+          {/* ✅ FLOU RENFORCÉ quand non abonné */}
+          <Box 
+            as="img" 
+            src={post.media_url} 
+            alt={post.caption || "Post"} 
+            w="100%" 
+            h="100%" 
+            objectFit="cover"
+            style={{
+              filter: !isSubscribed ? "blur(25px) brightness(0.6)" : "none",
+              transform: !isSubscribed ? "scale(1.1)" : "none", // évite les bords nets du blur
+            }}
+          />
           {!isSubscribed && (
-            <Center position="absolute" inset={0} bg="rgba(0,0,0,0.6)" flexDirection="column">
-              <Text fontSize="28px" mb={2}>🔒</Text>
-              <Text fontSize="10px" fontWeight="bold">Abonné</Text>
+            <Center 
+              position="absolute" 
+              inset={0} 
+              bg="rgba(0,0,0,0.7)" 
+              flexDirection="column"
+              backdropFilter="blur(4px)"
+            >
+              <Text fontSize="32px" mb={2}>🔒</Text>
+              <Text fontSize="11px" fontWeight="bold" color="white">Exclusif</Text>
+              <Text fontSize="9px" color="rgba(255,255,255,0.7)" mt={1}>Cliquez pour voir</Text>
             </Center>
           )}
         </>
@@ -662,7 +689,7 @@ function PostCard({ post, isSubscribed, colors, onClick }: any) {
           ❤️ {formatCount(post.likes_count || 0)}
         </Text>
       </Box>
-      {post.media_type === 'video' && (
+      {post.media_type === 'video' && !isSubscribed === false && (
         <Box position="absolute" top={2} right={2} bg="rgba(0,0,0,0.6)" px={2} py={1} borderRadius="3px" fontSize="10px">
           ▶
         </Box>
