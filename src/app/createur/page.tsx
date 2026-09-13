@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 import TipDialog from "@/components/TipDialog";
 import {
   Box,
@@ -34,6 +35,7 @@ function CreatorProfileContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const creatorId = searchParams.get('id');
+  const { isDark, theme } = useAppTheme();
 
   const [user, setUser] = useState<any>(null);
   const [creator, setCreator] = useState<any>(null);
@@ -57,14 +59,17 @@ function CreatorProfileContent() {
   
   const isSubscribed = currentSubscription !== null;
 
+  // ✅ Couleurs dynamiques selon le thème
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    secondary: "#A78BFA",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    secondary: theme.primary,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     success: "#10B981",
   };
 
@@ -109,7 +114,6 @@ function CreatorProfileContent() {
     }
   };
 
-  // ✅ Lit bien premium_price et pro_price depuis profiles
   const loadCreatorProfile = async () => {
     const { data } = await supabase
       .from('profiles')
@@ -273,7 +277,16 @@ function CreatorProfileContent() {
     <Box minH="100vh" bg={colors.bg} color={colors.text}>
       
       {/* HEADER */}
-      <Box position="sticky" top={0} zIndex={100} bg="rgba(10,10,10,0.95)" backdropFilter="blur(10px)" borderBottom={`1px solid ${colors.border}`} py={3} px={4}>
+      <Box 
+        position="sticky" 
+        top={0} 
+        zIndex={100} 
+        bg={isDark ? "rgba(10,10,10,0.95)" : "rgba(255,255,255,0.95)"} 
+        backdropFilter="blur(10px)" 
+        borderBottom={`1px solid ${colors.border}`} 
+        py={3} 
+        px={4}
+      >
         <Flex align="center" justify="space-between" maxW="1200px" mx="auto">
           <Button variant="ghost" color={colors.text} fontSize="24px" p={0} w="40px" h="40px" onClick={() => router.back()}>←</Button>
           <Flex direction="column" align="center">
@@ -299,7 +312,7 @@ function CreatorProfileContent() {
               <Box
                 p="3px"
                 borderRadius="full"
-                bg={hasActiveStories ? `linear-gradient(135deg, ${colors.primary}, ${colors.secondary}, ${colors.primary})` : "transparent"}
+                bg={hasActiveStories ? `linear-gradient(135deg, ${colors.primary}, ${theme.cardHover}, ${colors.primary})` : "transparent"}
                 cursor={hasActiveStories ? "pointer" : "default"}
                 onClick={hasActiveStories ? () => router.push(`/stories/view?creatorId=${creatorId}`) : undefined}
               >
@@ -348,9 +361,9 @@ function CreatorProfileContent() {
               <Flex gap={2} justify={{ base: "center", md: "flex-start" }} flexWrap="wrap" mb={4}>
                 <Button 
                   bg={isFollowing ? "transparent" : colors.primary}
-                  color={isFollowing ? colors.text : "white"}
+                  color={isFollowing ? colors.text : colors.primaryText}
                   border={isFollowing ? `1px solid ${colors.border}` : "none"}
-                  _hover={{ bg: isFollowing ? colors.card : colors.primary }}
+                  _hover={{ opacity: 0.9 }}
                   px={8}
                   onClick={toggleFollow}
                 >
@@ -360,7 +373,7 @@ function CreatorProfileContent() {
                   bg={colors.card}
                   border={`1px solid ${colors.border}`}
                   color={colors.text}
-                  _hover={{ bg: colors.border }}
+                  _hover={{ bg: colors.hover }}
                   px={6}
                   onClick={() => router.push(`/messages?to=${creatorId}`)}
                 >
@@ -370,7 +383,7 @@ function CreatorProfileContent() {
                   bg={colors.card}
                   border={`1px solid ${colors.border}`}
                   color={colors.text}
-                  _hover={{ bg: colors.border }}
+                  _hover={{ bg: colors.hover }}
                   w="40px"
                   p={0}
                   fontSize="18px"
@@ -382,7 +395,7 @@ function CreatorProfileContent() {
                   bg={colors.card}
                   border={`1px solid ${colors.border}`}
                   color={colors.text}
-                  _hover={{ bg: colors.border }}
+                  _hover={{ bg: colors.hover }}
                   w="40px"
                   p={0}
                   fontSize="18px"
@@ -399,7 +412,7 @@ function CreatorProfileContent() {
             </Box>
           </Flex>
 
-          {/* ✅ ABONNEMENTS - avec prix passés dans l'URL */}
+          {/* ABONNEMENTS */}
           {(premiumPrice > 0 || proPrice > 0) && (
             <Box mb={6} p={4} bg={colors.card} borderRadius="8px" border={`1px solid ${colors.border}`}>
               <Text fontSize="16px" fontWeight="bold" mb={3}>
@@ -467,7 +480,6 @@ function CreatorProfileContent() {
                       colors={colors} 
                       onClick={() => {
                         if (!isSubscribed) {
-                          // ✅ Passe le prix et le nom si pas abonné
                           router.push(`/subscribe/${creatorId}?tier=premium&price=${premiumPrice}&name=${encodeURIComponent(creatorDisplayName)}`);
                         } else {
                           router.push(`/post/${post.id}?creatorId=${creatorId}`);
@@ -488,7 +500,7 @@ function CreatorProfileContent() {
               ) : shopProducts.length === 0 ? (
                 <Center py={16} color={colors.textMuted}>
                   <VStack>
-                    <Icon as={FaStore} boxSize={12} color="gray.600" />
+                    <Icon as={FaStore} boxSize={12} color={colors.textMuted} />
                     <Text fontSize="16px" fontWeight="bold">Aucun produit en vente pour le moment</Text>
                   </VStack>
                 </Center>
@@ -562,15 +574,15 @@ function ShopProductCard({ product, colors, onClick }: { product: any, colors: a
       onClick={onClick}
       _hover={{ transform: "translateY(-2px)", transition: "transform 0.2s", borderColor: colors.primary }}
     >
-      <Box aspectRatio="4/3" bg="gray.800" display="flex" alignItems="center" justifyContent="center">
+      <Box aspectRatio="4/3" bg={colors.cardHover} display="flex" alignItems="center" justifyContent="center">
         {product.media_url ? (
           <Box as="img" src={product.media_url} alt={title} w="100%" h="100%" objectFit="cover" />
         ) : (
-          <Icon as={getIcon()} color="gray.500" boxSize={10} />
+          <Icon as={getIcon()} color={colors.textMuted} boxSize={10} />
         )}
       </Box>
       <Box p={3}>
-        <Text color="white" fontWeight="bold" fontSize="13px" noOfLines={2} mb={2}>
+        <Text color={colors.text} fontWeight="bold" fontSize="13px" noOfLines={2} mb={2}>
           {title}
         </Text>
         <Text color={colors.primary} fontWeight="bold" fontSize="15px">
@@ -590,7 +602,7 @@ function SubscriptionCard({ badge, title, price, features, isPro, currentTier, d
       flex="1 1 180px" 
       p={3} 
       borderRadius="8px" 
-      bg={isPro ? `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` : colors.card} 
+      bg={isPro ? colors.primary : colors.card} 
       border={`1px solid ${isPro ? colors.primary : colors.border}`}
     >
       <Badge 
@@ -602,13 +614,13 @@ function SubscriptionCard({ badge, title, price, features, isPro, currentTier, d
         fontSize="10px" 
         fontWeight="bold" 
         mb={2}
-        color={isPro ? colors.text : colors.primary}
+        color={isPro ? colors.primaryText : colors.primary}
       >
         {badge}
       </Badge>
-      <Text fontSize="14px" fontWeight="medium" mb={1}>{title}</Text>
-      <Text fontSize="18px" fontWeight="bold" mb={2}>
-        {price} <Text as="span" fontSize="11px" color={colors.textMuted}>FCFA/mois</Text>
+      <Text fontSize="14px" fontWeight="medium" mb={1} color={isPro ? colors.primaryText : colors.text}>{title}</Text>
+      <Text fontSize="18px" fontWeight="bold" mb={2} color={isPro ? colors.primaryText : colors.text}>
+        {price} <Text as="span" fontSize="11px" color={isPro ? "rgba(255,255,255,0.7)" : colors.textMuted}>FCFA/mois</Text>
       </Text>
       <VStack align="stretch" spacing={1} mb={3}>
         {features.map((feature: string, i: number) => (
@@ -620,8 +632,8 @@ function SubscriptionCard({ badge, title, price, features, isPro, currentTier, d
       <Button 
         w="100%" 
         size="sm"
-        bg={isCurrentTier ? colors.border : (isPro ? colors.text : colors.primary)} 
-        color={isCurrentTier ? colors.textMuted : (isPro ? colors.primary : colors.text)} 
+        bg={isCurrentTier ? colors.border : (isPro ? colors.primaryText : colors.primary)} 
+        color={isCurrentTier ? colors.textMuted : (isPro ? colors.primary : colors.primaryText)} 
         isDisabled={isCurrentTier}
         cursor={isCurrentTier ? "not-allowed" : "pointer"}
         onClick={onSubscribe}
@@ -634,7 +646,6 @@ function SubscriptionCard({ badge, title, price, features, isPro, currentTier, d
   );
 }
 
-// ✅ PostCard avec FLOU RENFORCÉ (blur 25px au lieu de 0)
 function PostCard({ post, isSubscribed, colors, onClick }: any) {
   return (
     <Box 
@@ -649,7 +660,6 @@ function PostCard({ post, isSubscribed, colors, onClick }: any) {
     >
       {post.media_url ? (
         <>
-          {/* ✅ FLOU RENFORCÉ quand non abonné */}
           <Box 
             as="img" 
             src={post.media_url} 
@@ -659,7 +669,7 @@ function PostCard({ post, isSubscribed, colors, onClick }: any) {
             objectFit="cover"
             style={{
               filter: !isSubscribed ? "blur(25px) brightness(0.6)" : "none",
-              transform: !isSubscribed ? "scale(1.1)" : "none", // évite les bords nets du blur
+              transform: !isSubscribed ? "scale(1.1)" : "none",
             }}
           />
           {!isSubscribed && (
@@ -685,12 +695,12 @@ function PostCard({ post, isSubscribed, colors, onClick }: any) {
             {post.caption}
           </Text>
         )}
-        <Text fontSize="10px" color={colors.text}>
+        <Text fontSize="10px" color="white">
           ❤️ {formatCount(post.likes_count || 0)}
         </Text>
       </Box>
       {post.media_type === 'video' && !isSubscribed === false && (
-        <Box position="absolute" top={2} right={2} bg="rgba(0,0,0,0.6)" px={2} py={1} borderRadius="3px" fontSize="10px">
+        <Box position="absolute" top={2} right={2} bg="rgba(0,0,0,0.6)" px={2} py={1} borderRadius="3px" fontSize="10px" color="white">
           ▶
         </Box>
       )}

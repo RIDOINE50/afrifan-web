@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
-// Déclaration TypeScript pour Kkiapay (ajouté au window)
 declare global {
   interface Window {
     openKkiapayWidget: (options: any) => void;
@@ -17,6 +17,7 @@ export default function PaymentPage() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
+  const { isDark, theme } = useAppTheme();
   
   const paymentType = searchParams.get('type') || 'subscription'; 
   const productId = searchParams.get('productId');
@@ -32,12 +33,23 @@ export default function PaymentPage() {
   const [error, setError] = useState<string>("");
 
   const isPro = tierType === 'pro';
-  const brandViolet = "#8B5CF6";
-  const brandVioletDark = "#6D28D9";
 
-  // ✅ TA CLÉ PUBLIQUE KKIAPAY (la même que sur mobile)
   const kkiapayPublicKey = "72fc173fbe56f0f477e6bfcaa7349471c844e893";
-  const isSandbox = false; // false = production (vrai argent), true = test
+  const isSandbox = false;
+
+  // ✅ Couleurs dynamiques selon le thème
+  const colors = {
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
+    overlay: isDark ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.5)",
+    red: "#EF4444",
+  };
 
   // ==========================================
   // 1. VÉRIFICATION UTILISATEUR
@@ -61,31 +73,24 @@ export default function PaymentPage() {
     if (!user) return;
     if (typeof window === "undefined" || !window.addKkiapayListener) return;
 
-    // ✅ Paiement réussi
     window.addKkiapayListener('success', async (response: any) => {
       console.log("✅ Paiement Kkiapay réussi:", response);
-      
-      // On récupère l'ID qu'on a passé dans 'data' (comme sur mobile)
       const referenceId = response?.data || (paymentType === 'product' ? productId : creatorId);
       const transactionId = response?.transactionId || response?.transaction_id;
-      
       await verifyAndConfirmPayment(transactionId, referenceId);
     });
 
-    // ❌ Paiement échoué
     window.addKkiapayListener('failed', (err: any) => {
       console.error("❌ Paiement échoué:", err);
       setError("Échec du paiement. Vérifiez votre solde ou réessayez.");
       setIsLoading(false);
     });
 
-    // 🚫 Paiement annulé par l'utilisateur
     window.addKkiapayListener('cancelled', () => {
       setError("Paiement annulé.");
       setIsLoading(false);
     });
 
-    // Nettoyage quand on quitte la page
     return () => {
       if (typeof window !== "undefined" && window.removeKkiapayListener) {
         window.removeKkiapayListener('success');
@@ -107,19 +112,16 @@ export default function PaymentPage() {
     setIsLoading(true);
     setError("");
 
-    // ✅ EXACTEMENT comme sur mobile : on ouvre le widget Kkiapay
     window.openKkiapayWidget({
       amount: Math.round(price),
       key: kkiapayPublicKey,
       sandbox: isSandbox,
-      // On passe l'ID (creatorId ou productId) pour le retrouver après paiement
       data: paymentType === 'product' ? productId : creatorId,
-      theme: brandViolet,
+      theme: "#8B5CF6",
       name: creatorName,
       reason: paymentType === 'product' 
         ? `Achat de ${productName}` 
         : `Abonnement à ${creatorName}`,
-      // Tu peux limiter les pays comme sur mobile
       countries: ["BJ", "CI", "SN", "TG"],
     });
   };
@@ -131,7 +133,6 @@ export default function PaymentPage() {
     try {
       if (!user) throw new Error("Utilisateur non connecté");
 
-      // 🔥 MÊME FONCTION EDGE QUE LE MOBILE : 'kkiapay-webhook'
       const response = await supabase.functions.invoke('kkiapay-webhook', {
         body: {
           transaction_id: transactionId,
@@ -171,7 +172,7 @@ export default function PaymentPage() {
   return (
     <div style={{ 
       minHeight: "100vh", 
-      backgroundColor: "#000000", 
+      backgroundColor: colors.bg, 
       display: "flex", 
       alignItems: "center", 
       justifyContent: "center",
@@ -180,11 +181,11 @@ export default function PaymentPage() {
       <div style={{
         width: "100%",
         maxWidth: "480px",
-        backgroundColor: "#0A0A0A",
+        backgroundColor: colors.bg,
         borderRadius: "16px",
         overflow: "hidden",
-        boxShadow: "0 20px 50px rgba(0,0,0,0.8)",
-        border: "1px solid #2A2A2A"
+        boxShadow: isDark ? "0 20px 50px rgba(0,0,0,0.8)" : "0 20px 50px rgba(0,0,0,0.1)",
+        border: `1px solid ${colors.border}`
       }}>
         
         {/* Header */}
@@ -193,35 +194,35 @@ export default function PaymentPage() {
           display: "flex", 
           alignItems: "center", 
           gap: "16px",
-          borderBottom: "1px solid #2A2A2A"
+          borderBottom: `1px solid ${colors.border}`
         }}>
           <button 
             onClick={() => router.back()}
-            style={{ background: "none", border: "none", color: "#FFF", fontSize: "24px", cursor: "pointer", padding: "4px" }}
+            style={{ background: "none", border: "none", color: colors.text, fontSize: "24px", cursor: "pointer", padding: "4px" }}
           >
             ←
           </button>
-          <h1 style={{ color: "#FFF", fontSize: "18px", fontWeight: "bold", margin: 0 }}>
+          <h1 style={{ color: colors.text, fontSize: "18px", fontWeight: "bold", margin: 0 }}>
             {isProduct ? "Finaliser l'achat" : "Finaliser l'abonnement"}
           </h1>
         </div>
 
         <div style={{ padding: "24px 20px", maxHeight: "80vh", overflowY: "auto" }}>
           
-          {/* 📋 RÉCAPITULATIF (inchangé) */}
+          {/* 📋 RÉCAPITULATIF */}
           <div style={{
             width: "100%",
             padding: "20px",
             borderRadius: "16px",
             background: (!isProduct && isPro) 
-              ? `linear-gradient(135deg, ${brandViolet}, ${brandVioletDark})` 
-              : "linear-gradient(135deg, #1A1A1A, #1A1A1A)",
-            border: `2px solid ${(!isProduct && isPro) ? brandViolet : "#333"}`,
+              ? colors.primary
+              : colors.card,
+            border: `2px solid ${(!isProduct && isPro) ? colors.primary : colors.border}`,
             marginBottom: "32px",
             boxSizing: "border-box"
           }}>
             <div style={{ 
-              color: (!isProduct && isPro) ? "#FFF" : brandViolet, 
+              color: (!isProduct && isPro) ? colors.primaryText : colors.primary, 
               fontSize: "12px", 
               fontWeight: "bold",
               marginBottom: "8px",
@@ -229,22 +230,41 @@ export default function PaymentPage() {
             }}>
               {isProduct ? "Produit Numérique" : tierType}
             </div>
-            <div style={{ color: "#FFF", fontSize: "18px", fontWeight: "bold", marginBottom: "16px" }}>
+            <div style={{ 
+              color: (!isProduct && isPro) ? colors.primaryText : colors.text, 
+              fontSize: "18px", 
+              fontWeight: "bold", 
+              marginBottom: "16px" 
+            }}>
               {isProduct ? productName : `Abonnement à ${creatorName}`}
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
-              <span style={{ color: "#FFF", fontSize: "32px", fontWeight: "bold" }}>
+              <span style={{ 
+                color: (!isProduct && isPro) ? colors.primaryText : colors.text, 
+                fontSize: "32px", 
+                fontWeight: "bold" 
+              }}>
                 {price.toFixed(0)}
               </span>
-              <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "14px" }}>FCFA</span>
-              {!isProduct && <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px" }}>/mois</span>}
+              <span style={{ 
+                color: (!isProduct && isPro) ? colors.primaryText : colors.textMuted, 
+                fontSize: "14px",
+                opacity: 0.7
+              }}>FCFA</span>
+              {!isProduct && (
+                <span style={{ 
+                  color: (!isProduct && isPro) ? colors.primaryText : colors.textMuted, 
+                  fontSize: "12px",
+                  opacity: 0.5
+                }}>/mois</span>
+              )}
             </div>
           </div>
 
           {/* 💡 INFO : Kkiapay gère le paiement */}
           <div style={{
-            backgroundColor: "rgba(139, 92, 246, 0.1)",
-            border: `1px solid ${brandViolet}`,
+            backgroundColor: colors.hover,
+            border: `1px solid ${colors.border}`,
             borderRadius: "12px",
             padding: "16px",
             marginBottom: "24px",
@@ -253,8 +273,8 @@ export default function PaymentPage() {
             alignItems: "flex-start"
           }}>
             <span style={{ fontSize: "20px" }}>🔒</span>
-            <div style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", lineHeight: 1.5 }}>
-              Le paiement est sécurisé par <strong style={{ color: brandViolet }}>Kkiapay</strong>. 
+            <div style={{ color: colors.textMuted, fontSize: "13px", lineHeight: 1.5 }}>
+              Le paiement est sécurisé par <strong style={{ color: colors.text }}>Kkiapay</strong>. 
               Vous choisirez votre opérateur (MTN, Orange, Wave...) et entrerez votre numéro directement dans l'interface Kkiapay.
             </div>
           </div>
@@ -263,11 +283,11 @@ export default function PaymentPage() {
           {error && (
             <div style={{ 
               backgroundColor: "rgba(239, 68, 68, 0.1)", 
-              border: "1px solid #EF4444", 
+              border: `1px solid ${colors.red}`, 
               borderRadius: "8px", 
               padding: "12px", 
               marginBottom: "16px",
-              color: "#EF4444",
+              color: colors.red,
               fontSize: "14px",
               textAlign: "center"
             }}>
@@ -275,17 +295,17 @@ export default function PaymentPage() {
             </div>
           )}
 
-          {/* ✅ BOUTON PAYER (ouvre Kkiapay) */}
+          {/* ✅ BOUTON PAYER */}
           <button
             onClick={handlePayment}
             disabled={isLoading}
             style={{
               width: "100%",
               height: "56px",
-              backgroundColor: isLoading ? "#374151" : brandViolet,
+              backgroundColor: isLoading ? colors.border : colors.primary,
               border: "none",
               borderRadius: "12px",
-              color: "#FFF",
+              color: colors.primaryText,
               fontSize: "16px",
               fontWeight: "bold",
               cursor: isLoading ? "not-allowed" : "pointer",
@@ -298,7 +318,7 @@ export default function PaymentPage() {
           >
             {isLoading ? (
               <>
-                <div style={{ width: "20px", height: "20px", border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #FFF", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
+                <div style={{ width: "20px", height: "20px", border: `2px solid ${colors.primaryText}33`, borderTop: `2px solid ${colors.primaryText}`, borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
                 Traitement en cours...
               </>
             ) : (
@@ -307,7 +327,7 @@ export default function PaymentPage() {
           </button>
 
           <p style={{ 
-            color: "rgba(255,255,255,0.4)", 
+            color: colors.textMuted, 
             fontSize: "12px", 
             textAlign: "center", 
             marginTop: "16px",
@@ -322,23 +342,23 @@ export default function PaymentPage() {
       {/* MODAL DE SUCCÈS */}
       {showSuccess && (
         <div style={{
-          position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.8)",
+          position: "fixed", inset: 0, backgroundColor: colors.overlay,
           display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "16px"
         }}>
           <div style={{
-            backgroundColor: "#1A1A1A",
+            backgroundColor: colors.card,
             borderRadius: "16px",
             padding: "32px 24px",
             maxWidth: "400px",
             width: "100%",
             textAlign: "center",
-            border: "1px solid #2A2A2A"
+            border: `1px solid ${colors.border}`
           }}>
             <div style={{ fontSize: "48px", marginBottom: "16px" }}>✅</div>
-            <h2 style={{ color: "#FFF", fontSize: "20px", fontWeight: "bold", marginBottom: "12px" }}>
+            <h2 style={{ color: colors.text, fontSize: "20px", fontWeight: "bold", marginBottom: "12px" }}>
               Paiement réussi !
             </h2>
-            <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "15px", lineHeight: 1.5, marginBottom: "24px" }}>
+            <p style={{ color: colors.textMuted, fontSize: "15px", lineHeight: 1.5, marginBottom: "24px" }}>
               {isProduct 
                 ? "Vous avez acheté ce produit. Vous pouvez maintenant y accéder !" 
                 : "Vous êtes maintenant abonné. Profitez du contenu exclusif !"}
@@ -348,10 +368,10 @@ export default function PaymentPage() {
               style={{
                 width: "100%",
                 padding: "14px",
-                backgroundColor: brandViolet,
+                backgroundColor: colors.primary,
                 border: "none",
                 borderRadius: "12px",
-                color: "#FFF",
+                color: colors.primaryText,
                 fontSize: "16px",
                 fontWeight: "bold",
                 cursor: "pointer"
