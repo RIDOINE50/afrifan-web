@@ -40,6 +40,7 @@ import {
   SliderThumb,
 } from "@chakra-ui/react";
 
+// ✅ MODIFICATION 1 : Ajout des champs de prix depuis creator_applications
 interface CreatorProfile {
   id: string;
   username: string;
@@ -47,6 +48,8 @@ interface CreatorProfile {
   avatar_url: string | null;
   is_verified: boolean;
   followers_count?: number;
+  premium_price?: number;
+  pro_price?: number;
 }
 
 interface Post {
@@ -382,7 +385,6 @@ export default function HomePage() {
         }
         e.stopPropagation();
       };
-      // ✅ Cast explicite pour TypeScript
       el.addEventListener('wheel', handleWheel as EventListener, { passive: false, capture: true });
       handlers.push(() => el.removeEventListener('wheel', handleWheel as EventListener, { capture: true }));
     });
@@ -392,13 +394,12 @@ export default function HomePage() {
     };
   }, [filteredPosts]);
 
-  // ✅ MODIFICATION UNIQUE : Vérification du statut is_banned avant de charger la page
+  // Vérification du statut is_banned avant de charger la page
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push("/login"); return; }
 
-      // ✅ VÉRIFICATION : Est-ce que l'utilisateur est banni ?
       const { data: profile } = await supabase
         .from('profiles')
         .select('is_banned')
@@ -427,7 +428,6 @@ export default function HomePage() {
     if (data) setRecommendedCreators(data);
   };
 
-  // ✅ Correction du typage du paramètre 'tag'
   const fetchTrendingHashtags = async () => {
     const { data } = await supabase.from('posts').select('content, media_url').order('created_at', { ascending: false }).limit(30);
     if (!data) return;
@@ -442,7 +442,6 @@ export default function HomePage() {
         });
       }
     });
-    // ✅ Typage explicite pour le map
     const trending = Object.entries(hashtagCount)
       .map(([tag, data]: [string, HashtagCount]) => ({
         tag: tag.replace('#', ''),
@@ -454,6 +453,7 @@ export default function HomePage() {
     setTrendingHashtags(trending);
   };
 
+  // ✅ MODIFICATION 2 : Récupération dynamique des prix depuis creator_applications
   const fetchData = async (userId: string) => {
     setIsLoading(true);
     try {
@@ -466,14 +466,38 @@ export default function HomePage() {
       if (!postsData || postsData.length === 0) { setPosts([]); setFilteredPosts([]); setIsLoading(false); return; }
 
       const userIds = [...new Set(postsData.map((p: any) => p.user_id))];
+      
       const { data: profilesData } = await supabase.from('profiles').select('id, username, full_name, avatar_url, is_verified').in('id', userIds);
       const profilesMap: Record<string, CreatorProfile> = {};
       profilesData?.forEach((p: any) => { profilesMap[p.id] = p; });
 
+      // ✅ NOUVEAU : Récupérer les prix depuis creator_applications
+      const { data: applicationsData } = await supabase
+        .from('creator_applications')
+        .select('user_id, premium_price, pro_price')
+        .in('user_id', userIds);
+
+      const pricesMap: Record<string, { premium: number, pro: number }> = {};
+      applicationsData?.forEach((app: any) => {
+        pricesMap[app.user_id] = {
+          premium: app.premium_price || 0,
+          pro: app.pro_price || 0
+        };
+      });
+
       const { data: likesData } = await supabase.from('post_likes').select('post_id').in('post_id', postsData.map(p => p.id)).eq('user_id', userId);
       setLikedPostIds(new Set(likesData?.map((l: any) => l.post_id) || []));
 
-      const mergedPosts = postsData.map(post => ({ ...post, profiles: profilesMap[post.user_id] || { id: post.user_id, username: 'User', full_name: 'User', avatar_url: null, is_verified: false } }));
+      // ✅ NOUVEAU : Fusionner les prix dans l'objet profile
+      const mergedPosts = postsData.map(post => {
+        const profile = profilesMap[post.user_id] || { id: post.user_id, username: 'User', full_name: 'User', avatar_url: null, is_verified: false };
+        if (pricesMap[post.user_id]) {
+          profile.premium_price = pricesMap[post.user_id].premium;
+          profile.pro_price = pricesMap[post.user_id].pro;
+        }
+        return { ...post, profiles: profile };
+      });
+      
       setPosts(mergedPosts);
       setFilteredPosts(activeTab === "following" ? mergedPosts.filter(post => followedCreatorIds.has(post.user_id)) : mergedPosts);
     } catch (error) { console.error(" Erreur:", error); }
@@ -675,7 +699,8 @@ export default function HomePage() {
                     justifyContent="center"
                     p={8}
                     cursor={isLocked ? "pointer" : "default"}
-                    onClick={isLocked ? () => router.push(`/subscribe/${post.user_id}?tier=premium`) : undefined}
+                    // ✅ MODIFICATION 3 : Utilisation du vrai prix dynamique
+                    onClick={isLocked ? () => router.push(`/subscribe/${post.user_id}?tier=premium&price=${creator.premium_price || 0}`) : undefined}
                   >
                     <Text
                       color="white"
@@ -785,7 +810,8 @@ export default function HomePage() {
 
                 {/* CADENAS */}
                 {isLocked && (
-                  <Center position="absolute" inset="0" bg="blackAlpha.800" flexDirection="column" zIndex="20" cursor="pointer" onClick={() => router.push(`/subscribe/${post.user_id}?tier=premium`)}>
+                  // ✅ MODIFICATION 4 : Utilisation du vrai prix dynamique ici aussi
+                  <Center position="absolute" inset="0" bg="blackAlpha.800" flexDirection="column" zIndex="20" cursor="pointer" onClick={() => router.push(`/subscribe/${post.user_id}?tier=premium&price=${creator.premium_price || 0}`)}>
                     <Box mb="3"><LockIcon /></Box>
                     <Text fontWeight="bold" textAlign="center" px={4}>
                       Contenu réservé aux abonnés
