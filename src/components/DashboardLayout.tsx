@@ -3,6 +3,7 @@
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 import {
   Box,
   Flex,
@@ -29,7 +30,7 @@ const ExploreIcon = ({ active }: { active: boolean }) => (
 );
 
 const CreateIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <line x1="12" y1="5" x2="12" y2="19" />
     <line x1="5" y1="12" x2="19" y2="12" />
   </svg>
@@ -63,9 +64,9 @@ type MenuItem = {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { isDark, theme, toggleTheme } = useAppTheme();
 
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(true);
   const [isCreator, setIsCreator] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -109,12 +110,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (isMobile === null) {
     return (
-      <Box minH="100vh" bg="#0A0A0A" display="flex" alignItems="center" justifyContent="center">
+      <Box minH="100vh" bg={theme.bg} display="flex" alignItems="center" justifyContent="center">
         <Box 
           w="40px" 
           h="40px" 
-          border="4px solid #2A2A2A" 
-          borderTop="4px solid #8B5CF6" 
+          border={`4px solid ${theme.border}`} 
+          borderTop={`4px solid ${theme.primary}`} 
           borderRadius="50%" 
           sx={{ animation: "spin 1s linear infinite" }} 
         />
@@ -196,8 +197,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <Box 
       minH="100vh" 
-      bg="#0A0A0A" 
-      color="#FFFFFF" 
+      bg={theme.bg} 
+      color={theme.text} 
       fontFamily="Arial, sans-serif" 
       pb={isMobileDevice ? "80px" : "0"}
       suppressHydrationWarning
@@ -209,8 +210,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Flex minH="100vh">
           <Box
             w="280px"
-            bg="#0A0A0A"
-            borderRight="1px solid #1A1A1A"
+            bg={theme.bg}
+            borderRight={`1px solid ${theme.border}`}
             p="20px 16px"
             display="flex"
             flexDirection="column"
@@ -223,68 +224,67 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 w="44px" 
                 h="44px" 
                 borderRadius="12px" 
-                bg="linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)"
+                bg={theme.primary}
+                color={theme.primaryText}
                 display="flex" 
                 alignItems="center" 
                 justifyContent="center" 
                 fontWeight="bold" 
                 fontSize="24px"
-                boxShadow="0 4px 12px rgba(139, 92, 246, 0.3)"
               >
                 A
               </Box>
               <Box>
-                <Text fontSize="20px" fontWeight="bold">Afrifan</Text>
-                <Text fontSize="11px" color="#9CA3AF">Crée • Partage • Gagne</Text>
+                <Text fontSize="20px" fontWeight="bold" color={theme.text}>Afrifan</Text>
+                <Text fontSize="11px" color={theme.textMuted}>Crée • Partage • Gagne</Text>
               </Box>
             </Flex>
 
             <Flex 
               align="center" 
-              bg="#1A1A1A" 
+              bg={theme.card} 
               borderRadius="12px" 
               p="10px 14px" 
               mb="20px"
-              border="1px solid #2A2A2A"
+              border={`1px solid ${theme.border}`}
               cursor="pointer"
               transition="border-color 0.2s"
-              _hover={{ borderColor: "#8B5CF6" }}
+              _hover={{ borderColor: theme.primary }}
               onClick={() => {}}
             >
-              <Text color="#9CA3AF" mr="10px" fontSize="16px">🔍</Text>
+              <Text color={theme.textMuted} mr="10px" fontSize="16px">🔍</Text>
               <Input 
                 type="text" 
                 placeholder="Rechercher sur Afrifan..." 
                 bg="transparent" 
                 border="none" 
                 outline="none" 
-                color="#FFFFFF" 
+                color={theme.text} 
                 w="100%" 
                 fontSize="14px"
                 _focus={{ border: "none", outline: "none", boxShadow: "none" }}
-                _placeholder={{ color: "#9CA3AF" }}
+                _placeholder={{ color: theme.textMuted }}
               />
             </Flex>
 
             <VStack gap="4px" mb="24px" align="stretch">
               {mainMenuItems.map((item) => {
-                // ✅ forcer isActive à être un booléen strict
                 const isActive = pathname === item.path || (!!item.active && pathname === "/home");
                 return (
                   <Button 
                     key={item.path} 
                     onClick={() => router.push(item.path)} 
-                    bg={isActive ? "rgba(139, 92, 246, 0.15)" : "transparent"} 
+                    bg={isActive ? theme.hover : "transparent"} 
                     border="none" 
                     borderRadius="12px" 
                     p="12px 16px" 
-                    color={isActive ? "#8B5CF6" : "#FFFFFF"} 
+                    color={isActive ? theme.primary : theme.text} 
                     justifyContent="flex-start"
                     gap="12px" 
                     fontSize="15px" 
                     fontWeight={isActive ? "600" : "400"} 
                     position="relative"
-                    _hover={{ bg: isActive ? "rgba(139, 92, 246, 0.25)" : "whiteAlpha.50" }}
+                    _hover={{ bg: theme.hover }}
                   >
                     <Box fontSize="20px" display="flex" alignItems="center">
                       {renderIcon(item.icon, isActive, item.badge)}
@@ -294,8 +294,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       <Box
                         position="absolute"
                         right="16px"
-                        bg="#8B5CF6"
-                        color="white"
+                        bg={theme.primary}
+                        color={theme.primaryText}
                         fontSize="11px"
                         fontWeight="bold"
                         px="8px"
@@ -312,21 +312,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               })}
             </VStack>
 
-            <Box bg="#1A1A1A" borderRadius="16px" p="16px" mb="24px" border="1px solid #2A2A2A">
+            <Box bg={theme.card} borderRadius="16px" p="16px" mb="24px" border={`1px solid ${theme.border}`}>
               <Flex align="center" gap="10px" mb="12px">
                 <Text fontSize="24px">{creatorButtonIcon}</Text>
                 <Box>
-                  <Text fontSize="14px" fontWeight="600">{creatorButtonText}</Text>
-                  <Text fontSize="12px" color="#9CA3AF">{creatorButtonDesc}</Text>
+                  <Text fontSize="14px" fontWeight="600" color={theme.text}>{creatorButtonText}</Text>
+                  <Text fontSize="12px" color={theme.textMuted}>{creatorButtonDesc}</Text>
                 </Box>
               </Flex>
               <Button 
                 w="100%"
                 p="10px"
-                bg="linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%)"
+                bg={theme.primary}
+                color={theme.primaryText}
                 border="none"
                 borderRadius="10px"
-                color="#FFFFFF"
                 fontSize="14px"
                 fontWeight="600"
                 onClick={handleCreatorButtonClick}
@@ -337,23 +337,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Button>
             </Box>
 
-            <Box mt="auto" pt="20px" borderTop="1px solid #1A1A1A">
+            <Box mt="auto" pt="20px" borderTop={`1px solid ${theme.border}`}>
               <Button
                 w="100%"
                 variant="ghost"
-                color="#9CA3AF"
+                color={theme.textMuted}
                 justifyContent="space-between"
-                onClick={() => setIsDarkMode(!isDarkMode)}
-                _hover={{ bg: "whiteAlpha.50" }}
+                onClick={toggleTheme}
+                _hover={{ bg: theme.hover }}
               >
                 <HStack gap="10px">
-                  <Text>🌙</Text>
-                  <Text fontSize="14px">Mode sombre</Text>
+                  <Text>{isDark ? "🌙" : "☀️"}</Text>
+                  <Text fontSize="14px">{isDark ? "Mode sombre" : "Mode clair"}</Text>
                 </HStack>
                 <Box
                   w="44px"
                   h="24px"
-                  bg={isDarkMode ? "#8B5CF6" : "#374151"}
+                  bg={isDark ? "#4B5563" : "#000000"}
                   borderRadius="12px"
                   position="relative"
                   transition="background-color 0.3s"
@@ -365,7 +365,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     borderRadius="50%"
                     position="absolute"
                     top="2px"
-                    left={isDarkMode ? "22px" : "2px"}
+                    left={isDark ? "2px" : "22px"}
                     transition="left 0.3s"
                     boxShadow="0 2px 4px rgba(0,0,0,0.2)"
                   />
@@ -376,12 +376,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Flex 
               mt="16px" 
               pt="16px" 
-              borderTop="1px solid #1A1A1A"
+              borderTop={`1px solid ${theme.border}`}
               align="center" 
               gap="12px"
               cursor="pointer"
               onClick={() => router.push("/profile")}
-              _hover={{ bg: "whiteAlpha.50" }}
+              _hover={{ bg: theme.hover }}
               borderRadius="8px"
               p="8px"
               ml="-8px"
@@ -390,7 +390,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 w="36px" 
                 h="36px" 
                 borderRadius="50%" 
-                bg="linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%)"
+                bg={theme.primary}
+                color={theme.primaryText}
                 display="flex" 
                 alignItems="center" 
                 justifyContent="center" 
@@ -400,8 +401,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 N
               </Box>
               <Box flex={1}>
-                <Text fontSize="14px" fontWeight="600">Utilisateur</Text>
-                <Text fontSize="12px" color="#9CA3AF">@username</Text>
+                <Text fontSize="14px" fontWeight="600" color={theme.text}>Utilisateur</Text>
+                <Text fontSize="12px" color={theme.textMuted}>@username</Text>
               </Box>
             </Flex>
           </Box>
@@ -421,8 +422,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             position="sticky" 
             top={0} 
             zIndex={50} 
-            bg="#0A0A0A"
-            borderBottom="1px solid #1A1A1A" 
+            bg={theme.bg}
+            borderBottom={`1px solid ${theme.border}`} 
             p="12px 16px"
             justifyContent="space-between" 
             alignItems="center"
@@ -432,7 +433,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 w="32px" 
                 h="32px" 
                 borderRadius="8px" 
-                bg="linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)"
+                bg={theme.primary}
+                color={theme.primaryText}
                 display="flex" 
                 alignItems="center" 
                 justifyContent="center" 
@@ -441,12 +443,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               >
                 A
               </Box>
-              <Text fontSize="16px" fontWeight="bold">Afrifan</Text>
+              <Text fontSize="16px" fontWeight="bold" color={theme.text}>Afrifan</Text>
             </Flex>
             {!isProfileSection && (
               <Button 
                 variant="ghost"
-                color="#FFFFFF" 
+                color={theme.text} 
                 fontSize="24px" 
                 p={0}
                 w="40px"
@@ -459,7 +461,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   position="absolute"
                   top="-2px"
                   right="-2px"
-                  bg="#8B5CF6"
+                  bg="#EF4444"
                   color="white"
                   fontSize="10px"
                   fontWeight="bold"
@@ -489,18 +491,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             bottom={0}
             left={0}
             right={0}
-            bg="#0A0A0A"
-            borderTop="1px solid #1A1A1A"
+            bg={theme.bg}
+            borderTop={`1px solid ${theme.border}`}
             display="flex"
             justifyContent="space-around"
             alignItems="center"
             py="8px"
             zIndex={9999}
             sx={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-            boxShadow="0 -2px 10px rgba(0,0,0,0.3)"
+            boxShadow={isDark ? "0 -2px 10px rgba(0,0,0,0.3)" : "0 -2px 10px rgba(0,0,0,0.05)"}
           >
             {mainMenuItems.map((item) => {
-              // ✅ forcer isActive à être un booléen strict
               const isActive = pathname === item.path || (!!item.active && pathname === "/home");
               const isCenter = item.isCenter ?? false;
               
@@ -508,9 +509,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Button
                   key={item.path}
                   onClick={() => router.push(item.path)}
-                  bg={isCenter ? "linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%)" : "transparent"}
+                  bg={isCenter ? theme.primary : "transparent"}
                   border="none"
-                  color={isActive ? "#8B5CF6" : "#9CA3AF"}
+                  color={isCenter ? theme.primaryText : (isActive ? theme.primary : theme.textMuted)}
                   flexDirection="column"
                   alignItems="center"
                   justifyContent="center"
@@ -520,8 +521,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   minW={isCenter ? "56px" : "auto"}
                   minH={isCenter ? "40px" : "auto"}
                   transform={isCenter ? "translateY(-8px)" : "none"}
-                  boxShadow={isCenter ? "0 4px 12px rgba(139, 92, 246, 0.4)" : "none"}
-                  _hover={{ bg: isCenter ? "linear-gradient(135deg, #7C3AED 0%, #D53F8C 100%)" : "whiteAlpha.50" }}
+                  boxShadow={isCenter && isDark ? "0 4px 12px rgba(0,0,0,0.4)" : "none"}
+                  _hover={{ opacity: 0.9 }}
                 >
                   <Box fontSize={isCenter ? "28px" : "24px"} display="flex" alignItems="center" justifyContent="center">
                     {renderIcon(item.icon, isActive, item.badge)}
@@ -545,7 +546,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       borderRadius="8px"
                       minW="16px"
                       textAlign="center"
-                      border="2px solid #0A0A0A"
+                      border={`2px solid ${theme.bg}`}
                     >
                       {item.badge}
                     </Box>
