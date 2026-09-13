@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { supabase } from "@/lib/supabaseClient"
-import { ArrowLeft } from "lucide-react" // ✅ On utilise lucide-react (déjà installé)
+import { ArrowLeft } from "lucide-react"
 import {
   Box,
   Button,
@@ -31,102 +31,96 @@ export default function RegisterPage() {
   }
 
   const handleRegister = async (e: React.FormEvent) => {
-  e.preventDefault()
+    e.preventDefault()
 
-  if (!accepted) {
-    toast({
-      title: "Veuillez accepter les conditions d'utilisation.",
-      status: "warning",
-      duration: 3000,
-      isClosable: true,
-    })
-    return
-  }
-  if (!fullName.trim() || !email.trim()) {
-    toast({
-      title: "Veuillez remplir tous les champs.",
-      status: "warning",
-      duration: 3000,
-      isClosable: true,
-    })
-    return
-  }
-  if (!isValidEmail(email)) {
-    toast({
-      title: "Veuillez entrer une adresse email valide.",
-      status: "warning",
-      duration: 3000,
-      isClosable: true,
-    })
-    return
-  }
-
-  setIsLoading(true)
-
-  try {
-    // ✅ ÉTAPE 1 : Vérifier si l'email existe déjà
-    const { data: existingUsers } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email.trim())
-      .single()
-
-    if (existingUsers) {
-      //  L'email existe déjà !
+    if (!accepted) {
       toast({
-        title: "Email déjà utilisé",
-        description: "Cet email est déjà enregistré. Veuillez vous connecter ou utiliser un autre email.",
-        status: "error",
-        duration: 5000,
+        title: "Veuillez accepter les conditions d'utilisation.",
+        status: "warning",
+        duration: 3000,
         isClosable: true,
       })
-      setIsLoading(false)
+      return
+    }
+    if (!fullName.trim() || !email.trim()) {
+      toast({
+        title: "Veuillez remplir tous les champs.",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      })
+      return
+    }
+    if (!isValidEmail(email)) {
+      toast({
+        title: "Veuillez entrer une adresse email valide.",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      })
       return
     }
 
-    // ✅ ÉTAPE 2 : Email libre, on crée le compte
-    const { error: supabaseError } = await supabase.auth.signUp({
-      email: email.trim(),
-      password: Math.random().toString(36).slice(-8), // Mot de passe temporaire
-      options: {
-        data: { full_name: fullName.trim() },
-      },
-    })
+    setIsLoading(true)
 
-    if (supabaseError) throw supabaseError
+    try {
+      // ✅ ÉTAPE UNIQUE : Tenter d'inscrire l'utilisateur.
+      // Supabase vérifie AUTOMATIQUEMENT et de manière sécurisée si l'email existe déjà.
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password: Math.random().toString(36).slice(-8), // Mot de passe temporaire requis par signUp
+        options: {
+          data: { full_name: fullName.trim() },
+        },
+      })
 
-    // ✅ ÉTAPE 3 : Envoyer le code OTP
-    const { error: otpError } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: {
-        shouldCreateUser: false, // Ne pas créer (déjà fait)
-      },
-    })
+      if (signUpError) {
+        // Vérifier si l'erreur est due à un email déjà utilisé
+        const errorMsg = signUpError.message.toLowerCase()
+        if (
+          errorMsg.includes("already registered") || 
+          errorMsg.includes("already exists") || 
+          errorMsg.includes("déjà")
+        ) {
+          toast({
+            title: "Email déjà utilisé",
+            description: "Cet email est déjà enregistré. Veuillez vous connecter.",
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          })
+          setIsLoading(false)
+          return // 🛑 On arrête tout ici, aucun code n'est envoyé !
+        }
+        
+        // Si c'est une autre erreur, on la lance pour l'afficher
+        throw signUpError
+      }
 
-    if (otpError) throw otpError
+      // ✅ Si l'inscription réussit, Supabase envoie automatiquement le mail de confirmation (qui contient ton code OTP)
+      toast({
+        title: "Compte créé avec succès !",
+        description: "Vérifiez votre boîte email pour obtenir votre code à 8 chiffres.",
+        status: "success",
+        duration: 4000,
+        isClosable: true,
+      })
 
-    toast({
-      title: "Code envoyé !",
-      description: "Vérifiez votre boîte email.",
-      status: "success",
-      duration: 4000,
-      isClosable: true,
-    })
-
-    router.push(`/verify-otp?email=${encodeURIComponent(email.trim())}`)
-    
-  } catch (err: any) {
-    toast({
-      title: "Erreur",
-      description: err.message || "Une erreur est survenue. Veuillez réessayer.",
-      status: "error",
-      duration: 4000,
-      isClosable: true,
-    })
-  } finally {
-    setIsLoading(false)
+      // Redirection vers la page de vérification
+      router.push(`/verify-otp?email=${encodeURIComponent(email.trim())}`)
+      
+    } catch (err: any) {
+      toast({
+        title: "Erreur",
+        description: err.message || "Une erreur est survenue. Veuillez réessayer.",
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
-}
 
   return (
     <Flex
@@ -138,7 +132,7 @@ export default function RegisterPage() {
       p={4}
     >
       <Box w="100%" maxW="400px">
-        {/* Bouton Retour avec Lucide React */}
+        {/* Bouton Retour */}
         <Button
           variant="ghost"
           leftIcon={<ArrowLeft size={20} />}
@@ -216,7 +210,7 @@ export default function RegisterPage() {
                 bg="#8B5CF6"
                 _hover={{ bg: "#7C3AED" }}
                 isLoading={isLoading}
-                loadingText="Envoi du code..."
+                loadingText="Vérification en cours..."
                 fontWeight="bold"
                 mt={4}
               >
