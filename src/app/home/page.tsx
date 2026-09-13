@@ -8,7 +8,6 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { useToast } from "@chakra-ui/react";
 import { FaPlay, FaPause } from "react-icons/fa";
 
-// ✅ IMPORT DU TIPDIALOG AVEC KKIAPAY
 import TipDialog from "@/components/TipDialog";
 
 import {
@@ -41,7 +40,6 @@ import {
   SliderThumb,
 } from "@chakra-ui/react";
 
-// ✅ MODIFICATION 1 : Ajout des champs de prix depuis creator_applications
 interface CreatorProfile {
   id: string;
   username: string;
@@ -272,7 +270,6 @@ export default function HomePage() {
     }));
   };
 
-  // Intercepter les flèches du clavier
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -296,7 +293,6 @@ export default function HomePage() {
     };
   }, []);
 
-  // Interception de la molette sur les contrôles
   useEffect(() => {
     const controls = document.querySelectorAll('.video-controls-zone');
     const handlers: Array<() => void> = [];
@@ -317,7 +313,6 @@ export default function HomePage() {
     };
   }, [filteredPosts]);
 
-  // Vérification du statut is_banned avant de charger la page
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -376,7 +371,7 @@ export default function HomePage() {
     setTrendingHashtags(trending);
   };
 
-  // ✅ MODIFICATION 2 : Récupération dynamique des prix depuis creator_applications
+  // ✅ LES PRIX SONT LUS DIRECTEMENT DEPUIS 'profiles' (comme le mobile)
   const fetchData = async (userId: string) => {
     setIsLoading(true);
     try {
@@ -390,34 +385,20 @@ export default function HomePage() {
 
       const userIds = [...new Set(postsData.map((p: any) => p.user_id))];
       
-      const { data: profilesData } = await supabase.from('profiles').select('id, username, full_name, avatar_url, is_verified').in('id', userIds);
+      // ✅ On récupère premium_price et pro_price directement depuis profiles
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url, is_verified, premium_price, pro_price')
+        .in('id', userIds);
+      
       const profilesMap: Record<string, CreatorProfile> = {};
       profilesData?.forEach((p: any) => { profilesMap[p.id] = p; });
-
-      // ✅ NOUVEAU : Récupérer les prix depuis creator_applications
-      const { data: applicationsData } = await supabase
-        .from('creator_applications')
-        .select('user_id, premium_price, pro_price')
-        .in('user_id', userIds);
-
-      const pricesMap: Record<string, { premium: number, pro: number }> = {};
-      applicationsData?.forEach((app: any) => {
-        pricesMap[app.user_id] = {
-          premium: app.premium_price || 0,
-          pro: app.pro_price || 0
-        };
-      });
 
       const { data: likesData } = await supabase.from('post_likes').select('post_id').in('post_id', postsData.map(p => p.id)).eq('user_id', userId);
       setLikedPostIds(new Set(likesData?.map((l: any) => l.post_id) || []));
 
-      // ✅ NOUVEAU : Fusionner les prix dans l'objet profile
       const mergedPosts = postsData.map(post => {
-        const profile = profilesMap[post.user_id] || { id: post.user_id, username: 'User', full_name: 'User', avatar_url: null, is_verified: false };
-        if (pricesMap[post.user_id]) {
-          profile.premium_price = pricesMap[post.user_id].premium;
-          profile.pro_price = pricesMap[post.user_id].pro;
-        }
+        const profile = profilesMap[post.user_id] || { id: post.user_id, username: 'User', full_name: 'User', avatar_url: null, is_verified: false, premium_price: 0, pro_price: 0 };
         return { ...post, profiles: profile };
       });
       
@@ -560,7 +541,6 @@ export default function HomePage() {
     <DashboardLayout>
       <Flex h="100dvh" bg="#0A0A0A" color="white" overflow="hidden" direction={{ base: "column", lg: "row" }}>
 
-        {/* FEED PRINCIPAL */}
         <Box
           flex="1"
           h="100dvh"
@@ -590,7 +570,6 @@ export default function HomePage() {
                 position="relative"
                 onDoubleClick={() => handleDoubleTap(post.id)}
               >
-                {/* HEADER */}
                 <Flex position="absolute" top="0" left="0" right="0" zIndex="10" p="4" justifyContent="space-between" alignItems="center" bgGradient="linear(to-b, blackAlpha.600, transparent)">
                   <HStack spacing="3">
                     <Avatar
@@ -611,7 +590,6 @@ export default function HomePage() {
                   )}
                 </Flex>
 
-                {/* GESTION DES 3 TYPES DE MÉDIA */}
                 {post.media_type === 'text' ? (
                   <Box
                     w="100%"
@@ -622,7 +600,7 @@ export default function HomePage() {
                     justifyContent="center"
                     p={8}
                     cursor={isLocked ? "pointer" : "default"}
-                    onClick={isLocked ? () => router.push(`/subscribe/${post.user_id}?tier=premium&price=${creator.premium_price || 0}`) : undefined}
+                    onClick={isLocked ? () => router.push(`/subscribe/${post.user_id}?tier=premium&price=${creator.premium_price || 0}&name=${encodeURIComponent(creator.full_name || creator.username)}`) : undefined}
                   >
                     <Text
                       color="white"
@@ -656,7 +634,6 @@ export default function HomePage() {
                       }}
                     />
 
-                    {/* BARRE DE CONTRÔLE VIDÉO */}
                     {!isLocked && (
                       <Box
                         className="video-controls-zone"
@@ -730,9 +707,8 @@ export default function HomePage() {
                   </Box>
                 )}
 
-                {/* CADENAS */}
                 {isLocked && (
-                  <Center position="absolute" inset="0" bg="blackAlpha.800" flexDirection="column" zIndex="20" cursor="pointer" onClick={() => router.push(`/subscribe/${post.user_id}?tier=premium&price=${creator.premium_price || 0}`)}>
+                  <Center position="absolute" inset="0" bg="blackAlpha.800" flexDirection="column" zIndex="20" cursor="pointer" onClick={() => router.push(`/subscribe/${post.user_id}?tier=premium&price=${creator.premium_price || 0}&name=${encodeURIComponent(creator.full_name || creator.username)}`)}>
                     <Box mb="3"><LockIcon /></Box>
                     <Text fontWeight="bold" textAlign="center" px={4}>
                       Contenu réservé aux abonnés
@@ -749,7 +725,6 @@ export default function HomePage() {
                   {isMuted ? <VolumeOffIcon /> : <VolumeOnIcon />}
                 </Button>
 
-                {/* BOUTONS D'ACTION (DROITE) */}
                 <VStack position="absolute" right={{ base: "2", md: "3" }} bottom={{ base: "16", md: "20" }} spacing="4" zIndex="30">
                   <Flex direction="column" align="center" cursor="pointer" onClick={() => handleLike(post.id)}>
                     <Box w="48px" h="48px" borderRadius="full" bg={isLiked ? "pink.500/40" : "whiteAlpha.200"} backdropFilter="blur(10px)" display="flex" alignItems="center" justifyContent="center" _hover={{ transform: "scale(1.1)", transition: "0.2s" }}>
@@ -799,7 +774,6 @@ export default function HomePage() {
                   </Menu>
                 </VStack>
 
-                {/* INFO BAS */}
                 {post.media_type !== 'text' && (
                   <Box position="absolute" bottom="0" left="0" right="0" p="4" bgGradient="linear(to-t, blackAlpha.800, transparent)" zIndex="10" onClick={(e) => e.stopPropagation()}>
                     <Text fontSize="sm" lineHeight="1.4" mb="2" wordBreak="break-word">{post.content || "(Pas de légende)"}</Text>
@@ -810,7 +784,6 @@ export default function HomePage() {
           })}
         </Box>
 
-        {/* SIDEBAR DROITE */}
         <Box
           w={{ base: "0", lg: "350px" }}
           display={{ base: "none", lg: "block" }}
@@ -874,7 +847,6 @@ export default function HomePage() {
         </Box>
       </Flex>
 
-      {/* ✅ TIPDIALOG AVEC KKIAPAY */}
       {isTipOpen && (
         <TipDialog
           creatorId={tipCreator.id}
