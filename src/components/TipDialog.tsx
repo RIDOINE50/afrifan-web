@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-// Déclaration TypeScript pour Kkiapay
 declare global {
   interface Window {
     openKkiapayWidget: (options: any) => void;
@@ -31,7 +30,6 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
 
   const quickAmounts = [500, 1000, 2000, 5000];
 
-  // ✅ TA CLÉ PUBLIQUE KKIAPAY
   const kkiapayPublicKey = "72fc173fbe56f0f477e6bfcaa7349471c844e893";
   const isSandbox = false;
   const brandViolet = "#8B5CF6";
@@ -49,12 +47,16 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
 
     window.addKkiapayListener('success', async (response: any) => {
       console.log("✅ Paiement Kkiapay réussi:", response);
-      await saveTipToDatabase();
+      // ✅ EXACTEMENT comme le mobile :
+      const transactionId = response?.transactionId || response?.transaction_id;
+      const customData = response?.data || response?.requestData?.data || creatorId;
+      
+      await verifyAndConfirmTip(transactionId, customData);
     });
 
     window.addKkiapayListener('failed', (err: any) => {
       console.error("❌ Paiement échoué:", err);
-      setError("Échec du paiement. Vérifiez votre solde ou réessayez.");
+      setError("Échec du paiement. Vérifiez votre solde.");
       setIsLoading(false);
     });
 
@@ -70,7 +72,7 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
         window.removeKkiapayListener('cancelled');
       }
     };
-  }, [amount, message, creatorId]);
+  }, [amount, creatorId]);
 
   const handleAmountClick = (val: number) => {
     setAmount(val.toString());
@@ -96,14 +98,13 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
     setIsLoading(true);
     setError("");
 
-    // Vérifier que l'utilisateur est connecté
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       router.push("/login");
       return;
     }
 
-    // ✅ Ouvrir le widget Kkiapay
+    // ✅ EXACTEMENT comme mobile : on passe creatorId dans data
     window.openKkiapayWidget({
       amount: Math.round(numAmount),
       key: kkiapayPublicKey,
@@ -111,40 +112,42 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
       data: creatorId,
       theme: brandViolet,
       name: creatorName,
-      reason: `Pourboire pour ${creatorName}`,
+      reason: 'Pourboire',
       countries: ["BJ", "CI", "SN", "TG"],
+      paymentMethods: ["momo", "card"],
     });
   };
 
   // ==========================================
-  // ENREGISTRER LE POURBOIRE EN BDD (après succès Kkiapay)
+  // 🔥 APPEL À LA MÊME FONCTION EDGE QUE LE MOBILE
   // ==========================================
-  const saveTipToDatabase = async () => {
+  const verifyAndConfirmTip = async (transactionId: string, referenceId: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Utilisateur non connecté");
 
-      const numAmount = parseFloat(amount);
-
-      // ✅ INSERTION ADAPTÉE À TA TABLE EXACTE
-      const { error: dbError } = await supabase.from('tips').insert({
-        fan_id: user.id,
-        creator_id: creatorId,
-        amount: numAmount,
-        message: message.trim() || null,
-        payment_method: 'kkiapay',
-        status: 'completed',
-        // fan_phone_number : null (Kkiapay gère le numéro, on ne l'a pas ici)
+      // ✅ EXACTEMENT LE MÊME APPEL QUE LE MOBILE
+      const response = await supabase.functions.invoke('kkiapay-webhook', {
+        body: {
+          transaction_id: transactionId,
+          user_id: user.id,
+          type: 'tip',
+          reference_id: referenceId || creatorId,
+          amount: parseFloat(amount),
+          // On peut aussi envoyer le message si ta fonction Edge le gère
+          message: message.trim() || null,
+        }
       });
 
-      if (dbError) throw dbError;
-
-      setShowSuccess(true);
-      setIsLoading(false);
-      
+      if (response.data?.success === true) {
+        setShowSuccess(true);
+        setIsLoading(false);
+      } else {
+        throw new Error(response.data?.error || "Erreur de validation serveur");
+      }
     } catch (err: any) {
-      console.error("❌ Erreur enregistrement tip:", err);
-      setError("Paiement effectué mais erreur d'enregistrement. Contactez le support.");
+      console.error("❌ Erreur validation tip:", err);
+      setError("Paiement effectué mais erreur de validation. Contactez le support.");
       setIsLoading(false);
     }
   };
@@ -233,7 +236,6 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
           </p>
         </div>
 
-        {/* MONTANT */}
         <div style={{ marginBottom: "16px" }}>
           <div style={{ position: "relative" }}>
             <input
@@ -269,7 +271,6 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
           </div>
         </div>
 
-        {/* MONTANTS RAPIDES */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center", marginBottom: "24px" }}>
           {quickAmounts.map((val) => {
             const isSelected = parseFloat(amount) === val;
@@ -295,7 +296,6 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
           })}
         </div>
 
-        {/* INFO KKIAPAY */}
         <div style={{
           backgroundColor: "rgba(139, 92, 246, 0.1)",
           border: `1px solid ${brandViolet}`,
@@ -309,11 +309,10 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
           <span style={{ fontSize: "20px" }}>🔒</span>
           <div style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", lineHeight: 1.5 }}>
             Le paiement est sécurisé par <strong style={{ color: brandViolet }}>Kkiapay</strong>. 
-            Vous choisirez votre opérateur (MTN, Orange, Wave...) et entrerez votre numéro dans l'interface Kkiapay.
+            Vous choisirez votre opérateur et entrerez votre numéro dans l'interface Kkiapay.
           </div>
         </div>
 
-        {/* MESSAGE OPTIONNEL */}
         <div style={{ marginBottom: "24px" }}>
           <label style={{ display: "block", color: "#9CA3AF", fontSize: "14px", marginBottom: "6px" }}>
             Message d'encouragement (optionnel)
@@ -354,7 +353,6 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
           </div>
         )}
 
-        {/* BOUTON PAYER */}
         <button
           onClick={handleSendTip}
           disabled={displayAmount <= 0 || isLoading}
