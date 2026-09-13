@@ -4,12 +4,14 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-const PAYMENT_METHODS = [
-  { id: 'mtn', name: 'MTN Mobile Money', color: '#FFCC00', icon: '📱' },
-  { id: 'orange', name: 'Orange Money', color: '#FF6600', icon: '🍊' },
-  { id: 'moov', name: 'Moov Money', color: '#0066CC', icon: '📶' },
-  { id: 'wave', name: 'Wave', color: '#00BFFF', icon: '🌊' },
-];
+// Déclaration TypeScript pour Kkiapay (ajouté au window)
+declare global {
+  interface Window {
+    openKkiapayWidget: (options: any) => void;
+    addKkiapayListener: (event: string, callback: (response: any) => void) => void;
+    removeKkiapayListener: (event: string) => void;
+  }
+}
 
 export default function PaymentPage() {
   const router = useRouter();
@@ -17,7 +19,6 @@ export default function PaymentPage() {
   const searchParams = useSearchParams();
   
   const paymentType = searchParams.get('type') || 'subscription'; 
-  
   const productId = searchParams.get('productId');
   const productName = searchParams.get('productName') || 'Produit numérique';
   const tierType = searchParams.get('tier') || 'premium';
@@ -26,8 +27,6 @@ export default function PaymentPage() {
   const creatorName = searchParams.get('creatorName') || 'Ce créateur';
 
   const [user, setUser] = useState<any>(null);
-  const [selectedMethod, setSelectedMethod] = useState<string>("");
-  const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string>("");
@@ -36,6 +35,13 @@ export default function PaymentPage() {
   const brandViolet = "#8B5CF6";
   const brandVioletDark = "#6D28D9";
 
+  // ✅ TA CLÉ PUBLIQUE KKIAPAY (la même que sur mobile)
+  const kkiapayPublicKey = "72fc173fbe56f0f477e6bfcaa7349471c844e893";
+  const isSandbox = false; // false = production (vrai argent), true = test
+
+  // ==========================================
+  // 1. VÉRIFICATION UTILISATEUR
+  // ==========================================
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -48,44 +54,102 @@ export default function PaymentPage() {
     init();
   }, [router]);
 
-  // ✅ APPEL À TA FONCTION EXISTANTE 'kikiapay-payment'
-  const handlePayment = async () => {
-    if (!selectedMethod) {
-      setError("Veuillez sélectionner un moyen de paiement.");
-      return;
-    }
-    if (phoneNumber.trim().length < 8) {
-      setError("Veuillez entrer un numéro de téléphone valide (min. 8 chiffres).");
+  // ==========================================
+  // 2. ÉCOUTE DES ÉVÉNEMENTS KKIAPAY
+  // ==========================================
+  useEffect(() => {
+    if (!user) return;
+    if (typeof window === "undefined" || !window.addKkiapayListener) return;
+
+    // ✅ Paiement réussi
+    window.addKkiapayListener('success', async (response: any) => {
+      console.log("✅ Paiement Kkiapay réussi:", response);
+      
+      // On récupère l'ID qu'on a passé dans 'data' (comme sur mobile)
+      const referenceId = response?.data || (paymentType === 'product' ? productId : creatorId);
+      const transactionId = response?.transactionId || response?.transaction_id;
+      
+      await verifyAndConfirmPayment(transactionId, referenceId);
+    });
+
+    // ❌ Paiement échoué
+    window.addKkiapayListener('failed', (err: any) => {
+      console.error("❌ Paiement échoué:", err);
+      setError("Échec du paiement. Vérifiez votre solde ou réessayez.");
+      setIsLoading(false);
+    });
+
+    // 🚫 Paiement annulé par l'utilisateur
+    window.addKkiapayListener('cancelled', () => {
+      setError("Paiement annulé.");
+      setIsLoading(false);
+    });
+
+    // Nettoyage quand on quitte la page
+    return () => {
+      if (typeof window !== "undefined" && window.removeKkiapayListener) {
+        window.removeKkiapayListener('success');
+        window.removeKkiapayListener('failed');
+        window.removeKkiapayListener('cancelled');
+      }
+    };
+  }, [user, paymentType, productId, creatorId]);
+
+  // ==========================================
+  // 3. OUVRIR LE WIDGET KKIAPAY
+  // ==========================================
+  const handlePayment = () => {
+    if (typeof window === "undefined" || !window.openKkiapayWidget) {
+      setError("Le système de paiement n'est pas encore chargé. Rechargez la page.");
       return;
     }
 
     setIsLoading(true);
     setError("");
 
+    // ✅ EXACTEMENT comme sur mobile : on ouvre le widget Kkiapay
+    window.openKkiapayWidget({
+      amount: Math.round(price),
+      key: kkiapayPublicKey,
+      sandbox: isSandbox,
+      // On passe l'ID (creatorId ou productId) pour le retrouver après paiement
+      data: paymentType === 'product' ? productId : creatorId,
+      theme: brandViolet,
+      name: creatorName,
+      reason: paymentType === 'product' 
+        ? `Achat de ${productName}` 
+        : `Abonnement à ${creatorName}`,
+      // Tu peux limiter les pays comme sur mobile
+      countries: ["BJ", "CI", "SN", "TG"],
+    });
+  };
+
+  // ==========================================
+  // 4. APPEL À LA MÊME FONCTION EDGE QUE MOBILE
+  // ==========================================
+  const verifyAndConfirmPayment = async (transactionId: string, referenceId: string | null) => {
     try {
-      // 1. Appel à ta fonction Edge Supabase existante
-      const { data, error: fnError } = await supabase.functions.invoke('kikiapay-payment', {
+      if (!user) throw new Error("Utilisateur non connecté");
+
+      // 🔥 MÊME FONCTION EDGE QUE LE MOBILE : 'kkiapay-webhook'
+      const response = await supabase.functions.invoke('kkiapay-webhook', {
         body: {
-          amount: price,
+          transaction_id: transactionId,
+          user_id: user.id,
           type: paymentType === 'product' ? 'product' : 'subscription',
-          reference_id: paymentType === 'product' ? productId : creatorId,
-          phone: phoneNumber,
-          network: selectedMethod, // ex: 'mtn', 'orange', 'wave'
+          reference_id: referenceId,
+          amount: price,
         }
       });
 
-      if (fnError) throw fnError;
-
-      // 2. Gestion de la réponse de ta fonction
-      if (data.success) {
+      if (response.data?.success === true) {
         setShowSuccess(true);
       } else {
-        throw new Error(data.message || "Le paiement a échoué.");
+        throw new Error(response.data?.error || "Erreur de validation serveur");
       }
-      
     } catch (err: any) {
-      console.error("❌ Erreur paiement:", err);
-      setError(err.message || "Échec du paiement. Vérifiez votre solde ou réessayez.");
+      console.error("❌ Erreur validation:", err);
+      setError("Paiement effectué mais erreur de validation. Contactez le support.");
     } finally {
       setIsLoading(false);
     }
@@ -144,7 +208,7 @@ export default function PaymentPage() {
 
         <div style={{ padding: "24px 20px", maxHeight: "80vh", overflowY: "auto" }}>
           
-          {/* 📋 RÉCAPITULATIF */}
+          {/* 📋 RÉCAPITULATIF (inchangé) */}
           <div style={{
             width: "100%",
             padding: "20px",
@@ -177,82 +241,22 @@ export default function PaymentPage() {
             </div>
           </div>
 
-          {/* 💳 MÉTHODE DE PAIEMENT */}
-          <h3 style={{ color: "#FFF", fontSize: "16px", fontWeight: "bold", marginBottom: "12px" }}>
-            Méthode de paiement
-          </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "32px" }}>
-            {PAYMENT_METHODS.map((method) => {
-              const isSelected = selectedMethod === method.id;
-              return (
-                <div
-                  key={method.id}
-                  onClick={() => { setSelectedMethod(method.id); setError(""); }}
-                  style={{
-                    padding: "16px",
-                    borderRadius: "12px",
-                    backgroundColor: isSelected ? "rgba(139, 92, 246, 0.2)" : "#1A1A1A",
-                    border: `2px solid ${isSelected ? brandViolet : "#2A2A2A"}`,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "16px",
-                    cursor: "pointer",
-                    transition: "all 0.2s"
-                  }}
-                >
-                  <div style={{
-                    width: "44px",
-                    height: "44px",
-                    borderRadius: "50%",
-                    backgroundColor: method.color,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "20px",
-                    flexShrink: 0
-                  }}>
-                    {method.icon}
-                  </div>
-                  <span style={{ flex: 1, color: "#FFF", fontSize: "15px", fontWeight: 600 }}>
-                    {method.name}
-                  </span>
-                  {isSelected && (
-                    <span style={{ color: brandViolet, fontSize: "24px" }}>✓</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* 📱 NUMÉRO DE TÉLÉPHONE */}
-          <h3 style={{ color: "#FFF", fontSize: "16px", fontWeight: "bold", marginBottom: "12px" }}>
-            Numéro Mobile Money
-          </h3>
+          {/* 💡 INFO : Kkiapay gère le paiement */}
           <div style={{
-            backgroundColor: "#1A1A1A",
+            backgroundColor: "rgba(139, 92, 246, 0.1)",
+            border: `1px solid ${brandViolet}`,
             borderRadius: "12px",
-            border: "1px solid #2A2A2A",
+            padding: "16px",
+            marginBottom: "24px",
             display: "flex",
-            alignItems: "center",
-            padding: "0 16px",
-            marginBottom: "32px"
+            gap: "12px",
+            alignItems: "flex-start"
           }}>
-            <span style={{ fontSize: "20px", marginRight: "12px" }}>📱</span>
-            <input
-              type="tel"
-              value={phoneNumber}
-              onChange={(e) => { setPhoneNumber(e.target.value); setError(""); }}
-              placeholder="Ex: 97 XX XX XX"
-              style={{
-                flex: 1,
-                backgroundColor: "transparent",
-                border: "none",
-                padding: "16px 0",
-                color: "#FFF",
-                fontSize: "15px",
-                outline: "none"
-              }}
-            />
+            <span style={{ fontSize: "20px" }}>🔒</span>
+            <div style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", lineHeight: 1.5 }}>
+              Le paiement est sécurisé par <strong style={{ color: brandViolet }}>Kkiapay</strong>. 
+              Vous choisirez votre opérateur (MTN, Orange, Wave...) et entrerez votre numéro directement dans l'interface Kkiapay.
+            </div>
           </div>
 
           {/* Message d'erreur */}
@@ -271,20 +275,20 @@ export default function PaymentPage() {
             </div>
           )}
 
-          {/* ✅ BOUTON CONFIRMER */}
+          {/* ✅ BOUTON PAYER (ouvre Kkiapay) */}
           <button
             onClick={handlePayment}
-            disabled={!selectedMethod || !phoneNumber || isLoading}
+            disabled={isLoading}
             style={{
               width: "100%",
               height: "56px",
-              backgroundColor: (selectedMethod && phoneNumber && !isLoading) ? brandViolet : "#374151",
+              backgroundColor: isLoading ? "#374151" : brandViolet,
               border: "none",
               borderRadius: "12px",
               color: "#FFF",
               fontSize: "16px",
               fontWeight: "bold",
-              cursor: (selectedMethod && phoneNumber && !isLoading) ? "pointer" : "not-allowed",
+              cursor: isLoading ? "not-allowed" : "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -298,9 +302,19 @@ export default function PaymentPage() {
                 Traitement en cours...
               </>
             ) : (
-              `Confirmer le paiement de ${price.toFixed(0)} FCFA`
+              `Payer ${price.toFixed(0)} FCFA`
             )}
           </button>
+
+          <p style={{ 
+            color: "rgba(255,255,255,0.4)", 
+            fontSize: "12px", 
+            textAlign: "center", 
+            marginTop: "16px",
+            lineHeight: 1.5
+          }}>
+            En cliquant sur "Payer", vous serez redirigé vers l'interface sécurisée Kkiapay.
+          </p>
 
         </div>
       </div>
@@ -322,12 +336,12 @@ export default function PaymentPage() {
           }}>
             <div style={{ fontSize: "48px", marginBottom: "16px" }}>✅</div>
             <h2 style={{ color: "#FFF", fontSize: "20px", fontWeight: "bold", marginBottom: "12px" }}>
-              Paiement lancé !
+              Paiement réussi !
             </h2>
             <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "15px", lineHeight: 1.5, marginBottom: "24px" }}>
               {isProduct 
-                ? "Veuillez valider le retrait sur votre téléphone. Vous aurez accès au produit dès validation." 
-                : `Veuillez valider le retrait sur votre téléphone pour activer votre abonnement.`}
+                ? "Vous avez acheté ce produit. Vous pouvez maintenant y accéder !" 
+                : "Vous êtes maintenant abonné. Profitez du contenu exclusif !"}
             </p>
             <button
               onClick={handleSuccessClose}
@@ -343,7 +357,7 @@ export default function PaymentPage() {
                 cursor: "pointer"
               }}
             >
-              Compris
+              Super !
             </button>
           </div>
         </div>
@@ -351,7 +365,6 @@ export default function PaymentPage() {
 
       <style>{`
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        input::placeholder { color: #555; }
       `}</style>
     </div>
   );

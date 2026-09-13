@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script"; // ✅ AJOUT : pour charger le SDK Kkiapay
 import "./globals.css"; 
 
 // ✅ 1. Import du composant modal d'appel entrant
 import IncomingCallModal from "@/components/IncomingCallModal";
 
-// ✅ 2. Import du Provider Chakra UI qu'on vient de créer
+// ✅ 2. Import du Provider Chakra UI
 import Providers from "@/components/Providers";
 
 const geistSans = Geist({
@@ -30,6 +31,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+      <head>
+        {/* ✅ SDK Web Kkiapay - Chargé avant toute interaction */}
+        <Script 
+          src="https://cdn.kkiapay.me/k.js" 
+          strategy="beforeInteractive"
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         
         {/* ✅ 3. On enveloppe TOUT avec le Providers pour que Chakra UI fonctionne */}
