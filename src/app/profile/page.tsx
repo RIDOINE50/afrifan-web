@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 function formatCount(count: number): string {
   if (count >= 1000000) return (count / 1000000).toFixed(1) + "M";
@@ -13,6 +14,7 @@ function formatCount(count: number): string {
 export default function MyProfileScreen() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { isDark, theme } = useAppTheme();
   
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -21,23 +23,25 @@ export default function MyProfileScreen() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [selectedTab, setSelectedTab] = useState(0); // 0 = Statuts, 1 = Posts
+  const [selectedTab, setSelectedTab] = useState(0);
   const [applicationStatus, setApplicationStatus] = useState<'none' | 'pending' | 'rejected' | 'accepted'>('none');
   
-  // ✅ État pour le menu hamburger
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const [totalLikes, setTotalLikes] = useState(0);
   const [totalViews, setTotalViews] = useState(0);
 
+  // ✅ Couleurs dynamiques selon le thème
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     pink: "#EC4899",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
     red: "#EF4444",
     blue: "#3B82F6",
     green: "#10B981",
@@ -167,13 +171,12 @@ export default function MyProfileScreen() {
 
   const isCreator = profile?.is_verified && profile?.role === 'creator';
 
-  // ✅ LISTE DES ÉLÉMENTS DU MENU HAMBURGER (Chemin corrigé ici 👇)
   const menuItems = [
     { icon: "⭐", label: "Abonnements", path: "/abonnements" },
     { icon: "👥", label: "Suivis", path: "/suivis" },
     { icon: "📡", label: "Live", path: "/live" },
     { icon: "🛍️", label: "Mes Achats", path: "/mes-achats" },
-    { icon: "📥", label: "Mes Téléchargements", path: "/downloads" }, // ✅ CORRIGÉ : pointe vers app/downloads/page.tsx
+    { icon: "📥", label: "Mes Téléchargements", path: "/downloads" },
     { icon: "⚙️", label: "Paramètres", path: "/settings" },
   ];
 
@@ -181,7 +184,6 @@ export default function MyProfileScreen() {
     <div className="profile-container">
       <input type="file" ref={fileInputRef} style={{ display: "none" }} accept="image/*" onChange={handleFileChange} />
 
-      {/* ✅ OVERLAY SOMBRE QUAND LE MENU EST OUVERT */}
       {isMenuOpen && (
         <div 
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.7)", zIndex: 2000, backdropFilter: "blur(4px)" }}
@@ -189,16 +191,16 @@ export default function MyProfileScreen() {
         />
       )}
 
-      {/* ✅ MENU LATÉRAL (HAMBURGER) - Fonctionne sur Mobile ET PC */}
+      {/* MENU LATÉRAL */}
       <div style={{
         position: "fixed", top: 0, right: isMenuOpen ? 0 : "-320px", width: "300px", height: "100vh",
-        backgroundColor: "#1A1A1A", zIndex: 2001, transition: "right 0.3s ease-in-out",
+        backgroundColor: colors.card, zIndex: 2001, transition: "right 0.3s ease-in-out",
         borderLeft: `1px solid ${colors.border}`, padding: "24px", display: "flex", flexDirection: "column",
-        boxShadow: "-5px 0 25px rgba(0,0,0,0.5)"
+        boxShadow: isDark ? "-5px 0 25px rgba(0,0,0,0.5)" : "-5px 0 25px rgba(0,0,0,0.1)"
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
-          <h2 style={{ color: "white", fontSize: "20px", fontWeight: "bold" }}>Menu</h2>
-          <button onClick={() => setIsMenuOpen(false)} style={{ background: "none", border: "none", color: "white", fontSize: "28px", cursor: "pointer", lineHeight: 1 }}>✕</button>
+          <h2 style={{ color: colors.text, fontSize: "20px", fontWeight: "bold" }}>Menu</h2>
+          <button onClick={() => setIsMenuOpen(false)} style={{ background: "none", border: "none", color: colors.text, fontSize: "28px", cursor: "pointer", lineHeight: 1 }}>✕</button>
         </div>
 
         {menuItems.map((item, idx) => (
@@ -207,11 +209,11 @@ export default function MyProfileScreen() {
             onClick={() => { router.push(item.path); setIsMenuOpen(false); }}
             style={{
               display: "flex", alignItems: "center", gap: "16px", padding: "16px",
-              backgroundColor: "transparent", border: "none", color: "white",
+              backgroundColor: "transparent", border: "none", color: colors.text,
               fontSize: "16px", cursor: "pointer", borderRadius: "12px", textAlign: "left",
               marginBottom: "8px", transition: "background 0.2s"
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#2A2A2A"}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.hover}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
           >
             <span style={{ fontSize: "22px" }}>{item.icon}</span>
@@ -222,12 +224,11 @@ export default function MyProfileScreen() {
 
       <div className="profile-content">
         
-        {/* ✅ HEADER AVEC BOUTON HAMBURGER (☰) ET PARAMÈTRES (⚙️) */}
+        {/* HEADER */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           <button 
             onClick={() => setIsMenuOpen(true)}
             style={{ background: "none", border: "none", color: colors.text, cursor: "pointer", padding: "8px", fontSize: "28px", lineHeight: 1 }}
-            title="Ouvrir le menu"
           >
             ☰
           </button>
@@ -235,7 +236,6 @@ export default function MyProfileScreen() {
           <button 
             onClick={() => router.push("/settings")}
             style={{ background: "none", border: "none", color: colors.text, cursor: "pointer", padding: "8px", fontSize: "24px" }}
-            title="Paramètres"
           >
             ⚙️
           </button>
@@ -248,7 +248,7 @@ export default function MyProfileScreen() {
               width: "126px", height: "126px", borderRadius: "50%",
               background: `linear-gradient(135deg, ${colors.primary}, ${colors.pink})`,
               padding: "3px",
-              boxShadow: `0 5px 15px ${colors.primary}66`
+              boxShadow: `0 5px 15px rgba(0,0,0,0.2)`
             }}>
               <div style={{
                 width: "100%", height: "100%", borderRadius: "50%",
@@ -300,7 +300,8 @@ export default function MyProfileScreen() {
               style={{
                 flex: 1, padding: "14px", border: "none", borderRadius: "12px",
                 backgroundColor: applicationStatus === 'pending' ? colors.border : colors.primary,
-                color: colors.text, fontWeight: "bold", fontSize: "13px",
+                color: applicationStatus === 'pending' ? colors.textMuted : colors.primaryText,
+                fontWeight: "bold", fontSize: "13px",
                 cursor: applicationStatus === 'pending' ? 'not-allowed' : 'pointer',
                 display: "flex", alignItems: "center", justifyContent: "center", gap: "8px"
               }}
@@ -375,10 +376,10 @@ export default function MyProfileScreen() {
           <div>
             {stories.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 20px" }}>
-                <div style={{ width: "80px", height: "80px", margin: "0 auto 16px", borderRadius: "50%", backgroundColor: `${colors.text}0D`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "48px" }}>📷</div>
+                <div style={{ width: "80px", height: "80px", margin: "0 auto 16px", borderRadius: "50%", backgroundColor: colors.card, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "48px" }}>📷</div>
                 <h3 style={{ color: colors.text, fontSize: "16px", fontWeight: "bold", marginBottom: "8px" }}>Partagez un moment éphémère</h3>
                 <p style={{ color: colors.textMuted, fontSize: "13px", marginBottom: "24px" }}>Votre statut disparaîtra après 24h.</p>
-                <button onClick={() => router.push("/stories/create")} style={{ padding: "12px 24px", backgroundColor: colors.primary, color: "white", border: "none", borderRadius: "20px", fontWeight: "bold", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "8px" }}>➕ Créer un statut</button>
+                <button onClick={() => router.push("/stories/create")} style={{ padding: "12px 24px", backgroundColor: colors.primary, color: colors.primaryText, border: "none", borderRadius: "20px", fontWeight: "bold", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "8px" }}>➕ Créer un statut</button>
               </div>
             ) : (
               <div>
@@ -388,7 +389,7 @@ export default function MyProfileScreen() {
                     <div style={{ width: "65px", height: "65px", borderRadius: "50%", border: `2px dashed ${colors.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", color: colors.text }}>+</div>
                     <span style={{ color: colors.text, fontSize: "11px" }}>Ajouter</span>
                   </div>
-                  {stories.map((story: any, index: number) => (
+                  {stories.map((story: any) => (
                     <div key={story.id} onClick={() => router.push(`/stories/view?creatorId=${user.id}&storyId=${story.id}`)} style={{ minWidth: "65px", display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", cursor: "pointer" }}>
                       <div style={{ width: "65px", height: "65px", borderRadius: "50%", padding: "2px", background: `linear-gradient(135deg, ${colors.primary}, ${colors.pink})` }}>
                         <div style={{ width: "100%", height: "100%", borderRadius: "50%", border: `2px solid ${colors.bg}`, backgroundColor: story.background_color || colors.card, backgroundImage: story.media_url ? `url(${story.media_url})` : undefined, backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -406,7 +407,7 @@ export default function MyProfileScreen() {
           <div>
             {posts.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 20px" }}>
-                <div style={{ width: "80px", height: "80px", margin: "0 auto 16px", borderRadius: "50%", backgroundColor: `${colors.text}0D`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "48px" }}>🖼️</div>
+                <div style={{ width: "80px", height: "80px", margin: "0 auto 16px", borderRadius: "50%", backgroundColor: colors.card, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "48px" }}>🖼️</div>
                 <h3 style={{ color: colors.text, fontSize: "16px", fontWeight: "bold", marginBottom: "8px" }}>Aucune publication.</h3>
                 <p style={{ color: colors.textMuted, fontSize: "13px" }}>Partagez votre premier moment<br/>avec votre communauté.</p>
               </div>

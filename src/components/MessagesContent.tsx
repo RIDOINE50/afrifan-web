@@ -53,6 +53,7 @@ export default function MessagesContent() {
     primaryText: theme.primaryText,
     text: theme.text,
     textMuted: theme.textMuted,
+    hover: theme.hover, // ✅ AJOUT
     green: "#22C55E",
     orange: "#F59E0B",
     red: "#EF4444",
