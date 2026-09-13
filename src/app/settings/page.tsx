@@ -3,26 +3,28 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { isDark, theme, toggleTheme } = useAppTheme();
   
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
   const [isFrench, setIsFrench] = useState(true);
 
+  // ✅ Couleurs dynamiques selon le thème
   const colors = {
-    bg: "#000000",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     red: "#EF4444",
-    gradientStart: "#1E1B4B",
-    gradientEnd: "#4338CA",
   };
 
   useEffect(() => {
@@ -59,9 +61,7 @@ export default function SettingsPage() {
     }
   };
 
-  // ✅ NAVIGATION RÉELLE ACTIVÉE
   const handleNavigation = (path: string, featureName: string) => {
-    // Liste des pages qui n'existent pas encore
     const unavailablePages = ['/settings/notifications'];
     
     if (unavailablePages.includes(path)) {
@@ -96,11 +96,13 @@ export default function SettingsPage() {
 
       <div style={{ maxWidth: "800px", margin: "0 auto", padding: "20px 16px" }}>
         
-        {/* 🟪 BANNIÈRE DÉGRADÉE VIOLETTE */}
+        {/* 🟪 BANNIÈRE */}
         <div style={{
           width: "100%",
           padding: "20px",
-          background: `linear-gradient(135deg, ${colors.gradientStart}, ${colors.gradientEnd})`,
+          background: isDark 
+            ? "linear-gradient(135deg, #1E1B4B, #4338CA)" 
+            : "linear-gradient(135deg, #000000, #374151)",
           borderRadius: "16px",
           display: "flex",
           justifyContent: "space-between",
@@ -108,7 +110,7 @@ export default function SettingsPage() {
           marginBottom: "28px"
         }}>
           <div style={{ flex: 1 }}>
-            <h2 style={{ color: colors.text, fontSize: "20px", fontWeight: "bold", margin: "0 0 8px 0" }}>
+            <h2 style={{ color: "#FFFFFF", fontSize: "20px", fontWeight: "bold", margin: "0 0 8px 0" }}>
               Bonjour, {firstName} 👋
             </h2>
             <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "14px", margin: 0 }}>
@@ -118,41 +120,65 @@ export default function SettingsPage() {
           <div style={{ opacity: 0.6, fontSize: "48px", color: "rgba(255,255,255,0.5)" }}>⚙️</div>
         </div>
 
-        {/* 👤 SECTION : PARAMÈTRES DU COMPTE */}
-        <SectionTitle title="Paramètres du compte" />
-        <SettingsGroup>
+        {/* 👤 SECTION COMPTE */}
+        <SectionTitle title="Paramètres du compte" color={colors.text} />
+        <SettingsGroup bg={colors.card} border={colors.border}>
           <SettingItem 
             icon="👤" 
             title="Informations personnelles" 
             onClick={() => handleNavigation("/settings/personal-info", "Informations personnelles")} 
+            primary={colors.primary}
+            text={colors.text}
+            textMuted={colors.textMuted}
+            border={colors.border}
+            hover={colors.hover}
           />
           <SettingItem 
             icon="🔓" 
             title="Sécurité" 
             onClick={() => handleNavigation("/settings/security", "Sécurité")} 
+            primary={colors.primary}
+            text={colors.text}
+            textMuted={colors.textMuted}
+            border={colors.border}
+            hover={colors.hover}
           />
           <SettingItem 
             icon="🛡️" 
             title="Confidentialité" 
             onClick={() => handleNavigation("/settings/privacy", "Confidentialité")} 
+            primary={colors.primary}
+            text={colors.text}
+            textMuted={colors.textMuted}
+            border={colors.border}
+            hover={colors.hover}
           />
           <SettingItem 
             icon="🔔" 
             title="Notifications" 
             onClick={() => handleNavigation("/settings/notifications", "Notifications")} 
+            primary={colors.primary}
+            text={colors.text}
+            textMuted={colors.textMuted}
+            border={colors.border}
+            hover={colors.hover}
           />
           
-          {/* Toggle Mode Sombre */}
+          {/* ✅ Toggle Mode Sombre - Connecté au thème global */}
           <div style={{ 
             display: "flex", alignItems: "center", padding: "12px 16px", 
             borderBottom: `1px solid ${colors.border}`, cursor: "pointer" 
-          }} onClick={() => setIsDarkMode(!isDarkMode)}>
-            <span style={{ fontSize: "22px", marginRight: "16px", color: colors.primary }}>🌙</span>
+          }} onClick={toggleTheme}>
+            <span style={{ fontSize: "22px", marginRight: "16px", color: colors.primary }}>
+              {isDark ? "🌙" : "☀️"}
+            </span>
             <div style={{ flex: 1 }}>
-              <div style={{ color: colors.text, fontSize: "15px", fontWeight: 500 }}>Mode sombre</div>
+              <div style={{ color: colors.text, fontSize: "15px", fontWeight: 500 }}>
+                {isDark ? "Mode sombre" : "Mode clair"}
+              </div>
               <div style={{ color: colors.textMuted, fontSize: "12px" }}>Apparence de l'application</div>
             </div>
-            <ToggleSwitch value={isDarkMode} onChange={() => setIsDarkMode(!isDarkMode)} />
+            <ToggleSwitch value={isDark} onChange={toggleTheme} primary={colors.primary} border={colors.border} />
           </div>
 
           {/* Toggle Langue */}
@@ -166,34 +192,54 @@ export default function SettingsPage() {
               </div>
               <div style={{ color: colors.textMuted, fontSize: "12px" }}>Change language / Changer de langue</div>
             </div>
-            <ToggleSwitch value={isFrench} onChange={() => setIsFrench(!isFrench)} />
+            <ToggleSwitch value={isFrench} onChange={() => setIsFrench(!isFrench)} primary={colors.primary} border={colors.border} />
           </div>
         </SettingsGroup>
 
         <div style={{ height: "28px" }} />
 
-        {/* ℹ️ SECTION : ASSISTANCE & INFORMATIONS */}
-        <SectionTitle title="Assistance & Informations" />
-        <SettingsGroup>
+        {/* ℹ️ SECTION ASSISTANCE */}
+        <SectionTitle title="Assistance & Informations" color={colors.text} />
+        <SettingsGroup bg={colors.card} border={colors.border}>
           <SettingItem 
             icon="❓" 
             title="Aide / FAQ" 
             onClick={() => handleNavigation("/settings/faq", "Aide / FAQ")} 
+            primary={colors.primary}
+            text={colors.text}
+            textMuted={colors.textMuted}
+            border={colors.border}
+            hover={colors.hover}
           />
           <SettingItem 
             icon="📄" 
             title="Conditions Générales d'Utilisation" 
             onClick={() => handleNavigation("/settings/terms", "CGU")} 
+            primary={colors.primary}
+            text={colors.text}
+            textMuted={colors.textMuted}
+            border={colors.border}
+            hover={colors.hover}
           />
           <SettingItem 
             icon="🔒" 
             title="Politique de confidentialité" 
             onClick={() => handleNavigation("/settings/privacy-policy", "Politique de confidentialité")} 
+            primary={colors.primary}
+            text={colors.text}
+            textMuted={colors.textMuted}
+            border={colors.border}
+            hover={colors.hover}
           />
           <SettingItem 
             icon="ℹ️" 
             title="À propos de l'application" 
             onClick={() => handleNavigation("/settings/about", "À propos")} 
+            primary={colors.primary}
+            text={colors.text}
+            textMuted={colors.textMuted}
+            border={colors.border}
+            hover={colors.hover}
           />
         </SettingsGroup>
 
@@ -237,20 +283,20 @@ export default function SettingsPage() {
 
 // --- Composants Helpers ---
 
-function SectionTitle({ title }: { title: string }) {
+function SectionTitle({ title, color }: { title: string, color: string }) {
   return (
-    <h3 style={{ fontSize: "15px", fontWeight: "bold", color: "#FFFFFF", marginBottom: "10px", marginTop: "0" }}>
+    <h3 style={{ fontSize: "15px", fontWeight: "bold", color, marginBottom: "10px", marginTop: "0" }}>
       {title}
     </h3>
   );
 }
 
-function SettingsGroup({ children }: { children: React.ReactNode }) {
+function SettingsGroup({ children, bg, border }: { children: React.ReactNode, bg: string, border: string }) {
   return (
     <div style={{
-      backgroundColor: "#1A1A1A",
+      backgroundColor: bg,
       borderRadius: "14px",
-      border: "1px solid #2A2A2A",
+      border: `1px solid ${border}`,
       overflow: "hidden"
     }}>
       {children}
@@ -258,25 +304,43 @@ function SettingsGroup({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SettingItem({ icon, title, onClick }: { icon: string, title: string, onClick: () => void }) {
+function SettingItem({ 
+  icon, title, onClick, primary, text, textMuted, border, hover 
+}: { 
+  icon: string, 
+  title: string, 
+  onClick: () => void,
+  primary: string,
+  text: string,
+  textMuted: string,
+  border: string,
+  hover: string
+}) {
   return (
     <div 
       onClick={onClick}
       style={{ 
         display: "flex", alignItems: "center", padding: "12px 16px", 
-        borderBottom: "1px solid #2A2A2A", cursor: "pointer", transition: "background 0.2s"
+        borderBottom: `1px solid ${border}`, cursor: "pointer", transition: "background 0.2s"
       }}
-      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)"}
+      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = hover}
       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
     >
-      <span style={{ fontSize: "22px", marginRight: "16px", color: "#8B5CF6" }}>{icon}</span>
-      <span style={{ flex: 1, color: "#FFFFFF", fontSize: "15px", fontWeight: 500 }}>{title}</span>
-      <span style={{ color: "#9CA3AF", fontSize: "20px" }}>›</span>
+      <span style={{ fontSize: "22px", marginRight: "16px", color: primary }}>{icon}</span>
+      <span style={{ flex: 1, color: text, fontSize: "15px", fontWeight: 500 }}>{title}</span>
+      <span style={{ color: textMuted, fontSize: "20px" }}>›</span>
     </div>
   );
 }
 
-function ToggleSwitch({ value, onChange }: { value: boolean, onChange: () => void }) {
+function ToggleSwitch({ 
+  value, onChange, primary, border 
+}: { 
+  value: boolean, 
+  onChange: () => void,
+  primary: string,
+  border: string
+}) {
   return (
     <div 
       onClick={(e) => { e.stopPropagation(); onChange(); }}
@@ -284,7 +348,7 @@ function ToggleSwitch({ value, onChange }: { value: boolean, onChange: () => voi
         width: "44px",
         height: "24px",
         borderRadius: "12px",
-        backgroundColor: value ? "#8B5CF6" : "#4B5563",
+        backgroundColor: value ? primary : border,
         position: "relative",
         cursor: "pointer",
         transition: "background-color 0.3s"
