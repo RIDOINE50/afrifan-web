@@ -8,6 +8,9 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { useToast } from "@chakra-ui/react";
 import { FaPlay, FaPause } from "react-icons/fa";
 
+// ✅ IMPORT DU TIPDIALOG AVEC KKIAPAY
+import TipDialog from "@/components/TipDialog";
+
 import {
   Box,
   Flex,
@@ -15,8 +18,6 @@ import {
   Image,
   Button,
   Input,
-  Textarea,
-  Select,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -181,84 +182,6 @@ const FlagIcon = () => (
     <line x1="4" y1="22" x2="4" y2="15" />
   </svg>
 );
-
-function TipDialog({ isOpen, onClose, creatorId, creatorName, onSuccess }: { isOpen: boolean; onClose: () => void; creatorId: string; creatorName: string; onSuccess?: () => void }) {
-  const toast = useToast();
-  const [amount, setAmount] = useState<string>("");
-  const [phone, setPhone] = useState<string>("");
-  const [message, setMessage] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<string>("Orange Money");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string>("");
-
-  const quickAmounts = [500, 1000, 2000, 5000];
-  const paymentMethods = ["Orange Money", "MTN Mobile Money", "Moov Money"];
-
-  const handleSendTip = async () => {
-    const numAmount = parseFloat(amount);
-    if (!numAmount || numAmount <= 0) { setError("Montant invalide"); return; }
-    if (phone.trim().length < 8) { setError("Numéro invalide"); return; }
-
-    setIsLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({ title: "Connexion requise", status: "warning" });
-        return;
-      }
-
-      const { error: dbError } = await supabase.from('tips').insert({
-        fan_id: user.id, creator_id: creatorId, amount: numAmount,
-        payment_method: paymentMethod, fan_phone_number: phone.trim(),
-        message: message.trim() || null, status: 'completed',
-      });
-      if (dbError) throw dbError;
-
-      onSuccess?.();
-      onClose();
-      toast({ title: `Pourboire de ${numAmount} FCFA envoyé !`, status: "success", duration: 3000 });
-    } catch (err: any) {
-      setError("Échec de l'envoi");
-      toast({ title: "Échec de l'envoi", status: "error" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} isCentered>
-      <ModalOverlay bg="blackAlpha.700" />
-      <ModalContent bg="#1A1A1A" color="white" maxW="400px" borderRadius="16px">
-        <ModalHeader>Soutenir {creatorName}</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
-          <VStack spacing="4">
-            <Input type="number" value={amount} onChange={(e) => { setAmount(e.target.value); setError(""); }} placeholder="Montant FCFA" bg="#0A0A0A" border="1px solid #2A2A2A" _focus={{ borderColor: "#8B5CF6" }} />
-            <HStack spacing="2" w="100%" flexWrap="wrap">
-              {quickAmounts.map(val => (
-                <Button key={val} size="sm" onClick={() => setAmount(val.toString())} bg={amount === val.toString() ? "#8B5CF6" : "#0A0A0A"} border="1px solid #2A2A2A" _hover={{ bg: "#8B5CF6" }}>{val}</Button>
-              ))}
-            </HStack>
-            <Select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} bg="#0A0A0A" border="1px solid #2A2A2A">
-              {paymentMethods.map(m => <option key={m} value={m}>{m}</option>)}
-            </Select>
-            <Input type="tel" value={phone} onChange={(e) => { setPhone(e.target.value); setError(""); }} placeholder="Numéro Mobile Money" bg="#0A0A0A" border="1px solid #2A2A2A" />
-            <Textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Message (optionnel)" bg="#0A0A0A" border="1px solid #2A2A2A" />
-            {error && <Text color="red.400" fontSize="sm" w="100%" textAlign="center">{error}</Text>}
-          </VStack>
-        </ModalBody>
-        <ModalFooter>
-          <VStack w="100%" spacing="2">
-            <Button w="100%" bg="#8B5CF6" _hover={{ bg: "#7C3AED" }} onClick={handleSendTip} isLoading={isLoading}>
-              Envoyer {amount || 0} FCFA
-            </Button>
-            <Button w="100%" variant="ghost" onClick={onClose}>Annuler</Button>
-          </VStack>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
-  );
-}
 
 function ReportModal({ isOpen, onClose, postId }: { isOpen: boolean; onClose: () => void; postId: string }) {
   const toast = useToast();
@@ -699,7 +622,6 @@ export default function HomePage() {
                     justifyContent="center"
                     p={8}
                     cursor={isLocked ? "pointer" : "default"}
-                    // ✅ MODIFICATION 3 : Utilisation du vrai prix dynamique
                     onClick={isLocked ? () => router.push(`/subscribe/${post.user_id}?tier=premium&price=${creator.premium_price || 0}`) : undefined}
                   >
                     <Text
@@ -810,7 +732,6 @@ export default function HomePage() {
 
                 {/* CADENAS */}
                 {isLocked && (
-                  // ✅ MODIFICATION 4 : Utilisation du vrai prix dynamique ici aussi
                   <Center position="absolute" inset="0" bg="blackAlpha.800" flexDirection="column" zIndex="20" cursor="pointer" onClick={() => router.push(`/subscribe/${post.user_id}?tier=premium&price=${creator.premium_price || 0}`)}>
                     <Box mb="3"><LockIcon /></Box>
                     <Text fontWeight="bold" textAlign="center" px={4}>
@@ -953,7 +874,14 @@ export default function HomePage() {
         </Box>
       </Flex>
 
-      <TipDialog isOpen={isTipOpen} onClose={onTipClose} creatorId={tipCreator.id} creatorName={tipCreator.name} />
+      {/* ✅ TIPDIALOG AVEC KKIAPAY */}
+      {isTipOpen && (
+        <TipDialog
+          creatorId={tipCreator.id}
+          creatorName={tipCreator.name}
+          onClose={onTipClose}
+        />
+      )}
       <ReportModal isOpen={isReportOpen} onClose={onReportClose} postId={reportPostId} />
 
       <Modal isOpen={showComments} onClose={() => setShowComments(false)} size={{ base: "full", md: "md" }}>
