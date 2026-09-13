@@ -69,6 +69,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
   const [isCreator, setIsCreator] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
@@ -92,11 +93,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         const { data: profile } = await supabase
           .from("profiles")
-          .select("role")
+          .select("role, username, full_name, avatar_url")
           .eq("id", session.user.id)
           .single();
 
         setIsCreator(profile?.role === "creator" ? true : false);
+        setUserProfile(profile);
       } catch (error) {
         console.error("Erreur vérification statut créateur:", error);
         setIsCreator(false);
@@ -193,6 +195,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const isDesktop = isMobile === false;
   const isMobileDevice = isMobile === true;
+
+  // ✅ Calcul des infos du profil pour l'affichage
+  const displayName = userProfile?.full_name || userProfile?.username || "Utilisateur";
+  const displayUsername = userProfile?.username || "username";
+  const avatarUrl = userProfile?.avatar_url;
+  const initialLetter = (userProfile?.full_name?.[0] || userProfile?.username?.[0] || "U").toUpperCase();
 
   return (
     <Box 
@@ -373,6 +381,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Button>
             </Box>
 
+            {/* ✅ FOOTER PROFIL — données dynamiques */}
             <Flex 
               mt="16px" 
               pt="16px" 
@@ -390,19 +399,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 w="36px" 
                 h="36px" 
                 borderRadius="50%" 
-                bg={theme.primary}
+                bg={avatarUrl ? "transparent" : theme.primary}
                 color={theme.primaryText}
                 display="flex" 
                 alignItems="center" 
                 justifyContent="center" 
                 fontSize="14px" 
-                fontWeight="bold" 
+                fontWeight="bold"
+                overflow="hidden"
+                bgImage={avatarUrl ? `url(${avatarUrl})` : undefined}
+                bgSize="cover"
+                bgPosition="center"
+                flexShrink={0}
               >
-                N
+                {!avatarUrl && initialLetter}
               </Box>
-              <Box flex={1}>
-                <Text fontSize="14px" fontWeight="600" color={theme.text}>Utilisateur</Text>
-                <Text fontSize="12px" color={theme.textMuted}>@username</Text>
+              <Box flex={1} minW={0}>
+                <Text fontSize="14px" fontWeight="600" color={theme.text} noOfLines={1}>
+                  {displayName}
+                </Text>
+                <Text fontSize="12px" color={theme.textMuted} noOfLines={1}>
+                  @{displayUsername}
+                </Text>
               </Box>
             </Flex>
           </Box>

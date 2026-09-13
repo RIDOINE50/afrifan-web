@@ -9,6 +9,7 @@ import { useToast } from "@chakra-ui/react";
 import { FaPlay, FaPause } from "react-icons/fa";
 
 import TipDialog from "@/components/TipDialog";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 import {
   Box,
@@ -183,6 +184,7 @@ const FlagIcon = () => (
 
 function ReportModal({ isOpen, onClose, postId }: { isOpen: boolean; onClose: () => void; postId: string }) {
   const toast = useToast();
+  const { theme } = useAppTheme();
   const [selectedReason, setSelectedReason] = useState("");
 
   const handleReport = async () => {
@@ -202,13 +204,21 @@ function ReportModal({ isOpen, onClose, postId }: { isOpen: boolean; onClose: ()
   return (
     <Modal isOpen={isOpen} onClose={onClose} isCentered>
       <ModalOverlay bg="blackAlpha.700" />
-      <ModalContent bg="#1A1A1A" color="white" maxW="400px" borderRadius="16px">
+      <ModalContent bg={theme.card} color={theme.text} maxW="400px" borderRadius="16px">
         <ModalHeader>Signaler ce post</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
           <VStack spacing="2" align="stretch">
             {["Spam", "Violence", "Harcèlement", "Droits d'auteur", "Autre"].map(reason => (
-              <Button key={reason} justifyContent="flex-start" bg={selectedReason === reason ? "#8B5CF6" : "#0A0A0A"} border="1px solid #2A2A2A" _hover={{ bg: "#8B5CF6" }} onClick={() => setSelectedReason(reason)}>
+              <Button
+                key={reason}
+                justifyContent="flex-start"
+                bg={selectedReason === reason ? theme.primary : theme.bg}
+                color={selectedReason === reason ? theme.primaryText : theme.text}
+                border={`1px solid ${theme.border}`}
+                _hover={{ opacity: 0.9 }}
+                onClick={() => setSelectedReason(reason)}
+              >
                 {reason}
               </Button>
             ))}
@@ -216,7 +226,7 @@ function ReportModal({ isOpen, onClose, postId }: { isOpen: boolean; onClose: ()
         </ModalBody>
         <ModalFooter>
           <VStack w="100%" spacing="2">
-            <Button w="100%" bg="#8B5CF6" _hover={{ bg: "#7C3AED" }} onClick={handleReport} isDisabled={!selectedReason}>Envoyer</Button>
+            <Button w="100%" bg={theme.primary} color={theme.primaryText} _hover={{ opacity: 0.9 }} onClick={handleReport} isDisabled={!selectedReason}>Envoyer</Button>
             <Button w="100%" variant="ghost" onClick={onClose}>Annuler</Button>
           </VStack>
         </ModalFooter>
@@ -228,6 +238,7 @@ function ReportModal({ isOpen, onClose, postId }: { isOpen: boolean; onClose: ()
 export default function HomePage() {
   const router = useRouter();
   const toast = useToast();
+  const { isDark, theme } = useAppTheme();
 
   const [user, setUser] = useState<any>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -371,7 +382,6 @@ export default function HomePage() {
     setTrendingHashtags(trending);
   };
 
-  // ✅ LES PRIX SONT LUS DIRECTEMENT DEPUIS 'profiles' (comme le mobile)
   const fetchData = async (userId: string) => {
     setIsLoading(true);
     try {
@@ -385,7 +395,6 @@ export default function HomePage() {
 
       const userIds = [...new Set(postsData.map((p: any) => p.user_id))];
       
-      // ✅ On récupère premium_price et pro_price directement depuis profiles
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('id, username, full_name, avatar_url, is_verified, premium_price, pro_price')
@@ -531,15 +540,15 @@ export default function HomePage() {
 
   if (!user || isLoading) return (
     <DashboardLayout>
-      <Center h="100dvh" bg="#0A0A0A">
-        <Spinner thickness="4px" speed="0.65s" emptyColor="#2A2A2A" color="#8B5CF6" size="xl" />
+      <Center h="100dvh" bg={theme.bg}>
+        <Spinner thickness="4px" speed="0.65s" emptyColor={theme.border} color={theme.primary} size="xl" />
       </Center>
     </DashboardLayout>
   );
 
   return (
     <DashboardLayout>
-      <Flex h="100dvh" bg="#0A0A0A" color="white" overflow="hidden" direction={{ base: "column", lg: "row" }}>
+      <Flex h="100dvh" bg={theme.bg} color="white" overflow="hidden" direction={{ base: "column", lg: "row" }}>
 
         <Box
           flex="1"
@@ -576,7 +585,7 @@ export default function HomePage() {
                       size="sm"
                       name={creator.username}
                       src={creator.avatar_url || ''}
-                      border="2px solid #8B5CF6"
+                      border={`2px solid ${theme.primary}`}
                       cursor="pointer"
                       onClick={() => router.push(`/createur?id=${creator.id}`)}
                     />
@@ -586,7 +595,7 @@ export default function HomePage() {
                     </Box>
                   </HStack>
                   {!isFollowed && user.id !== post.user_id && (
-                    <Button size="xs" bg="#8B5CF6" _hover={{ bg: "#7C3AED" }} onClick={() => handleFollow(post.user_id)}>Suivre</Button>
+                    <Button size="xs" bg={theme.primary} color={theme.primaryText} _hover={{ opacity: 0.9 }} onClick={() => handleFollow(post.user_id)}>Suivre</Button>
                   )}
                 </Flex>
 
@@ -594,7 +603,7 @@ export default function HomePage() {
                   <Box
                     w="100%"
                     h="100%"
-                    bg={post.background_color || "#1A1A1A"}
+                    bg={post.background_color || theme.card}
                     display="flex"
                     alignItems="center"
                     justifyContent="center"
@@ -767,9 +776,9 @@ export default function HomePage() {
                         </Box>
                       </Flex>
                     </MenuButton>
-                    <MenuList bg="#1A1A1A" border="1px solid #2A2A2A" color="white">
-                      <MenuItem onClick={(e) => { e.stopPropagation(); handleDownload(post); }} bg="#1A1A1A" _hover={{ bg: "#2A2A2A" }} icon={<Text>⬇️</Text>}>Télécharger</MenuItem>
-                      <MenuItem onClick={(e) => { e.stopPropagation(); setReportPostId(post.id); onReportOpen(); }} bg="#1A1A1A" _hover={{ bg: "#2A2A2A" }} color="red.400" icon={<FlagIcon />}>Signaler</MenuItem>
+                    <MenuList bg={theme.card} border={`1px solid ${theme.border}`} color={theme.text}>
+                      <MenuItem onClick={(e) => { e.stopPropagation(); handleDownload(post); }} bg={theme.card} _hover={{ bg: theme.cardHover }} icon={<Text>⬇️</Text>}>Télécharger</MenuItem>
+                      <MenuItem onClick={(e) => { e.stopPropagation(); setReportPostId(post.id); onReportOpen(); }} bg={theme.card} _hover={{ bg: theme.cardHover }} color="red.400" icon={<FlagIcon />}>Signaler</MenuItem>
                     </MenuList>
                   </Menu>
                 </VStack>
@@ -787,12 +796,13 @@ export default function HomePage() {
         <Box
           w={{ base: "0", lg: "350px" }}
           display={{ base: "none", lg: "block" }}
-          borderLeft="1px solid #1A1A1A"
+          borderLeft={`1px solid ${theme.border}`}
           p="4"
           overflowY="auto"
+          color={theme.text}
         >
           <VStack spacing="4" align="stretch">
-            <Box bg="#1A1A1A" borderRadius="12px" p="4">
+            <Box bg={theme.card} borderRadius="12px" p="4">
               <Text fontWeight="bold" mb="3">Recommandé</Text>
               {recommendedCreators.map(creator => {
                 const isFollowed = followedCreatorIds.has(creator.id);
@@ -803,19 +813,20 @@ export default function HomePage() {
                     spacing="3"
                     cursor="pointer"
                     onClick={() => router.push(`/createur?id=${creator.id}`)}
-                    _hover={{ bg: "whiteAlpha.50" }}
+                    _hover={{ bg: theme.hover }}
                     borderRadius="8px"
                     p="2"
                   >
                     <Avatar size="sm" name={creator.username} src={creator.avatar_url || ''} />
                     <Box flex="1">
                       <Text fontWeight="bold" fontSize="sm">{creator.full_name || creator.username} {creator.is_verified && "✓"}</Text>
-                      <Text fontSize="xs" color="gray.400">{formatCount(creator.followers_count)} abonnés</Text>
+                      <Text fontSize="xs" color={theme.textMuted}>{formatCount(creator.followers_count)} abonnés</Text>
                     </Box>
                     <Button
                       size="xs"
-                      bg={isFollowed ? "gray.700" : "#8B5CF6"}
-                      _hover={{ bg: isFollowed ? "gray.600" : "#7C3AED" }}
+                      bg={isFollowed ? theme.border : theme.primary}
+                      color={isFollowed ? theme.textMuted : theme.primaryText}
+                      _hover={{ opacity: 0.9 }}
                       onClick={(e) => { e.stopPropagation(); handleFollow(creator.id); }}
                     >
                       {isFollowed ? "Suivi" : "Suivre"}
@@ -825,21 +836,21 @@ export default function HomePage() {
               })}
             </Box>
 
-            <Box bg="#1A1A1A" borderRadius="12px" p="4">
+            <Box bg={theme.card} borderRadius="12px" p="4">
               <Text fontWeight="bold" mb="3"> Tendances</Text>
               {trendingHashtags.map((trend, i) => (
-                <Flex key={i} justifyContent="space-between" py="2" borderBottom="1px solid #2A2A2A" _last={{ borderBottom: "none" }}>
+                <Flex key={i} justifyContent="space-between" py="2" borderBottom={`1px solid ${theme.border}`} _last={{ borderBottom: "none" }}>
                   <Text fontWeight="bold" fontSize="sm">#{trend.tag}</Text>
-                  <Text fontSize="xs" color="gray.400">{formatCount(trend.count)} vues</Text>
+                  <Text fontSize="xs" color={theme.textMuted}>{formatCount(trend.count)} vues</Text>
                 </Flex>
               ))}
             </Box>
 
-            <Box bgGradient="linear(135deg, rgba(139, 92, 246, 0.2), rgba(167, 139, 250, 0.2))" border="1px solid rgba(139, 92, 246, 0.3)" borderRadius="12px" p="5" textAlign="center">
+            <Box bg={theme.card} border={`1px solid ${theme.border}`} borderRadius="12px" p="5" textAlign="center">
               <Box display="flex" justifyContent="center" mb="3"><CrownIcon /></Box>
               <Text fontWeight="bold" mb="2">Gagne de l'argent</Text>
-              <Text fontSize="sm" color="gray.400" mb="4">Deviens créateur sur Afrifan</Text>
-              <Button w="100%" bgGradient="linear(135deg, #8B5CF6, #A78BFA)" _hover={{ opacity: 0.9 }} onClick={() => router.push('/creator-info')}>
+              <Text fontSize="sm" color={theme.textMuted} mb="4">Deviens créateur sur Afrifan</Text>
+              <Button w="100%" bg={theme.primary} color={theme.primaryText} _hover={{ opacity: 0.9 }} onClick={() => router.push('/creator-info')}>
                 En savoir plus →
               </Button>
             </Box>
@@ -858,14 +869,14 @@ export default function HomePage() {
 
       <Modal isOpen={showComments} onClose={() => setShowComments(false)} size={{ base: "full", md: "md" }}>
         <ModalOverlay bg="blackAlpha.700" />
-        <ModalContent bg="#1A1A1A" color="white" borderRadius={{ base: "20px 20px 0 0", md: "16px" }} h={{ base: "70vh", md: "auto" }} maxH="70vh" m={{ base: "0", md: "auto" }}>
+        <ModalContent bg={theme.card} color={theme.text} borderRadius={{ base: "20px 20px 0 0", md: "16px" }} h={{ base: "70vh", md: "auto" }} maxH="70vh" m={{ base: "0", md: "auto" }}>
           <ModalHeader display="flex" justifyContent="space-between" alignItems="center">
             Commentaires ({comments.length})
             <ModalCloseButton position="static" />
           </ModalHeader>
           <ModalBody overflowY="auto" flex="1">
             {comments.length === 0 ? (
-              <Center h="100px" color="gray.400">Aucun commentaire</Center>
+              <Center h="100px" color={theme.textMuted}>Aucun commentaire</Center>
             ) : (
               <VStack align="stretch" spacing="4">
                 {comments.map(comment => (
@@ -873,17 +884,26 @@ export default function HomePage() {
                     <Avatar size="sm" name={comment.profiles?.username} src={comment.profiles?.avatar_url || ''} />
                     <Box>
                       <Text fontWeight="bold" fontSize="sm">{comment.profiles?.username || 'User'}</Text>
-                      <Text fontSize="sm" color="gray.300">{comment.content}</Text>
+                      <Text fontSize="sm" color={theme.textMuted}>{comment.content}</Text>
                     </Box>
                   </HStack>
                 ))}
               </VStack>
             )}
           </ModalBody>
-          <ModalFooter borderTop="1px solid #2A2A2A">
+          <ModalFooter borderTop={`1px solid ${theme.border}`}>
             <HStack w="100%">
-              <Input value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Ajouter un commentaire..." bg="#0A0A0A" border="1px solid #2A2A2A" onKeyDown={(e) => e.key === 'Enter' && submitComment()} />
-              <Button bg="#8B5CF6" _hover={{ bg: "#7C3AED" }} onClick={submitComment} isDisabled={!newComment.trim()}>↑</Button>
+              <Input
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Ajouter un commentaire..."
+                bg={theme.bg}
+                border={`1px solid ${theme.border}`}
+                color={theme.text}
+                _placeholder={{ color: theme.textMuted }}
+                onKeyDown={(e) => e.key === 'Enter' && submitComment()}
+              />
+              <Button bg={theme.primary} color={theme.primaryText} _hover={{ opacity: 0.9 }} onClick={submitComment} isDisabled={!newComment.trim()}>↑</Button>
             </HStack>
           </ModalFooter>
         </ModalContent>
