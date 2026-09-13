@@ -10,44 +10,56 @@ export async function GET(request: Request) {
     const { error: sessionError, data } = await supabase.auth.exchangeCodeForSession(code)
     
     if (sessionError) {
-      console.error('Erreur session:', sessionError)
-      return NextResponse.redirect(`${origin}/login?error=auth_callback_error`)
+      // C'est ICI que l'erreur "User already registered" s'affichera dans la console
+      console.error('❌ Erreur session Supabase:', sessionError.message)
+      
+      // On affiche l'erreur dans l'URL pour que tu puisses la lire
+      return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(sessionError.message)}`)
     }
 
-    // 2️⃣ Récupérer les infos de l'utilisateur connecté
     const user = data.user
     
     if (user) {
-      // 3️ Vérifier si le profil existe déjà
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', user.id)
-        .single()
-
-      // 4️⃣ Si le profil n'existe pas, le créer avec les infos Google
-      if (!existingProfile) {
-        const { error: profileError } = await supabase
+      try {
+        // 2️⃣ Vérifier si le profil existe déjà (avec maybeSingle pour éviter les erreurs)
+        const { data: existingProfile, error: profileCheckError } = await supabase
           .from('profiles')
-          .insert({
-            id: user.id,
-            email: user.email,
-            full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
-            avatar_url: user.user_metadata?.avatar_url,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle()
 
-        if (profileError) {
-          console.error('Erreur création profil:', profileError)
+        if (profileCheckError) {
+          console.error('Erreur vérification profil:', profileCheckError.message)
         }
-      }
 
-      // 5️⃣ Rediriger vers la page des intérêts (que ce soit nouveau ou ancien utilisateur)
-      return NextResponse.redirect(`${origin}/interests`)
+        // 3️⃣ Si le profil n'existe pas, le créer avec les infos Google
+        if (!existingProfile) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: user.id,
+              email: user.email,
+              full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
+              avatar_url: user.user_metadata?.avatar_url,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+
+          if (profileError) {
+            console.error('❌ Erreur création profil:', profileError.message)
+          }
+        }
+
+        // 4️⃣ Succès : Rediriger vers les intérêts
+        return NextResponse.redirect(`${origin}/interests`)
+        
+      } catch (err) {
+        console.error('❌ Erreur inattendue dans le callback:', err)
+        return NextResponse.redirect(`${origin}/login?error=unexpected_error`)
+      }
     }
   }
 
-  // En cas d'erreur, rediriger vers login
-  return NextResponse.redirect(`${origin}/login?error=auth_callback_error`)
+  // Pas de code ou pas d'utilisateur
+  return NextResponse.redirect(`${origin}/login?error=no_code_or_user`)
 }
