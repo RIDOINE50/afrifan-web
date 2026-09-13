@@ -3,11 +3,13 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function MessagesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const targetUserId = searchParams.get("to");
+  const { isDark, theme } = useAppTheme();
 
   const [user, setUser] = useState<any>(null);
   const [conversations, setConversations] = useState<any[]>([]);
@@ -30,7 +32,6 @@ export default function MessagesContent() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ✅ États pour les fonctionnalités avancées
   const [searchQuery, setSearchQuery] = useState("");
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [mutedIds, setMutedIds] = useState<Set<string>>(new Set());
@@ -43,13 +44,15 @@ export default function MessagesContent() {
   const [allowFanRequests, setAllowFanRequests] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // ✅ Couleurs dynamiques selon le thème
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
     green: "#22C55E",
     orange: "#F59E0B",
     red: "#EF4444",
@@ -462,7 +465,7 @@ export default function MessagesContent() {
                         height: "60px",
                         borderRadius: "50%",
                         padding: c.unread_count > 0 ? "2px" : "0",
-                        background: c.unread_count > 0 ? `linear-gradient(135deg, ${colors.primary}, #6D28D9)` : "transparent",
+                        background: c.unread_count > 0 ? colors.primary : "transparent",
                       }}
                     >
                       <div
@@ -490,6 +493,7 @@ export default function MessagesContent() {
                           top: "-2px",
                           right: "-2px",
                           backgroundColor: colors.primary,
+                          color: colors.primaryText,
                           borderRadius: "50%",
                           minWidth: "20px",
                           height: "20px",
@@ -517,7 +521,7 @@ export default function MessagesContent() {
 
         {requestsCount > 0 && allowFanRequests && (
           <div style={{ margin: "12px 16px", padding: "14px", backgroundColor: colors.card, borderRadius: "12px", border: `1px solid ${colors.border}`, display: "flex", alignItems: "center", gap: "12px" }}>
-            <div style={{ width: "44px", height: "44px", borderRadius: "12px", backgroundColor: `${colors.primary}20`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px" }}>
+            <div style={{ width: "44px", height: "44px", borderRadius: "12px", backgroundColor: colors.hover, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px" }}>
               👥
             </div>
             <div style={{ flex: 1 }}>
@@ -525,7 +529,7 @@ export default function MessagesContent() {
               <div style={{ fontSize: "12px", color: colors.textMuted }}>{requestsCount} nouvelle(s) demande(s)</div>
             </div>
             <button
-              style={{ padding: "8px 16px", backgroundColor: colors.primary, border: "none", borderRadius: "20px", color: "white", fontWeight: "bold", fontSize: "13px", cursor: "pointer" }}
+              style={{ padding: "8px 16px", backgroundColor: colors.primary, border: "none", borderRadius: "20px", color: colors.primaryText, fontWeight: "bold", fontSize: "13px", cursor: "pointer" }}
               onClick={() => alert("Écran des demandes à implémenter")}
             >
               Voir
@@ -559,13 +563,13 @@ export default function MessagesContent() {
                     padding: "14px 16px",
                     borderBottom: `1px solid ${colors.border}`,
                     cursor: "pointer",
-                    backgroundColor: selectedUserId === c.other_user_id ? `${colors.primary}20` : "transparent",
+                    backgroundColor: selectedUserId === c.other_user_id ? colors.hover : "transparent",
                     display: "flex",
                     gap: "12px",
                     alignItems: "center",
                     transition: "background-color 0.2s",
                   }}
-                  onMouseEnter={(e) => { if (selectedUserId !== c.other_user_id) e.currentTarget.style.backgroundColor = `${colors.primary}10`; }}
+                  onMouseEnter={(e) => { if (selectedUserId !== c.other_user_id) e.currentTarget.style.backgroundColor = colors.hover; }}
                   onMouseLeave={(e) => { if (selectedUserId !== c.other_user_id) e.currentTarget.style.backgroundColor = "transparent"; }}
                 >
                   <div style={{ position: "relative", flexShrink: 0 }}>
@@ -607,7 +611,7 @@ export default function MessagesContent() {
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px", flexShrink: 0 }}>
                     <span style={{ fontSize: "11px", color: colors.textMuted }}>{formatTimeAgo(c.last_message_time)}</span>
                     {c.unread_count > 0 && (
-                      <div style={{ backgroundColor: colors.primary, borderRadius: "50%", minWidth: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "bold", padding: "0 4px" }}>
+                      <div style={{ backgroundColor: colors.primary, color: colors.primaryText, borderRadius: "50%", minWidth: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "bold", padding: "0 4px" }}>
                         {c.unread_count}
                       </div>
                     )}
@@ -649,7 +653,7 @@ export default function MessagesContent() {
                 return (
                   <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: isMine ? "flex-end" : "flex-start", maxWidth: "85%" }}>
                     {msg.reply_to_content && (
-                      <div style={{ backgroundColor: "rgba(255,255,255,0.1)", padding: "8px 12px", borderRadius: "12px 12px 0 0", fontSize: "12px", color: colors.textMuted, borderLeft: `3px solid ${colors.primary}`, marginBottom: "-8px", zIndex: 1, width: "100%" }}>
+                      <div style={{ backgroundColor: colors.hover, padding: "8px 12px", borderRadius: "12px 12px 0 0", fontSize: "12px", color: colors.textMuted, borderLeft: `3px solid ${colors.primary}`, marginBottom: "-8px", zIndex: 1, width: "100%" }}>
                         <div style={{ fontWeight: "bold", color: colors.primary }}>{msg.reply_to_name}</div>
                         <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{msg.reply_to_content}</div>
                       </div>
@@ -658,7 +662,8 @@ export default function MessagesContent() {
                       onContextMenu={(e) => { e.preventDefault(); if (isMine) deleteMessage(msg.id); }}
                       style={{
                         backgroundColor: isMine ? colors.primary : colors.card,
-                        color: "white", padding: "12px 16px", borderRadius: "18px",
+                        color: isMine ? colors.primaryText : colors.text,
+                        padding: "12px 16px", borderRadius: "18px",
                         borderBottomRightRadius: isMine ? "4px" : "18px",
                         borderBottomLeftRadius: isMine ? "18px" : "4px",
                         wordBreak: "break-word",
@@ -728,11 +733,11 @@ export default function MessagesContent() {
                     />
                   </div>
                   {inputText.trim() ? (
-                    <button onClick={handleSend} disabled={isSending} style={{ backgroundColor: colors.primary, border: "none", borderRadius: "50%", width: "48px", height: "48px", color: "white", fontSize: "20px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <button onClick={handleSend} disabled={isSending} style={{ backgroundColor: colors.primary, color: colors.primaryText, border: "none", borderRadius: "50%", width: "48px", height: "48px", fontSize: "20px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       {isSending ? "..." : "➤"}
                     </button>
                   ) : (
-                    <button onClick={startRecording} style={{ backgroundColor: colors.primary, border: "none", borderRadius: "50%", width: "48px", height: "48px", color: "white", fontSize: "24px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <button onClick={startRecording} style={{ backgroundColor: colors.primary, color: colors.primaryText, border: "none", borderRadius: "50%", width: "48px", height: "48px", fontSize: "24px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       🎤
                     </button>
                   )}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import DashboardLayout from "@/components/DashboardLayout";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 function formatCount(count: number): string {
   if (count >= 1000000) return (count / 1000000).toFixed(1) + "M";
@@ -13,6 +14,7 @@ function formatCount(count: number): string {
 
 export default function ExplorePage() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   const [user, setUser] = useState<any>(null);
   const [creators, setCreators] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
@@ -22,13 +24,16 @@ export default function ExplorePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
+  // ✅ Couleurs dynamiques selon le thème
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     purple: "#A855F7",
     orange: "#F97316",
     red: "#EF4444",
@@ -95,7 +100,6 @@ export default function ExplorePage() {
     setCreators(data || []);
   };
 
-  // ✅ On récupère AUSSI premium_price et pro_price depuis profiles (comme le mobile)
   const fetchPosts = async () => {
     const { data: postsData } = await supabase
       .from('posts')
@@ -107,7 +111,6 @@ export default function ExplorePage() {
 
     const userIds = [...new Set(postsData.map((p: any) => p.user_id))];
     
-    // ✅ AJOUT : premium_price et pro_price dans le select
     const { data: profilesData } = await supabase
       .from('profiles')
       .select('id, username, full_name, avatar_url, premium_price, pro_price')
@@ -181,7 +184,7 @@ export default function ExplorePage() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", backgroundColor: colors.bg }}>
           <div style={{ width: "40px", height: "40px", border: `4px solid ${colors.border}`, borderTop: `4px solid ${colors.primary}`, borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
         </div>
       </DashboardLayout>
@@ -230,7 +233,7 @@ export default function ExplorePage() {
         <div style={{ marginBottom: "40px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ color: colors.purple, fontSize: "20px" }}>⭐</span>
+              <span style={{ fontSize: "20px" }}>⭐</span>
               <h2 style={{ color: colors.text, fontSize: "18px", fontWeight: "bold", margin: 0 }}>Créateurs tendance</h2>
             </div>
             <button 
@@ -275,8 +278,10 @@ export default function ExplorePage() {
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleFollow(creator.id); }}
                       style={{
-                        width: "100%", padding: "8px", backgroundColor: isFollowing ? colors.border : colors.primary,
-                        color: colors.text, border: "none", borderRadius: "12px", fontWeight: "bold", fontSize: "12px", cursor: "pointer", transition: "background 0.2s"
+                        width: "100%", padding: "8px", 
+                        backgroundColor: isFollowing ? colors.border : colors.primary,
+                        color: isFollowing ? colors.textMuted : colors.primaryText, 
+                        border: "none", borderRadius: "12px", fontWeight: "bold", fontSize: "12px", cursor: "pointer", transition: "background 0.2s"
                       }}
                     >
                       {isFollowing ? "Suivi" : "Suivre"}
@@ -292,7 +297,7 @@ export default function ExplorePage() {
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ color: colors.orange, fontSize: "20px" }}>🔥</span>
+              <span style={{ fontSize: "20px" }}>🔥</span>
               <h2 style={{ color: colors.text, fontSize: "18px", fontWeight: "bold", margin: 0 }}>Pour toi</h2>
             </div>
             <button 
@@ -317,7 +322,6 @@ export default function ExplorePage() {
                 const username = post.profile?.username || 'inconnu';
                 const displayName = post.profile?.full_name || username;
                 const likesCount = post.likes_count || 0;
-                // ✅ Prix dynamique depuis profiles (comme le mobile)
                 const premiumPrice = post.profile?.premium_price || 0;
 
                 return (
@@ -325,7 +329,6 @@ export default function ExplorePage() {
                     key={post.id}
                     onClick={() => {
                       if (isLocked) {
-                        // ✅ Utilise premiumPrice au lieu de 2000 hardcodé + ajoute le nom
                         router.push(`/subscribe/${creatorId}?tier=premium&price=${premiumPrice}&name=${encodeURIComponent(displayName)}`);
                       } else {
                         router.push(`/post/${post.id}?creatorId=${creatorId}`);
@@ -337,8 +340,8 @@ export default function ExplorePage() {
                       <>
                         {isLocked ? (
                           <>
-                            <div style={{ filter: "blur(12px)", width: "100%", height: "100%", backgroundImage: `url(${post.media_url})`, backgroundSize: "cover", backgroundPosition: "center" }} />
-                            <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.5)" }} />
+                            <div style={{ filter: "blur(25px) brightness(0.6)", width: "100%", height: "100%", backgroundImage: `url(${post.media_url})`, backgroundSize: "cover", backgroundPosition: "center", transform: "scale(1.1)" }} />
+                            <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.6)" }} />
                           </>
                         ) : (
                           <div style={{ width: "100%", height: "100%", backgroundImage: `url(${post.media_url})`, backgroundSize: "cover", backgroundPosition: "center" }} />
@@ -351,9 +354,9 @@ export default function ExplorePage() {
                     {isLocked && (
                       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", zIndex: 10 }}>
                         <div style={{ width: "56px", height: "56px", borderRadius: "50%", backgroundColor: colors.primary, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px" }}>🔒</div>
-                        <span style={{ color: colors.text, fontWeight: "bold", fontSize: "13px", backgroundColor: "rgba(0,0,0,0.6)", padding: "6px 12px", borderRadius: "20px" }}>Contenu Exclusif</span>
+                        <span style={{ color: "white", fontWeight: "bold", fontSize: "13px", backgroundColor: "rgba(0,0,0,0.6)", padding: "6px 12px", borderRadius: "20px" }}>Contenu Exclusif</span>
                         {premiumPrice > 0 && (
-                          <span style={{ color: colors.textMuted, fontSize: "11px", backgroundColor: "rgba(0,0,0,0.6)", padding: "4px 10px", borderRadius: "12px" }}>
+                          <span style={{ color: "white", fontSize: "11px", backgroundColor: "rgba(0,0,0,0.6)", padding: "4px 10px", borderRadius: "12px" }}>
                             {premiumPrice.toFixed(0)} FCFA / mois
                           </span>
                         )}
@@ -384,7 +387,10 @@ export default function ExplorePage() {
           <button
             onClick={handleRefresh}
             style={{
-              padding: "12px 32px", backgroundColor: colors.primary, color: "white", border: "none",
+              padding: "12px 32px", 
+              backgroundColor: colors.primary, 
+              color: colors.primaryText, 
+              border: "none",
               borderRadius: "12px", fontWeight: "bold", fontSize: "14px", cursor: "pointer",
               display: "inline-flex", alignItems: "center", gap: "8px",
             }}
