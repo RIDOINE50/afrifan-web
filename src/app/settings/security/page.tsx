@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -15,13 +17,16 @@ export default function ChangePasswordPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string }>({});
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     error: "#EF4444",
     success: "#22C55E",
   };
@@ -70,7 +75,6 @@ export default function ChangePasswordPage() {
       setConfirmPassword("");
       setErrors({});
       
-      // Optionnel : rediriger vers les paramètres après 1.5s
       setTimeout(() => {
         router.push("/settings");
       }, 1500);
@@ -105,7 +109,7 @@ export default function ChangePasswordPage() {
         </p>
 
         <form onSubmit={handleSubmit}>
-          {/* Message global de succès ou d'erreur */}
+          {/* Message global */}
           {message && (
             <div style={{ 
               padding: "12px 16px", 
@@ -172,7 +176,7 @@ export default function ChangePasswordPage() {
             </p>
           )}
 
-          {/* --- CONFIRMER LE MOT DE PASSE --- */}
+          {/* --- CONFIRMER --- */}
           <label style={{ display: "block", fontWeight: "bold", color: colors.text, fontSize: "14px", marginBottom: "8px" }}>
             Confirmer le nouveau mot de passe
           </label>
@@ -228,10 +232,10 @@ export default function ChangePasswordPage() {
             style={{
               width: "100%",
               padding: "16px",
-              backgroundColor: isSaving ? "#374151" : colors.primary,
+              backgroundColor: isSaving ? colors.border : colors.primary,
               border: "none",
               borderRadius: "12px",
-              color: colors.text,
+              color: colors.primaryText,
               fontSize: "16px",
               fontWeight: "bold",
               cursor: isSaving ? "not-allowed" : "pointer",
@@ -242,7 +246,7 @@ export default function ChangePasswordPage() {
             }}
           >
             {isSaving ? (
-              <div style={{ width: "20px", height: "20px", border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #FFFFFF", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
+              <div style={{ width: "20px", height: "20px", border: `2px solid ${colors.primaryText}`, borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
             ) : (
               "Mettre à jour le mot de passe"
             )}

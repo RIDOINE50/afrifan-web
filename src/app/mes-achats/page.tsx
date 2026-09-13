@@ -9,9 +9,8 @@ import {
 import { 
   FaArrowLeft, FaPlayCircle, FaImage, FaFilePdf, FaVideo, FaTrash, FaLock, FaMusic
 } from "react-icons/fa";
-
-// ✅ CORRECTION DES IMPORTS : On utilise maintenant les fonctions dédiées aux ACHATS
 import { getAllPurchasedFiles, deletePurchasedFile } from "@/lib/localStorage";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 interface PurchasedFile {
   productId: string;
@@ -24,11 +23,27 @@ interface PurchasedFile {
 export default function MesAchatsPage() {
   const router = useRouter();
   const toast = useToast();
+  const { isDark, theme } = useAppTheme();
   
   const [purchases, setPurchases] = useState<PurchasedFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewingFile, setViewingFile] = useState<PurchasedFile | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+
+  // ✅ Couleurs dynamiques
+  const colors = {
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
+    overlay: isDark ? "rgba(10,10,10,0.95)" : "rgba(255,255,255,0.95)",
+    mediaBg: "#000000",
+    red: "#EF4444",
+  };
 
   useEffect(() => {
     loadPurchases();
@@ -37,7 +52,6 @@ export default function MesAchatsPage() {
   const loadPurchases = async () => {
     setIsLoading(true);
     try {
-      // ✅ Utilisation de la bonne fonction pour les achats
       const files = await getAllPurchasedFiles();
       setPurchases(files);
     } catch (error) {
@@ -56,7 +70,7 @@ export default function MesAchatsPage() {
 
   const closeViewer = () => {
     if (viewerUrl) {
-      URL.revokeObjectURL(viewerUrl); // Libérer la mémoire
+      URL.revokeObjectURL(viewerUrl);
     }
     setViewerUrl(null);
     setViewingFile(null);
@@ -66,7 +80,6 @@ export default function MesAchatsPage() {
     if (!confirm(`Voulez-vous vraiment supprimer "${fileName}" de votre appareil ?`)) return;
     
     try {
-      // ✅ Utilisation de la bonne fonction de suppression pour les achats
       await deletePurchasedFile(productId);
       setPurchases(prev => prev.filter(p => p.productId !== productId));
       toast({ title: "Fichier supprimé", status: "success", duration: 3000 });
@@ -91,7 +104,7 @@ export default function MesAchatsPage() {
   };
 
   // ==========================================
-  // ✅ MODE VISIONNEUR (Verrouillé : PAS de sortie de l'app)
+  // ✅ MODE VISIONNEUR
   // ==========================================
   if (viewingFile && viewerUrl) {
     const fileNameLower = viewingFile.fileName.toLowerCase();
@@ -103,13 +116,13 @@ export default function MesAchatsPage() {
     const isAudio = mediaLower.includes("audio") || fileNameLower.endsWith(".mp3") || fileNameLower.endsWith(".wav") || fileNameLower.endsWith(".m4a") || fileNameLower.endsWith(".ogg");
 
     return (
-      <Box minH="100vh" bg="#0A0A0A" color="white">
-        <Flex align="center" justify="space-between" p={4} borderBottom="1px solid #2A2A2A" bg="#1A1A1A">
+      <Box minH="100vh" bg={colors.bg} color={colors.text}>
+        <Flex align="center" justify="space-between" p={4} borderBottom={`1px solid ${colors.border}`} bg={colors.card}>
           <HStack>
-            <Button variant="ghost" color="gray.400" leftIcon={<Icon as={FaArrowLeft} />} onClick={closeViewer}>
+            <Button variant="ghost" color={colors.textMuted} leftIcon={<Icon as={FaArrowLeft} />} onClick={closeViewer}>
               Retour à mes achats
             </Button>
-            <Text fontWeight="bold" fontSize="16px" noOfLines={1} maxW="300px">{viewingFile.fileName}</Text>
+            <Text fontWeight="bold" fontSize="16px" noOfLines={1} maxW="300px" color={colors.text}>{viewingFile.fileName}</Text>
           </HStack>
         </Flex>
 
@@ -129,7 +142,7 @@ export default function MesAchatsPage() {
           )}
 
           {isVideo && (
-            <Box maxW="100%" maxH="80vh" borderRadius="12px" overflow="hidden" bg="black">
+            <Box maxW="100%" maxH="80vh" borderRadius="12px" overflow="hidden" bg={colors.mediaBg}>
               <video 
                 src={viewerUrl} 
                 controls 
@@ -153,7 +166,7 @@ export default function MesAchatsPage() {
           )}
 
           {isAudio && (
-            <Box maxW="100%" p={8} bg="#1A1A1A" borderRadius="12px" border="1px solid #2A2A2A">
+            <Box maxW="100%" p={8} bg={colors.card} borderRadius="12px" border={`1px solid ${colors.border}`}>
               <audio 
                 src={viewerUrl} 
                 controls 
@@ -166,14 +179,14 @@ export default function MesAchatsPage() {
 
           {!isPdf && !isVideo && !isImage && !isAudio && (
             <VStack spacing={6}>
-              <Icon as={FaLock} boxSize={20} color="gray.500" />
-              <Text color="gray.400" textAlign="center" fontWeight="bold">
+              <Icon as={FaLock} boxSize={20} color={colors.textMuted} />
+              <Text color={colors.textMuted} textAlign="center" fontWeight="bold">
                 Format de fichier spécifique
               </Text>
-              <Text color="gray.500" fontSize="14px" textAlign="center" maxW="400px">
+              <Text color={colors.textMuted} fontSize="14px" textAlign="center" maxW="400px" opacity={0.7}>
                 Ce type de fichier ne peut pas être lu directement dans le navigateur.
               </Text>
-              <Button as="a" href={viewerUrl} target="_blank" bg="#8B5CF6" color="white" _hover={{ bg: "#7C3AED" }}>
+              <Button as="a" href={viewerUrl} target="_blank" bg={colors.primary} color={colors.primaryText} _hover={{ opacity: 0.9 }}>
                 Ouvrir le fichier
               </Button>
             </VStack>
@@ -187,32 +200,32 @@ export default function MesAchatsPage() {
   // ✅ MODE LISTE DES ACHATS
   // ==========================================
   return (
-    <Box minH="100vh" bg="#0A0A0A" color="white">
-      <Box position="sticky" top={0} zIndex={100} bg="rgba(10,10,10,0.95)" backdropFilter="blur(10px)" borderBottom="1px solid #2A2A2A" py={3} px={4}>
+    <Box minH="100vh" bg={colors.bg} color={colors.text}>
+      <Box position="sticky" top={0} zIndex={100} bg={colors.overlay} backdropFilter="blur(10px)" borderBottom={`1px solid ${colors.border}`} py={3} px={4}>
         <Flex align="center" maxW="1200px" mx="auto">
-          <Button variant="ghost" color="gray.400" leftIcon={<Icon as={FaArrowLeft} />} onClick={() => router.back()}>
+          <Button variant="ghost" color={colors.textMuted} leftIcon={<Icon as={FaArrowLeft} />} onClick={() => router.back()}>
             Retour
           </Button>
-          <Text fontSize="20px" fontWeight="bold" ml={4}>Mes Achats</Text>
+          <Text fontSize="20px" fontWeight="bold" ml={4} color={colors.text}>Mes Achats</Text>
         </Flex>
       </Box>
 
       <Box maxW="1200px" mx="auto" p={{ base: 4, md: 8 }}>
         {isLoading ? (
           <Center h="50vh">
-            <Spinner thickness="4px" color="#8B5CF6" size="xl" />
+            <Spinner thickness="4px" color={colors.primary} size="xl" />
           </Center>
         ) : purchases.length === 0 ? (
           <Center h="60vh">
             <VStack spacing={6}>
-              <Box p={6} bg="#1A1A1A" borderRadius="full">
-                <Icon as={FaPlayCircle} boxSize={16} color="gray.600" />
+              <Box p={6} bg={colors.card} borderRadius="full">
+                <Icon as={FaPlayCircle} boxSize={16} color={colors.textMuted} />
               </Box>
-              <Text fontSize="20px" fontWeight="bold">Vous n'avez encore rien acheté</Text>
-              <Text color="gray.400" textAlign="center" maxW="400px">
+              <Text fontSize="20px" fontWeight="bold" color={colors.text}>Vous n'avez encore rien acheté</Text>
+              <Text color={colors.textMuted} textAlign="center" maxW="400px">
                 Les contenus que vous achetez apparaîtront ici pour un accès sécurisé hors ligne.
               </Text>
-              <Button bg="#8B5CF6" color="white" _hover={{ bg: "#7C3AED" }} onClick={() => router.push("/explore")}>
+              <Button bg={colors.primary} color={colors.primaryText} _hover={{ opacity: 0.9 }} onClick={() => router.push("/explore")}>
                 Découvrir la boutique
               </Button>
             </VStack>
@@ -222,29 +235,29 @@ export default function MesAchatsPage() {
             {purchases.map((file) => (
               <Box
                 key={file.productId}
-                bg="#1A1A1A"
+                bg={colors.card}
                 borderRadius="12px"
-                border="1px solid #2A2A2A"
+                border={`1px solid ${colors.border}`}
                 p={5}
-                _hover={{ borderColor: "#8B5CF6", transform: "translateY(-2px)" }}
+                _hover={{ borderColor: colors.primary, transform: "translateY(-2px)" }}
                 transition="all 0.2s"
               >
                 <Flex align="start" justify="space-between" mb={4}>
-                  <Box p={3} bg="#8B5CF6/10" borderRadius="10px">
-                    <Icon as={getFileIcon(file.mediaType, file.fileName)} boxSize={8} color="#8B5CF6" />
+                  <Box p={3} bg={colors.hover} borderRadius="10px">
+                    <Icon as={getFileIcon(file.mediaType, file.fileName)} boxSize={8} color={colors.primary} />
                   </Box>
                   <Button
                     size="sm"
                     variant="ghost"
-                    color="gray.500"
-                    _hover={{ color: "red.400", bg: "red.500/10" }}
+                    color={colors.textMuted}
+                    _hover={{ color: colors.red, bg: "rgba(239, 68, 68, 0.1)" }}
                     onClick={() => handleDelete(file.productId, file.fileName)}
                   >
                     <Icon as={FaTrash} />
                   </Button>
                 </Flex>
 
-                <Text fontWeight="bold" fontSize="16px" mb={1} noOfLines={2}>
+                <Text fontWeight="bold" fontSize="16px" mb={1} noOfLines={2} color={colors.text}>
                   {file.fileName}
                 </Text>
                 
@@ -252,16 +265,16 @@ export default function MesAchatsPage() {
                   <Badge colorScheme="purple" fontSize="10px" textTransform="uppercase">
                     {file.mediaType}
                   </Badge>
-                  <Text fontSize="12px" color="gray.500">
+                  <Text fontSize="12px" color={colors.textMuted}>
                     Ajouté le {formatDate(file.downloadedAt)}
                   </Text>
                 </HStack>
 
                 <Button
                   w="100%"
-                  bg="#8B5CF6"
-                  color="white"
-                  _hover={{ bg: "#7C3AED" }}
+                  bg={colors.primary}
+                  color={colors.primaryText}
+                  _hover={{ opacity: 0.9 }}
                   leftIcon={<Icon as={FaPlayCircle} />}
                   onClick={() => openFile(file)}
                 >

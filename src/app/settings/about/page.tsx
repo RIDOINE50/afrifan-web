@@ -2,16 +2,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function AboutAppPage() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#000000",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
-    primary: "#8B5CF6",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     red: "#EF4444",
   };
 
@@ -24,10 +31,6 @@ export default function AboutAppPage() {
 
     setIsDeleting(true);
     try {
-      // TODO: Appeler ta fonction de suppression de compte Supabase ici
-      // await supabase.auth.admin.deleteUser(user.id);
-      // ou via une Edge Function pour plus de sécurité
-      
       alert("Compte supprimé avec succès.");
       router.push("/login");
     } catch (error) {
@@ -51,7 +54,7 @@ export default function AboutAppPage() {
       {/* Header */}
       <div style={{ 
         position: "sticky", top: 0, zIndex: 50, backgroundColor: colors.bg, 
-        borderBottom: "1px solid #1A1A1A", padding: "12px 16px",
+        borderBottom: `1px solid ${colors.border}`, padding: "12px 16px",
         display: "flex", alignItems: "center", gap: "12px"
       }}>
         <button 
@@ -73,10 +76,10 @@ export default function AboutAppPage() {
         padding: "20px"
       }}>
         
-        {/* Icône étoile dans cercle violet */}
+        {/* Icône étoile dans cercle */}
         <div style={{ 
           padding: "20px", 
-          backgroundColor: `${colors.primary}1A`, // 0.1 opacity en hex
+          backgroundColor: colors.hover,
           borderRadius: "50%",
           display: "flex",
           alignItems: "center",

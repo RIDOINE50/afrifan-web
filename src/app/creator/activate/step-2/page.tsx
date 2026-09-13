@@ -3,39 +3,39 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function IdentityVerificationStep() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   
-  // États pour les données de l'étape 1
   const [step1Data, setStep1Data] = useState<any>(null);
 
-  // États pour la pièce d'identité
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
   const [idCardPreview, setIdCardPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // États pour la vérification du téléphone
   const [otp, setOtp] = useState("");
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
-  // États généraux
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#0A0A0A",
-    card: "#161616",
-    border: "#262626",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textSecondary: "#888888",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textSecondary: theme.textMuted,
+    hover: theme.hover,
     green: "#22C55E",
     red: "#EF4444",
   };
 
-  // 1. Vérifier que l'utilisateur a bien fait l'étape 1
   useEffect(() => {
     const savedData = sessionStorage.getItem('creator_activation_step1');
     if (!savedData) {
@@ -44,7 +44,6 @@ export default function IdentityVerificationStep() {
       setStep1Data(JSON.parse(savedData));
     }
 
-    // Nettoyage de l'URL de prévisualisation pour éviter les fuites de mémoire
     return () => {
       if (idCardPreview && idCardPreview.startsWith('blob:')) {
         URL.revokeObjectURL(idCardPreview);
@@ -52,19 +51,16 @@ export default function IdentityVerificationStep() {
     };
   }, [router, idCardPreview]);
 
-  // 2. Gestion de la sélection de l'image
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Créer une URL locale pour la prévisualisation immédiate
     const previewUrl = URL.createObjectURL(file);
     setIdCardFile(file);
     setIdCardPreview(previewUrl);
     setError(null);
   };
 
-  // 3. Simulation de la vérification OTP (à remplacer par un vrai service SMS plus tard)
   const handleVerifyOtp = async () => {
     if (otp.length < 4) {
       setError("Veuillez entrer un code valide.");
@@ -74,15 +70,13 @@ export default function IdentityVerificationStep() {
     setIsVerifyingOtp(true);
     setError(null);
 
-    // Simulation d'un appel API (comme dans ton code Flutter)
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     setIsVerifyingOtp(false);
     setIsPhoneVerified(true);
   };
 
-  // 4. Passage à l'étape suivante avec Upload et Sauvegarde
-    const handleNext = async () => {
+  const handleNext = async () => {
     if (!idCardFile) {
       setError("Veuillez importer une photo de votre pièce d'identité.");
       return;
@@ -99,22 +93,19 @@ export default function IdentityVerificationStep() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Utilisateur non connecté.");
 
-      // A. Upload de l'image vers Supabase Storage
       const fileExt = idCardFile.name.split('.').pop();
       const fileName = `id_${user.id}_${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
-        .from('creator_id_cards') // ✅ NOUVEAU BUCKET
+        .from('creator_id_cards')
         .upload(fileName, idCardFile);
 
       if (uploadError) throw uploadError;
 
-      // Récupérer l'URL publique
       const { data: { publicUrl } } = supabase.storage
-        .from('creator_id_cards') // ✅ NOUVEAU BUCKET
+        .from('creator_id_cards')
         .getPublicUrl(fileName);
 
-      // B. Combiner toutes les données et les sauvegarder pour l'étape 3
       const completeData = {
         ...step1Data,
         idCardUrl: publicUrl,
@@ -122,8 +113,6 @@ export default function IdentityVerificationStep() {
       };
 
       sessionStorage.setItem('creator_activation_step2', JSON.stringify(completeData));
-
-      // C. Redirection vers l'étape 3 (Pricing)
       router.push("/creator/activate/step-3");
 
     } catch (err: any) {
@@ -150,9 +139,9 @@ export default function IdentityVerificationStep() {
         <div style={{ marginBottom: "32px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
             <span style={{ color: colors.primary, fontWeight: "bold", fontSize: "14px" }}>Étape 2/3</span>
-            <span style={{ backgroundColor: `${colors.primary}33`, color: colors.primary, padding: "4px 12px", borderRadius: "12px", fontSize: "14px", fontWeight: "bold" }}>2/3</span>
+            <span style={{ backgroundColor: colors.hover, color: colors.primary, padding: "4px 12px", borderRadius: "12px", fontSize: "14px", fontWeight: "bold" }}>2/3</span>
           </div>
-          <div style={{ height: "6px", backgroundColor: "#1A1A1A", borderRadius: "8px", overflow: "hidden" }}>
+          <div style={{ height: "6px", backgroundColor: colors.card, borderRadius: "8px", overflow: "hidden" }}>
             <div style={{ width: "66%", height: "100%", backgroundColor: colors.primary, borderRadius: "8px", transition: "width 0.3s" }} />
           </div>
         </div>
@@ -164,7 +153,7 @@ export default function IdentityVerificationStep() {
 
         {error && (
           <div style={{
-            padding: "12px 16px", backgroundColor: `${colors.red}1A`,
+            padding: "12px 16px", backgroundColor: "rgba(239, 68, 68, 0.1)",
             border: `1px solid ${colors.red}`, borderRadius: "12px",
             color: colors.red, fontSize: "14px", marginBottom: "24px", textAlign: "center"
           }}>
@@ -216,12 +205,12 @@ export default function IdentityVerificationStep() {
 
         {/* Message de sécurité */}
         <div style={{
-          padding: "14px", backgroundColor: `${colors.primary}1A`,
-          borderRadius: "12px", border: `1px solid ${colors.primary}4D`,
+          padding: "14px", backgroundColor: colors.hover,
+          borderRadius: "12px", border: `1px solid ${colors.border}`,
           display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px"
         }}>
           <span style={{ color: colors.primary, fontSize: "20px" }}>🔒</span>
-          <p style={{ margin: 0, color: "#CCCCCC", fontSize: "13px" }}>
+          <p style={{ margin: 0, color: colors.textSecondary, fontSize: "13px" }}>
             Vos données personnelles sont sécurisées et ne seront utilisées que pour vérifier votre identité.
           </p>
         </div>
@@ -235,8 +224,8 @@ export default function IdentityVerificationStep() {
 
           {isPhoneVerified ? (
             <div style={{
-              padding: "12px", backgroundColor: `${colors.green}1A`,
-              borderRadius: "10px", border: `1px solid ${colors.green}4D`,
+              padding: "12px", backgroundColor: "rgba(34, 197, 94, 0.1)",
+              borderRadius: "10px", border: `1px solid ${colors.green}`,
               display: "flex", alignItems: "center", gap: "10px"
             }}>
               <span style={{ color: colors.green, fontSize: "20px" }}>✅</span>
@@ -247,7 +236,7 @@ export default function IdentityVerificationStep() {
               <input
                 type="text"
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} // Chiffres uniquement
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                 placeholder="Entrez le code reçu"
                 maxLength={6}
                 style={{
@@ -261,9 +250,9 @@ export default function IdentityVerificationStep() {
                 disabled={isVerifyingOtp || otp.length < 4}
                 style={{
                   width: "100%", height: "48px",
-                  backgroundColor: isVerifyingOtp || otp.length < 4 ? colors.textSecondary : colors.primary,
+                  backgroundColor: isVerifyingOtp || otp.length < 4 ? colors.border : colors.primary,
                   border: "none", borderRadius: "12px",
-                  color: "#FFFFFF", fontSize: "14px", fontWeight: "bold",
+                  color: colors.primaryText, fontSize: "14px", fontWeight: "bold",
                   cursor: isVerifyingOtp || otp.length < 4 ? "not-allowed" : "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center"
                 }}
@@ -282,14 +271,15 @@ export default function IdentityVerificationStep() {
             width: "100%", height: "55px",
             backgroundColor: (isLoading || !idCardFile || !isPhoneVerified) ? colors.border : colors.primary,
             border: "none", borderRadius: "16px",
-            color: "#FFFFFF", fontSize: "16px", fontWeight: "bold",
+            color: (isLoading || !idCardFile || !isPhoneVerified) ? colors.textSecondary : colors.primaryText,
+            fontSize: "16px", fontWeight: "bold",
             cursor: (isLoading || !idCardFile || !isPhoneVerified) ? "not-allowed" : "pointer",
             display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
             transition: "background 0.2s"
           }}
         >
           {isLoading ? (
-            <div style={{ width: "24px", height: "24px", border: "3px solid white", borderTop: "3px solid transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
+            <div style={{ width: "24px", height: "24px", border: `3px solid ${colors.primaryText}`, borderTop: "3px solid transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
           ) : (
             "Suivant"
           )}

@@ -4,14 +4,15 @@ import { Suspense } from "react";
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
-// ✅ Désactiver le pré-rendu de cette page
 export const dynamic = 'force-dynamic';
 
-// ─── COMPOSANT CONTENU (utilise useSearchParams) ──────────
+// ─── COMPOSANT CONTENU ──────────
 function VoiceCallContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isDark, theme } = useAppTheme();
 
   const otherUserId = searchParams.get("otherId") || "";
   const otherUserName = searchParams.get("name") || "Utilisateur";
@@ -32,10 +33,15 @@ function VoiceCallContent() {
   const channelRef = useRef<any>(null);
   const agoraModuleRef = useRef<any>(null);
 
+  // ✅ Couleurs dynamiques selon le thème
   const colors = {
-    bg: "#000000",
-    card: "#1C1C1F",
-    primary: "#6366F1",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
     green: "#22C55E",
     orange: "#F59E0B",
     red: "#EF4444",
@@ -238,9 +244,9 @@ function VoiceCallContent() {
   // RENDU
   // ════════════════════════════════════════════════════════════
   return (
-    <div style={{ height: "100vh", backgroundColor: colors.bg, color: "#FFFFFF", display: "flex", flexDirection: "column" }}>
+    <div style={{ height: "100vh", backgroundColor: colors.bg, color: colors.text, display: "flex", flexDirection: "column" }}>
       <div style={{ padding: "16px" }}>
-        <button onClick={() => handleLeave(true)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.7)", fontSize: "24px", cursor: "pointer" }}>←</button>
+        <button onClick={() => handleLeave(true)} style={{ background: "none", border: "none", color: colors.textMuted, fontSize: "24px", cursor: "pointer" }}>←</button>
       </div>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px" }}>
@@ -251,23 +257,23 @@ function VoiceCallContent() {
             backgroundSize: "cover", backgroundPosition: "center",
             display: "flex", alignItems: "center", justifyContent: "center"
           }}>
-            {!otherUserAvatar && <span style={{ fontSize: "60px", color: "white" }}>👤</span>}
+            {!otherUserAvatar && <span style={{ fontSize: "60px", color: colors.textMuted }}>👤</span>}
           </div>
           <div style={{
             position: "absolute", bottom: "4px", right: "4px", width: "24px", height: "24px",
             backgroundColor: isOtherUserJoined ? colors.green : colors.orange,
-            borderRadius: "50%", border: "3px solid #000000"
+            borderRadius: "50%", border: `3px solid ${colors.bg}`
           }} />
         </div>
 
-        <h1 style={{ fontSize: "28px", fontWeight: "bold", margin: "0 0 8px 0", textAlign: "center" }}>
+        <h1 style={{ fontSize: "28px", fontWeight: "bold", margin: "0 0 8px 0", textAlign: "center", color: colors.text }}>
           {otherUserName}
         </h1>
 
         <p style={{
           fontSize: "20px",
           fontWeight: isOtherUserJoined ? 600 : 400,
-          color: isOtherUserJoined ? colors.primary : "rgba(255,255,255,0.6)",
+          color: isOtherUserJoined ? colors.primary : colors.textMuted,
           margin: 0
         }}>
           {isOtherUserJoined ? formatDuration(callDuration) : "En attente de réponse..."}
@@ -275,23 +281,51 @@ function VoiceCallContent() {
       </div>
 
       <div style={{ paddingBottom: "60px", display: "flex", justifyContent: "center", gap: "24px" }}>
-        <ControlButton icon={isMuted ? "🔇" : "🎤"} bgColor={colors.card} iconColor={isMuted ? colors.red : "#FFFFFF"} onClick={toggleMute} />
-        <ControlButton icon={isSpeakerOn ? "🔊" : "🔈"} bgColor={colors.card} iconColor={isSpeakerOn ? colors.primary : "#FFFFFF"} onClick={toggleSpeaker} />
-        <button onClick={() => handleLeave(true)} style={{ width: "72px", height: "72px", borderRadius: "50%", backgroundColor: colors.red, border: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "32px", cursor: "pointer", boxShadow: "0 4px 12px rgba(239, 68, 68, 0.4)" }}>📞</button>
+        <ControlButton 
+          icon={isMuted ? "🔇" : "🎤"} 
+          bgColor={colors.card} 
+          borderColor={colors.border}
+          iconColor={isMuted ? colors.red : colors.text} 
+          onClick={toggleMute} 
+        />
+        <ControlButton 
+          icon={isSpeakerOn ? "🔊" : "🔈"} 
+          bgColor={colors.card} 
+          borderColor={colors.border}
+          iconColor={isSpeakerOn ? colors.primary : colors.text} 
+          onClick={toggleSpeaker} 
+        />
+        <button 
+          onClick={() => handleLeave(true)} 
+          style={{ 
+            width: "72px", height: "72px", borderRadius: "50%", 
+            backgroundColor: colors.red, border: "none", 
+            display: "flex", alignItems: "center", justifyContent: "center", 
+            fontSize: "32px", cursor: "pointer", 
+            boxShadow: "0 4px 12px rgba(239, 68, 68, 0.4)" 
+          }}
+        >
+          📞
+        </button>
       </div>
     </div>
   );
 }
 
 // ─── COMPOSANT BOUTON ──────────────────────────────────────
-function ControlButton({ icon, bgColor, iconColor, onClick }: { icon: string; bgColor: string; iconColor: string; onClick: () => void }) {
+function ControlButton({ 
+  icon, bgColor, borderColor, iconColor, onClick 
+}: { 
+  icon: string; bgColor: string; borderColor: string; iconColor: string; onClick: () => void 
+}) {
   return (
     <button
       onClick={onClick}
       style={{
         width: "64px", height: "64px", borderRadius: "50%", backgroundColor: bgColor,
-        border: "2px solid rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: "28px", cursor: "pointer", transition: "transform 0.1s"
+        border: `2px solid ${borderColor}`, display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: "28px", cursor: "pointer", transition: "transform 0.1s",
+        color: iconColor
       }}
       onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.95)")}
       onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}

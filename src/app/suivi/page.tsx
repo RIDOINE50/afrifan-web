@@ -4,20 +4,25 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import DashboardLayout from "@/components/DashboardLayout";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function SuiviPage() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   const [user, setUser] = useState<any>(null);
   const [followers, setFollowers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     green: "#10B981",
   };
 
@@ -37,7 +42,6 @@ export default function SuiviPage() {
   const fetchFollowers = async (userId: string) => {
     setIsLoading(true);
     try {
-      // 1. Récupérer tous les follower_id qui suivent cet utilisateur
       const { data: followsData, error: followsError } = await supabase
         .from("follows")
         .select("follower_id, created_at")
@@ -52,7 +56,6 @@ export default function SuiviPage() {
         return;
       }
 
-      // 2. Récupérer les profils de ces followers
       const followerIds = followsData.map((f: any) => f.follower_id);
       const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
@@ -61,7 +64,6 @@ export default function SuiviPage() {
 
       if (profilesError) throw profilesError;
 
-      // 3. Fusionner les données pour l'affichage
       const mergedFollowers = followsData.map((follow: any) => {
         const profile = profilesData?.find((p: any) => p.id === follow.follower_id);
         return {
@@ -101,7 +103,7 @@ export default function SuiviPage() {
     <DashboardLayout>
       <div style={{ maxWidth: "800px", margin: "0 auto", padding: "24px", minHeight: "100dvh", backgroundColor: colors.bg }}>
         
-        {/* Header de la page */}
+        {/* Header */}
         <div style={{ marginBottom: "24px" }}>
           <h1 style={{ fontSize: "28px", fontWeight: "bold", color: colors.text, margin: "0 0 8px 0" }}>
             Mes Abonnés
@@ -111,7 +113,7 @@ export default function SuiviPage() {
           </p>
         </div>
 
-        {/* Liste des followers */}
+        {/* Liste */}
         {followers.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 20px", backgroundColor: colors.card, borderRadius: "16px", border: `1px solid ${colors.border}` }}>
             <div style={{ fontSize: "48px", marginBottom: "16px" }}>👥</div>
@@ -138,7 +140,7 @@ export default function SuiviPage() {
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.backgroundColor = "#222222";
+                  e.currentTarget.style.backgroundColor = colors.hover;
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = "translateY(0)";
@@ -152,7 +154,7 @@ export default function SuiviPage() {
                     width: "56px",
                     height: "56px",
                     borderRadius: "50%",
-                    backgroundColor: colors.border,
+                    backgroundColor: colors.hover,
                     backgroundImage: follower.profile?.avatar_url ? `url(${follower.profile.avatar_url})` : undefined,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
@@ -184,7 +186,7 @@ export default function SuiviPage() {
                 {/* Bouton Voir le profil */}
                 <button
                   onClick={(e) => {
-                    e.stopPropagation(); // Empêche le clic sur la carte de se déclencher
+                    e.stopPropagation();
                     handleViewProfile(follower.follower_id);
                   }}
                   style={{
@@ -201,7 +203,7 @@ export default function SuiviPage() {
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = colors.primary;
-                    e.currentTarget.style.color = "#FFFFFF";
+                    e.currentTarget.style.color = colors.primaryText;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = "transparent";

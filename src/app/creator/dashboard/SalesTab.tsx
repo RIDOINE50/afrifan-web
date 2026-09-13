@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 import {
   Box,
   Flex,
@@ -31,6 +32,7 @@ interface ProductStat {
 }
 
 export default function SalesTab() {
+  const { isDark, theme } = useAppTheme();
   const [isLoading, setIsLoading] = useState(true);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalSales, setTotalSales] = useState(0);
@@ -38,6 +40,21 @@ export default function SalesTab() {
   
   const [debugMessage, setDebugMessage] = useState("");
   const [rawRowCount, setRawRowCount] = useState(0);
+
+  // ✅ Couleurs dynamiques
+  const colors = {
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
+    green: "#10B981",
+    orange: "#F97316",
+    red: "#EF4444",
+  };
 
   useEffect(() => {
     loadSalesData();
@@ -139,7 +156,7 @@ export default function SalesTab() {
   if (isLoading) {
     return (
       <Center h="400px">
-        <Spinner thickness="4px" speed="0.65s" emptyColor="#2A2A2A" color="#8B5CF6" size="xl" />
+        <Spinner thickness="4px" speed="0.65s" emptyColor={colors.border} color={colors.primary} size="xl" />
       </Center>
     );
   }
@@ -150,53 +167,53 @@ export default function SalesTab() {
         w="100%"
         p={3}
         mb={6}
-        bg={rawRowCount > 0 ? "green.500/20" : "orange.500/20"}
+        bg={rawRowCount > 0 ? "rgba(16, 185, 129, 0.1)" : "rgba(249, 115, 22, 0.1)"}
         borderRadius="8px"
         border="1px solid"
-        borderColor={rawRowCount > 0 ? "green.500" : "orange.500"}
+        borderColor={rawRowCount > 0 ? colors.green : colors.orange}
       >
-        <Text fontSize="12px" fontWeight="bold" color="white" mb={1}>
+        <Text fontSize="12px" fontWeight="bold" color={colors.text} mb={1}>
           🔍 DIAGNOSTIC BASE DE DONNÉES
         </Text>
-        <Text fontSize="13px" color="white" whiteSpace="pre-line">
+        <Text fontSize="13px" color={colors.text} whiteSpace="pre-line">
           {debugMessage}
         </Text>
-        <Text fontSize="12px" color="gray.300" mt={1}>
+        <Text fontSize="12px" color={colors.textMuted} mt={1}>
           Somme calculée par Next.js : {formatPrice(totalRevenue)}
         </Text>
       </Box>
 
       <Flex gap={4} mb={6}>
-        <Box flex={1} p={4} bg="#1A1A1A" borderRadius="16px" border="1px solid #2A2A2A">
+        <Box flex={1} p={4} bg={colors.card} borderRadius="16px" border={`1px solid ${colors.border}`}>
           <Flex align="center" gap={2} mb={3}>
-            <Icon as={FaWallet} color="#10B981" boxSize={5} />
-            <Text color="gray.400" fontSize="13px">Revenu Total</Text>
+            <Icon as={FaWallet} color={colors.green} boxSize={5} />
+            <Text color={colors.textMuted} fontSize="13px">Revenu Total</Text>
           </Flex>
-          <Text color="white" fontSize="24px" fontWeight="bold">
+          <Text color={colors.text} fontSize="24px" fontWeight="bold">
             {formatPrice(totalRevenue)}
           </Text>
         </Box>
 
-        <Box flex={1} p={4} bg="#1A1A1A" borderRadius="16px" border="1px solid #2A2A2A">
+        <Box flex={1} p={4} bg={colors.card} borderRadius="16px" border={`1px solid ${colors.border}`}>
           <Flex align="center" gap={2} mb={3}>
-            <Icon as={FaShoppingCart} color="#8B5CF6" boxSize={5} />
-            <Text color="gray.400" fontSize="13px">Ventes Totales</Text>
+            <Icon as={FaShoppingCart} color={colors.primary} boxSize={5} />
+            <Text color={colors.textMuted} fontSize="13px">Ventes Totales</Text>
           </Flex>
-          <Text color="white" fontSize="24px" fontWeight="bold">
+          <Text color={colors.text} fontSize="24px" fontWeight="bold">
             {totalSales}
           </Text>
         </Box>
       </Flex>
       
-      <Text color="white" fontSize="18px" fontWeight="bold" mb={3}>
+      <Text color={colors.text} fontSize="18px" fontWeight="bold" mb={3}>
         Performance par produit
       </Text>
 
       {productStats.length === 0 ? (
         <Center py={16}>
           <VStack>
-            <Icon as={FaChartBar} color="gray.500" boxSize={12} />
-            <Text color="white" fontSize="16px" fontWeight="bold">
+            <Icon as={FaChartBar} color={colors.textMuted} boxSize={12} />
+            <Text color={colors.text} fontSize="16px" fontWeight="bold">
               Aucune vente pour le moment
             </Text>
           </VStack>
@@ -207,41 +224,41 @@ export default function SalesTab() {
             <Box
               key={stat.id}
               p={4}
-              bg="#1A1A1A"
+              bg={colors.card}
               borderRadius="12px"
-              border="1px solid #2A2A2A"
+              border={`1px solid ${colors.border}`}
             >
               <Flex align="center" gap={4}>
                 <Box
                   w={12}
                   h={12}
-                  bg="#8B5CF6/20"
+                  bg={colors.hover}
                   borderRadius="8px"
                   display="flex"
                   alignItems="center"
                   justifyContent="center"
                 >
-                  <Icon as={getIcon(stat.media_type)} color="#8B5CF6" boxSize={6} />
+                  <Icon as={getIcon(stat.media_type)} color={colors.primary} boxSize={6} />
                 </Box>
 
                 <Box flex={1}>
-                  <Text color="white" fontWeight="bold" fontSize="15px" noOfLines={2}>
+                  <Text color={colors.text} fontWeight="bold" fontSize="15px" noOfLines={2}>
                     {stat.title}
                   </Text>
-                  <Text color="gray.400" fontSize="13px" mt={1}>
+                  <Text color={colors.textMuted} fontSize="13px" mt={1}>
                     {stat.sales_count} vente{stat.sales_count > 1 ? "s" : ""}
                   </Text>
                 </Box>
 
                 <VStack align="flex-end" spacing={1}>
-                  <Text color="#10B981" fontWeight="bold" fontSize="16px">
+                  <Text color={colors.green} fontWeight="bold" fontSize="16px">
                     {formatPrice(stat.revenue)}
                   </Text>
                   <Badge
                     px={2}
                     py={1}
-                    bg="green.500/10"
-                    color="#10B981"
+                    bg="rgba(16, 185, 129, 0.1)"
+                    color={colors.green}
                     borderRadius="8px"
                     fontSize="11px"
                     fontWeight="bold"

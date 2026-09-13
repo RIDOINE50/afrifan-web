@@ -2,18 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function WalletTab() {
+  const { isDark, theme } = useAppTheme();
   const [isLoading, setIsLoading] = useState(true);
   const [history, setHistory] = useState<any[]>([]);
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     green: "#22C55E",
     orange: "#F97316",
     red: "#EF4444",
@@ -30,9 +35,7 @@ export default function WalletTab() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // ✅ Chargement en parallèle pour plus de rapidité (comme Future.wait en Flutter)
       const [transactionsRes, withdrawalsRes, tipsRes] = await Promise.all([
-        // 1. Revenus (Abonnements) - Adapte le nom de la table si nécessaire
         supabase.from('subscriptions')
           .select('amount, created_at, tier_type')
           .eq('creator_id', user.id)
@@ -40,14 +43,12 @@ export default function WalletTab() {
           .order('created_at', { ascending: false })
           .limit(50),
 
-        // 2. Retraits
         supabase.from('withdrawals')
           .select('amount, created_at, status, payment_method')
           .eq('creator_id', user.id)
           .order('created_at', { ascending: false })
           .limit(50),
 
-        // 3. Pourboires (avec jointure pour avoir le nom du fan)
         supabase.from('tips')
           .select('amount, created_at, profiles(full_name, username)')
           .eq('creator_id', user.id)
@@ -57,7 +58,6 @@ export default function WalletTab() {
 
       const mergedHistory: any[] = [];
 
-      // Ajouter les revenus
       if (transactionsRes.data) {
         transactionsRes.data.forEach((tx: any) => {
           mergedHistory.push({
@@ -70,7 +70,6 @@ export default function WalletTab() {
         });
       }
 
-      // Ajouter les retraits
       if (withdrawalsRes.data) {
         withdrawalsRes.data.forEach((w: any) => {
           mergedHistory.push({
@@ -84,7 +83,6 @@ export default function WalletTab() {
         });
       }
 
-      // Ajouter les pourboires
       if (tipsRes.data) {
         tipsRes.data.forEach((tip: any) => {
           const fanName = tip.profiles ? (tip.profiles.full_name || tip.profiles.username || 'Un fan') : 'Un fan';
@@ -98,7 +96,6 @@ export default function WalletTab() {
         });
       }
 
-      // Trier par date décroissante (le plus récent en premier)
       mergedHistory.sort((a, b) => {
         return new Date(b.date).getTime() - new Date(a.date).getTime();
       });
@@ -170,7 +167,7 @@ export default function WalletTab() {
         
         let icon = "⬇️";
         let iconColor = colors.primary;
-        let iconBg = `${colors.primary}1A`; // 10% opacity
+        let iconBg = colors.hover;
         let title = `Abonnement ${item.tierType?.toUpperCase() || 'FAN'}`;
         let amountText = `+ ${formatMoney(item.amount)}`;
         let amountColor = colors.green;
@@ -178,14 +175,14 @@ export default function WalletTab() {
         if (isTip) {
           icon = "☕";
           iconColor = colors.orange;
-          iconBg = `${colors.orange}1A`;
+          iconBg = "rgba(249, 115, 22, 0.1)";
           title = `Pourboire de ${item.fanName}`;
           amountText = `+ ${formatMoney(item.amount)}`;
           amountColor = colors.green;
         } else if (!isIncome) {
           icon = "⬆️";
           iconColor = colors.orange;
-          iconBg = `${colors.orange}1A`;
+          iconBg = "rgba(249, 115, 22, 0.1)";
           title = `Retrait vers ${item.paymentMethod?.toUpperCase() || 'Compte'}`;
           amountText = `- ${formatMoney(item.amount)}`;
           amountColor = colors.text;

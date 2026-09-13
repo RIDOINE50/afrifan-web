@@ -2,28 +2,30 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function AICreationScreen() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   
-  // États
   const [prompt, setPrompt] = useState("");
   const [description, setDescription] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    primaryDark: "#4A148C",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     green: "#22C55E",
   };
 
-  // Liste des styles (identique à Flutter)
   const styles = [
     { name: 'Anime', prompt: 'anime style, vibrant colors' },
     { name: 'Pro', prompt: 'professional headshot, studio lighting' },
@@ -32,7 +34,6 @@ export default function AICreationScreen() {
     { name: 'Artistique', prompt: 'oil painting style, artistic' },
   ];
 
-  // Nettoyage de l'URL objet pour éviter les fuites de mémoire
   useEffect(() => {
     return () => {
       if (generatedImageUrl && generatedImageUrl.startsWith('blob:')) {
@@ -41,12 +42,10 @@ export default function AICreationScreen() {
     };
   }, [generatedImageUrl]);
 
-  // Fonction de génération d'image
   const generateImage = async (stylePrompt: string) => {
     setIsGenerating(true);
     setDescription("");
     
-    // Révoquer l'ancienne URL si elle existe
     if (generatedImageUrl && generatedImageUrl.startsWith('blob:')) {
       URL.revokeObjectURL(generatedImageUrl);
     }
@@ -57,7 +56,6 @@ export default function AICreationScreen() {
       const simplePrompt = `${userPrompt} ${stylePrompt}`;
       const seed = Date.now() % 1000000;
       
-      // Nettoyage et encodage de l'URL (comme en Flutter)
       const encodedPrompt = encodeURIComponent(
         simplePrompt.replace(/[^\w\s-]/g, '').trim()
       );
@@ -65,8 +63,6 @@ export default function AICreationScreen() {
       const apiUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=512&seed=${seed}&nologo=true&noCache=true`;
       console.log("🔍 Génération URL:", apiUrl);
 
-      // ✅ ÉQUIVALENT WEB DE `http.get().bodyBytes`
-      // On récupère l'image en tant que Blob pour éviter tout problème CORS d'affichage
       const response = await fetch(apiUrl);
       
       if (!response.ok) {
@@ -85,25 +81,20 @@ export default function AICreationScreen() {
     }
   };
 
-  // Action de publication
   const handlePublish = () => {
     if (!generatedImageUrl) return;
 
-    // ICI : Tu redirigeras vers ton écran de sélection/édition final
-    // On passe l'URL blob et la description en paramètres d'URL
     const params = new URLSearchParams({
       type: 'ai_photo',
       url: generatedImageUrl,
       description: description
     });
     
-    // Exemple : router.push(`/create/post?${params.toString()}`);
     alert(`✅ Prêt à publier !\nDescription: ${description || "(Aucune)"}\n(La redirection vers l'écran de publication sera ajoutée ici)`);
   };
 
   const handleRegenerate = () => {
     if (prompt) {
-      // On prend le dernier style utilisé ou le premier par défaut
       generateImage(styles[0].prompt); 
     }
   };
@@ -115,10 +106,10 @@ export default function AICreationScreen() {
       <div style={{ padding: "16px 24px", borderBottom: `1px solid ${colors.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <button onClick={() => router.back()} style={{ background: "none", border: "none", color: colors.text, fontSize: "24px", cursor: "pointer" }}>←</button>
         <h1 style={{ margin: 0, fontSize: "18px", fontWeight: "bold" }}>✨ Création IA</h1>
-        <div style={{ width: "24px" }} /> {/* Espaceur pour centrer le titre */}
+        <div style={{ width: "24px" }} />
       </div>
 
-      {/* Contenu Principal Scrollable */}
+      {/* Contenu Principal */}
       <div style={{ flex: 1, overflowY: "auto", padding: "24px", maxWidth: "600px", margin: "0 auto", width: "100%" }}>
         
         <h2 style={{ fontSize: "24px", fontWeight: "bold", margin: "0 0 8px 0" }}>Transforme tes idées avec l'IA</h2>
@@ -153,7 +144,7 @@ export default function AICreationScreen() {
               onClick={() => !isGenerating && generateImage(style.prompt)}
               disabled={isGenerating}
               style={{
-                background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryDark})`,
+                background: colors.primary,
                 border: `2px solid ${colors.primary}`,
                 borderRadius: "12px",
                 padding: "16px 8px",
@@ -170,7 +161,7 @@ export default function AICreationScreen() {
               onMouseUp={(e) => e.currentTarget.style.transform = "scale(1)"}
             >
               <span style={{ fontSize: "28px" }}>{isGenerating ? "⏳" : "✨"}</span>
-              <span style={{ color: "white", fontWeight: "bold", fontSize: "15px" }}>{style.name}</span>
+              <span style={{ color: colors.primaryText, fontWeight: "bold", fontSize: "15px" }}>{style.name}</span>
             </button>
           ))}
         </div>
@@ -193,14 +184,13 @@ export default function AICreationScreen() {
             <div style={{ 
               backgroundColor: colors.card, 
               borderRadius: "16px", 
-              border: `1px solid ${colors.primary}`,
+              border: `1px solid ${colors.border}`,
               padding: "16px" 
             }}>
               <p style={{ color: colors.green, fontWeight: "bold", margin: "0 0 12px 0", display: "flex", alignItems: "center", gap: "8px" }}>
                 ✅ Image générée ! Vérifie avant de publier
               </p>
               
-              {/* Aperçu de l'image */}
               <img 
                 src={generatedImageUrl} 
                 alt="Generated AI" 
@@ -212,7 +202,6 @@ export default function AICreationScreen() {
                 }} 
               />
 
-              {/* Champ Description */}
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -221,7 +210,7 @@ export default function AICreationScreen() {
                 style={{
                   width: "100%",
                   marginTop: "16px",
-                  backgroundColor: "rgba(0,0,0,0.3)",
+                  backgroundColor: colors.bg,
                   border: `1px solid ${colors.border}`,
                   borderRadius: "12px",
                   padding: "12px 16px",
@@ -233,7 +222,6 @@ export default function AICreationScreen() {
                 }}
               />
 
-              {/* Boutons d'action */}
               <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
                 <button
                   onClick={handleRegenerate}
@@ -241,7 +229,7 @@ export default function AICreationScreen() {
                     flex: 1,
                     padding: "14px",
                     backgroundColor: "transparent",
-                    border: `1px solid rgba(255,255,255,0.3)`,
+                    border: `1px solid ${colors.border}`,
                     borderRadius: "12px",
                     color: colors.text,
                     fontWeight: "bold",
@@ -262,7 +250,7 @@ export default function AICreationScreen() {
                     backgroundColor: colors.primary,
                     border: "none",
                     borderRadius: "12px",
-                    color: "white",
+                    color: colors.primaryText,
                     fontWeight: "bold",
                     cursor: "pointer",
                     display: "flex",
@@ -278,7 +266,7 @@ export default function AICreationScreen() {
           </div>
         )}
 
-        <div style={{ height: "40px" }} /> {/* Espace en bas pour le scroll */}
+        <div style={{ height: "40px" }} />
       </div>
 
       <style>{`

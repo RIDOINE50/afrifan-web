@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 import {
   Box,
   Flex,
@@ -41,9 +42,24 @@ interface Product {
 export default function CreatorShopTab() {
   const router = useRouter();
   const toast = useToast();
+  const { isDark, theme } = useAppTheme();
   
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // ✅ Couleurs dynamiques
+  const colors = {
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
+    red: "#EF4444",
+    orange: "#F97316",
+  };
 
   useEffect(() => {
     loadProducts();
@@ -126,7 +142,7 @@ export default function CreatorShopTab() {
   if (isLoading) {
     return (
       <Center h="400px">
-        <Spinner thickness="4px" speed="0.65s" emptyColor="#2A2A2A" color="#8B5CF6" size="xl" />
+        <Spinner thickness="4px" speed="0.65s" emptyColor={colors.border} color={colors.primary} size="xl" />
       </Center>
     );
   }
@@ -135,23 +151,23 @@ export default function CreatorShopTab() {
     return (
       <Center py={16}>
         <VStack spacing={6}>
-          <Box p={6} bg="#8B5CF6/10" borderRadius="full">
-            <Icon as={FaStore} color="#8B5CF6" boxSize={12} />
+          <Box p={6} bg={colors.hover} borderRadius="full">
+            <Icon as={FaStore} color={colors.primary} boxSize={12} />
           </Box>
           
-          <Text color="white" fontSize="18px" fontWeight="bold">
+          <Text color={colors.text} fontSize="18px" fontWeight="bold">
             Votre boutique est vide
           </Text>
           
-          <Text color="gray.400" fontSize="14px" textAlign="center" maxW="300px">
+          <Text color={colors.textMuted} fontSize="14px" textAlign="center" maxW="300px">
             Commencez à vendre vos créations numériques dès maintenant.
           </Text>
 
           <Button
             leftIcon={<Icon as={FaPlus} />}
-            bg="#8B5CF6"
-            color="white"
-            _hover={{ bg: "#7C3AED" }}
+            bg={colors.primary}
+            color={colors.primaryText}
+            _hover={{ opacity: 0.9 }}
             px={6}
             py={3}
             borderRadius="20px"
@@ -171,10 +187,10 @@ export default function CreatorShopTab() {
         {products.map((product) => (
           <Box
             key={product.id}
-            bg="#1A1A1A"
+            bg={colors.card}
             borderRadius="16px"
             border="1px solid"
-            borderColor={product.status === "published" ? "#2A2A2A" : "orange.500"}
+            borderColor={product.status === "published" ? colors.border : colors.orange}
             overflow="hidden"
             position="relative"
             _hover={{ transform: "translateY(-2px)", transition: "transform 0.2s" }}
@@ -184,7 +200,7 @@ export default function CreatorShopTab() {
                 <Badge
                   px={2}
                   py={1}
-                  bg="orange.500"
+                  bg={colors.orange}
                   color="white"
                   borderRadius="8px"
                   fontSize="9px"
@@ -197,7 +213,7 @@ export default function CreatorShopTab() {
 
             <Box
               aspectRatio="4/3"
-              bg="gray.800"
+              bg={colors.hover}
               display="flex"
               alignItems="center"
               justifyContent="center"
@@ -211,17 +227,17 @@ export default function CreatorShopTab() {
                   h="100%"
                 />
               ) : (
-                <Icon as={getIcon(product.media_type)} color="gray.500" boxSize={10} />
+                <Icon as={getIcon(product.media_type)} color={colors.textMuted} boxSize={10} />
               )}
             </Box>
 
             <Box p={3}>
-              <Text color="white" fontWeight="bold" fontSize="14px" noOfLines={2} mb={2}>
+              <Text color={colors.text} fontWeight="bold" fontSize="14px" noOfLines={2} mb={2}>
                 {product.title || "Sans titre"}
               </Text>
 
               <Flex justify="space-between" align="center">
-                <Text color="#8B5CF6" fontWeight="bold" fontSize="16px">
+                <Text color={colors.primary} fontWeight="bold" fontSize="16px">
                   {formatPrice(product.price)}
                 </Text>
 
@@ -229,8 +245,8 @@ export default function CreatorShopTab() {
                   <Button
                     size="xs"
                     variant="ghost"
-                    color="gray.400"
-                    _hover={{ color: "white", bg: "whiteAlpha.100" }}
+                    color={colors.textMuted}
+                    _hover={{ color: colors.text, bg: colors.hover }}
                     onClick={() => router.push(`/creator/products/${product.id}/edit`)}
                   >
                     <Icon as={FaEdit} />
@@ -238,8 +254,8 @@ export default function CreatorShopTab() {
                   <Button
                     size="xs"
                     variant="ghost"
-                    color="gray.400"
-                    _hover={{ color: "red.400", bg: "red.500/10" }}
+                    color={colors.textMuted}
+                    _hover={{ color: colors.red, bg: "rgba(239, 68, 68, 0.1)" }}
                     onClick={() => handleDeleteProduct(product.id)}
                   >
                     <Icon as={FaTrash} />
@@ -255,14 +271,14 @@ export default function CreatorShopTab() {
         position="fixed"
         bottom={6}
         right={6}
-        bg="#8B5CF6"
-        color="white"
-        _hover={{ bg: "#7C3AED" }}
+        bg={colors.primary}
+        color={colors.primaryText}
+        _hover={{ opacity: 0.9 }}
         leftIcon={<Icon as={FaPlus} />}
         borderRadius="full"
         px={6}
         py={4}
-        boxShadow="0 4px 12px rgba(139, 92, 246, 0.4)"
+        boxShadow={isDark ? "0 4px 12px rgba(255,255,255,0.2)" : "0 4px 12px rgba(0,0,0,0.15)"}
         onClick={() => router.push("/creator/products/new")}
         zIndex={100}
       >

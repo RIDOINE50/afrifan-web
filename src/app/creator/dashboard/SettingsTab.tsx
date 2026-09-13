@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function SettingsTab() {
+  const { isDark, theme } = useAppTheme();
   const [userName, setUserName] = useState("Utilisateur");
   const [isVerified, setIsVerified] = useState(false);
   const [premiumPrice, setPremiumPrice] = useState("1000");
@@ -13,13 +15,16 @@ export default function SettingsTab() {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | ''; text: string }>({ type: '', text: '' });
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     green: "#22C55E",
     orange: "#F97316",
     red: "#EF4444",
@@ -61,7 +66,6 @@ export default function SettingsTab() {
     const pPrice = parseFloat(premiumPrice);
     const prPrice = parseFloat(proPrice);
 
-    // Validations
     if (isNaN(pPrice) || pPrice < 500) {
       setMessage({ type: 'error', text: 'Le prix Premium doit être au minimum de 500 FCFA.' });
       return;
@@ -110,13 +114,14 @@ export default function SettingsTab() {
       <div>
         <h3 style={{ color: colors.text, fontSize: "18px", fontWeight: "bold", marginBottom: "16px" }}>Mon Compte</h3>
         <div style={{ backgroundColor: colors.card, borderRadius: "16px", border: `1px solid ${colors.border}`, padding: "20px" }}>
-          <InfoRow label="Nom" value={userName} icon="👤" />
+          <InfoRow label="Nom" value={userName} icon="👤" colors={colors} />
           <div style={{ height: "1px", backgroundColor: colors.border, margin: "16px 0" }} />
           <InfoRow 
             label="Statut" 
             value={isVerified ? "Vérifié ✓" : "Non vérifié"} 
             icon="✔️" 
             valueColor={isVerified ? colors.green : colors.orange} 
+            colors={colors}
           />
         </div>
       </div>
@@ -127,11 +132,11 @@ export default function SettingsTab() {
         
         <form onSubmit={handleSave} style={{ backgroundColor: colors.card, borderRadius: "16px", border: `1px solid ${colors.border}`, padding: "20px", display: "flex", flexDirection: "column", gap: "24px" }}>
           
-          {/* Message de succès/erreur */}
+          {/* Message */}
           {message.text && (
             <div style={{
               padding: "12px 16px", borderRadius: "12px", fontSize: "14px", textAlign: "center",
-              backgroundColor: message.type === 'success' ? `${colors.green}1A` : `${colors.red}1A`,
+              backgroundColor: message.type === 'success' ? "rgba(34, 197, 94, 0.1)" : "rgba(239, 68, 68, 0.1)",
               border: `1px solid ${message.type === 'success' ? colors.green : colors.red}`,
               color: message.type === 'success' ? colors.green : colors.red
             }}>
@@ -201,9 +206,9 @@ export default function SettingsTab() {
             disabled={isSaving}
             style={{
               width: "100%", padding: "16px", marginTop: "8px",
-              backgroundColor: isSaving ? colors.textMuted : colors.primary,
+              backgroundColor: isSaving ? colors.border : colors.primary,
               border: "none", borderRadius: "12px",
-              color: colors.text, fontSize: "16px", fontWeight: "bold",
+              color: colors.primaryText, fontSize: "16px", fontWeight: "bold",
               cursor: isSaving ? "not-allowed" : "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
               transition: "background 0.2s"
@@ -211,7 +216,7 @@ export default function SettingsTab() {
           >
             {isSaving ? (
               <>
-                <div style={{ width: "20px", height: "20px", border: "2px solid white", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
+                <div style={{ width: "20px", height: "20px", border: `2px solid ${colors.primaryText}`, borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
                 Sauvegarde en cours...
               </>
             ) : (
@@ -228,14 +233,13 @@ export default function SettingsTab() {
   );
 }
 
-// Composant utilitaire pour les lignes d'information
-function InfoRow({ label, value, icon, valueColor }: { label: string; value: string; icon: string; valueColor?: string }) {
+function InfoRow({ label, value, icon, valueColor, colors }: { label: string; value: string; icon: string; valueColor?: string; colors: any }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
       <span style={{ fontSize: "20px" }}>{icon}</span>
       <div style={{ flex: 1 }}>
-        <div style={{ color: "#9CA3AF", fontSize: "12px", marginBottom: "2px" }}>{label}</div>
-        <div style={{ color: valueColor || "#FFFFFF", fontSize: "15px", fontWeight: 600 }}>{value}</div>
+        <div style={{ color: colors.textMuted, fontSize: "12px", marginBottom: "2px" }}>{label}</div>
+        <div style={{ color: valueColor || colors.text, fontSize: "15px", fontWeight: 600 }}>{value}</div>
       </div>
     </div>
   );

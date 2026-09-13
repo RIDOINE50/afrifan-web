@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
-// Configuration des icônes et couleurs par type
 const getNotificationConfig = (type: string, title?: string, actorName?: string) => {
   const name = actorName || "Utilisateur";
   
@@ -28,7 +28,6 @@ const getNotificationConfig = (type: string, title?: string, actorName?: string)
   }
 };
 
-// Formatage du temps (comme en Flutter)
 const formatTimeAgo = (dateString: string) => {
   const date = new Date(dateString);
   const now = new Date();
@@ -46,21 +45,23 @@ const formatTimeAgo = (dateString: string) => {
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   const [user, setUser] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ✅ Couleurs dynamiques selon le thème
   const colors = {
-    bg: "#0A0A0A",
-    cardRead: "#111111",
-    cardUnread: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    cardRead: theme.card,
+    cardUnread: isDark ? "#1A1A1A" : "#F3F4F6",
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
   };
 
-  // 1. Initialisation et Chargement
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -79,11 +80,9 @@ export default function NotificationsPage() {
     };
   }, []);
 
-  // 2. Chargement des données (Fusion Notifs + Campagnes)
   const loadNotifications = async (userId: string) => {
     setIsLoading(true);
     try {
-      // A. Récupérer les notifications classiques
       const { data: notifsData } = await supabase
         .from("notifications")
         .select("*")
@@ -93,7 +92,6 @@ export default function NotificationsPage() {
 
       let enrichedNotifications = notifsData || [];
 
-      // B. Enrichir avec les profils des acteurs (comme en Flutter)
       if (enrichedNotifications.length > 0) {
         const actorIds = [
           ...new Set(
@@ -121,7 +119,6 @@ export default function NotificationsPage() {
         }
       }
 
-      // C. Récupérer les campagnes admin
       const { data: campaignsData } = await supabase
         .from("admin_campaigns")
         .select("*")
@@ -131,10 +128,9 @@ export default function NotificationsPage() {
       const campaigns = (campaignsData || []).map((c: any) => ({
         ...c,
         type: "admin_campaign",
-        is_read: true, // Les campagnes sont considérées comme lues par défaut ou gérées différemment
+        is_read: true,
       }));
 
-      // D. Fusion et Tri
       const allNotifications = [...enrichedNotifications, ...campaigns];
       allNotifications.sort((a, b) => {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
@@ -148,7 +144,6 @@ export default function NotificationsPage() {
     }
   };
 
-  // 3. Temps Réel (Écoute des nouvelles notifications)
   const setupRealtime = (userId: string) => {
     const channel = supabase
       .channel("notifications_channel")
@@ -163,7 +158,6 @@ export default function NotificationsPage() {
         async (payload) => {
           const newNotif = payload.new as any;
           
-          // Enrichir immédiatement la nouvelle notification avec le profil de l'acteur
           let actorProfile = null;
           if (newNotif.actor_id) {
             const { data } = await supabase
@@ -179,14 +173,12 @@ export default function NotificationsPage() {
             actor_profile: actorProfile,
           };
 
-          // Ajouter en haut de la liste
           setNotifications((prev) => [enrichedNewNotif, ...prev]);
         }
       )
       .subscribe();
   };
 
-  // 4. Actions
   const markAsRead = async (notifId: string) => {
     if (!user) return;
     try {
@@ -281,7 +273,7 @@ export default function NotificationsPage() {
                     padding: "12px",
                     backgroundColor: isRead ? colors.cardRead : colors.cardUnread,
                     borderRadius: "12px",
-                    border: `1px solid ${isRead ? "rgba(255,255,255,0.05)" : `${colors.primary}4D`}`,
+                    border: `1px solid ${isRead ? colors.border : colors.primary}`,
                     display: "flex",
                     gap: "12px",
                     cursor: isRead ? "default" : "pointer",
@@ -289,7 +281,7 @@ export default function NotificationsPage() {
                     position: "relative"
                   }}
                 >
-                  {/* Avatar avec badge de type */}
+                  {/* Avatar avec badge */}
                   <div style={{ position: "relative", flexShrink: 0 }}>
                     <div style={{
                       width: "48px", height: "48px", borderRadius: "50%",
@@ -312,7 +304,7 @@ export default function NotificationsPage() {
                     </div>
                   </div>
 
-                  {/* Contenu texte */}
+                  {/* Contenu */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: "14px", fontWeight: isRead ? "normal" : "bold", color: colors.text, marginBottom: "4px" }}>
                       {config.title}
@@ -335,7 +327,7 @@ export default function NotificationsPage() {
                     }} />
                   )}
 
-                  {/* Bouton supprimer (visible au survol ou clic droit en version web complète, ici simplifié) */}
+                  {/* Bouton supprimer */}
                   <button 
                     onClick={(e) => { e.stopPropagation(); deleteNotification(notif.id); }}
                     style={{ 

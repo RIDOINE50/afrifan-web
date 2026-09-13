@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 import {
   Box, Flex, Text, Button, Spinner, Center, VStack, HStack,
   Divider, useToast, Icon, Avatar, Image,
@@ -11,13 +12,13 @@ import {
   FaArrowLeft, FaDownload, FaLock, FaCheckCircle,
   FaFilePdf, FaImage, FaVideo, FaShoppingCart, FaPlayCircle,
 } from "react-icons/fa";
-// ✅ IMPORT CORRIGÉ
 import { savePurchasedFile, getPurchasedFileUrl } from "@/lib/localStorage";
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const toast = useToast();
+  const { isDark, theme } = useAppTheme();
   const productId = params.id as string;
 
   const [user, setUser] = useState<any>(null);
@@ -28,6 +29,23 @@ export default function ProductDetailPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [showViewer, setShowViewer] = useState(false);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+
+  // ✅ Couleurs dynamiques
+  const colors = {
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
+    overlay: isDark ? "rgba(10,10,10,0.95)" : "rgba(255,255,255,0.95)",
+    mediaBg: "#000000",
+    green: "#10B981",
+    greenHover: "#059669",
+    red: "#EF4444",
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -61,7 +79,6 @@ export default function ProductDetailPage() {
         setHasPurchased(!!purchaseData);
 
         if (purchaseData) {
-          // ✅ VÉRIFICATION : getPurchasedFileUrl retourne l'URL ou null
           const storedUrl = await getPurchasedFileUrl(productId);
           setIsStoredLocally(storedUrl !== null);
         }
@@ -124,7 +141,6 @@ export default function ProductDetailPage() {
 
       const originalFileName = fileUrl.split('/').pop() || `${product.title || 'fichier'}.${product.media_type === 'video' ? 'mp4' : product.media_type === 'image' ? 'jpg' : 'pdf'}`;
 
-      // ✅ SAUVEGARDE CORRECTE
       await savePurchasedFile(
         productId,
         originalFileName,
@@ -158,7 +174,6 @@ export default function ProductDetailPage() {
   };
 
   const openStoredFile = async () => {
-    // ✅ OUVERTURE CORRECTE
     const url = await getPurchasedFileUrl(productId);
     if (url) {
       setViewerUrl(url);
@@ -187,8 +202,8 @@ export default function ProductDetailPage() {
 
   if (isLoading) {
     return (
-      <Center h="100vh" bg="#0A0A0A">
-        <Spinner thickness="4px" color="#8B5CF6" size="xl" />
+      <Center h="100vh" bg={colors.bg}>
+        <Spinner thickness="4px" color={colors.primary} size="xl" />
       </Center>
     );
   }
@@ -201,16 +216,16 @@ export default function ProductDetailPage() {
 
   if (showViewer && viewerUrl) {
     return (
-      <Box minH="100vh" bg="#0A0A0A" color="white">
-        <Flex align="center" justify="space-between" p={4} borderBottom="1px solid #2A2A2A" bg="#1A1A1A">
+      <Box minH="100vh" bg={colors.bg} color={colors.text}>
+        <Flex align="center" justify="space-between" p={4} borderBottom={`1px solid ${colors.border}`} bg={colors.card}>
           <HStack>
-            <Button variant="ghost" color="gray.400" leftIcon={<Icon as={FaArrowLeft} />} onClick={() => setShowViewer(false)}>
+            <Button variant="ghost" color={colors.textMuted} leftIcon={<Icon as={FaArrowLeft} />} onClick={() => setShowViewer(false)}>
               Retour
             </Button>
-            <Text fontWeight="bold" fontSize="16px" noOfLines={1} maxW="300px">{product.title}</Text>
+            <Text fontWeight="bold" fontSize="16px" noOfLines={1} maxW="300px" color={colors.text}>{product.title}</Text>
           </HStack>
-          <Box px={3} py={1} bg="green.500/20" borderRadius="full">
-            <Text fontSize="11px" color="green.400" fontWeight="bold">📱 Stocké dans l'app</Text>
+          <Box px={3} py={1} bg="rgba(16, 185, 129, 0.2)" borderRadius="full">
+            <Text fontSize="11px" color={colors.green} fontWeight="bold">📱 Stocké dans l'app</Text>
           </Box>
         </Flex>
 
@@ -221,7 +236,7 @@ export default function ProductDetailPage() {
             </Box>
           )}
           {mediaType === "video" && (
-            <Box maxW="100%" maxH="80vh" borderRadius="12px" overflow="hidden" bg="black">
+            <Box maxW="100%" maxH="80vh" borderRadius="12px" overflow="hidden" bg={colors.mediaBg}>
               <video src={viewerUrl} controls autoPlay style={{ maxWidth: "100%", maxHeight: "80vh" }} />
             </Box>
           )}
@@ -232,8 +247,8 @@ export default function ProductDetailPage() {
           )}
           {!["image", "video"].includes(mediaType) && !isPdf && (
             <VStack spacing={6}>
-              <Icon as={FaFilePdf} boxSize={20} color="gray.500" />
-              <Text color="gray.400">Ce format ne peut pas être prévisualisé dans l'application.</Text>
+              <Icon as={FaFilePdf} boxSize={20} color={colors.textMuted} />
+              <Text color={colors.textMuted}>Ce format ne peut pas être prévisualisé dans l'application.</Text>
             </VStack>
           )}
         </Box>
@@ -242,10 +257,10 @@ export default function ProductDetailPage() {
   }
 
   return (
-    <Box minH="100vh" bg="#0A0A0A" color="white">
-      <Box position="sticky" top={0} zIndex={100} bg="rgba(10,10,10,0.95)" backdropFilter="blur(10px)" borderBottom="1px solid #2A2A2A" py={3} px={4}>
+    <Box minH="100vh" bg={colors.bg} color={colors.text}>
+      <Box position="sticky" top={0} zIndex={100} bg={colors.overlay} backdropFilter="blur(10px)" borderBottom={`1px solid ${colors.border}`} py={3} px={4}>
         <Flex align="center" maxW="1000px" mx="auto">
-          <Button variant="ghost" color="gray.400" leftIcon={<Icon as={FaArrowLeft} />} onClick={() => router.back()}>
+          <Button variant="ghost" color={colors.textMuted} leftIcon={<Icon as={FaArrowLeft} />} onClick={() => router.back()}>
             Retour
           </Button>
         </Flex>
@@ -254,70 +269,76 @@ export default function ProductDetailPage() {
       <Box maxW="1000px" mx="auto" p={{ base: 4, md: 8 }}>
         <Flex direction={{ base: "column", md: "row" }} gap={8}>
           <Box flex={1}>
-            <Box aspectRatio="16/9" bg="#1A1A1A" borderRadius="16px" border="1px solid #2A2A2A" display="flex" alignItems="center" justifyContent="center" mb={6} overflow="hidden" position="relative">
+            <Box 
+              aspectRatio="16/9" 
+              bg={colors.card} 
+              borderRadius="16px" 
+              border={`1px solid ${colors.border}`} 
+              display="flex" alignItems="center" justifyContent="center" mb={6} overflow="hidden" position="relative"
+            >
               {fileUrl && !hasPurchased ? (
                 <>
                   <Image src={fileUrl} alt={product.title} w="100%" h="100%" objectFit="cover" filter="blur(8px)" />
                   <Box position="absolute" inset={0} bg="rgba(0,0,0,0.6)" display="flex" flexDirection="column" alignItems="center" justifyContent="center">
-                    <Icon as={FaLock} boxSize={12} color="#8B5CF6" mb={3} />
-                    <Text fontWeight="bold" fontSize="18px">Contenu protégé</Text>
-                    <Text color="gray.400" fontSize="14px">Achetez ce produit pour y accéder</Text>
+                    <Icon as={FaLock} boxSize={12} color={colors.primary} mb={3} />
+                    <Text fontWeight="bold" fontSize="18px" color="white">Contenu protégé</Text>
+                    <Text color="rgba(255,255,255,0.7)" fontSize="14px">Achetez ce produit pour y accéder</Text>
                   </Box>
                 </>
               ) : fileUrl ? (
                 <Image src={fileUrl} alt={product.title} w="100%" h="100%" objectFit="cover" />
               ) : (
-                <Icon as={mediaType === "video" ? FaVideo : FaImage} boxSize={20} color="gray.600" />
+                <Icon as={mediaType === "video" ? FaVideo : FaImage} boxSize={20} color={colors.textMuted} />
               )}
             </Box>
 
             <Text fontSize={{ base: "24px", md: "32px" }} fontWeight="bold" mb={2}>{product.title}</Text>
             <HStack spacing={3} mb={6}>
               <Avatar size="sm" name={product.profiles?.username} src={product.profiles?.avatar_url} />
-              <Text color="gray.400" fontSize="14px">
-                Créé par <Text as="span" color="white" fontWeight="bold">{product.profiles?.full_name || product.profiles?.username}</Text>
+              <Text color={colors.textMuted} fontSize="14px">
+                Créé par <Text as="span" color={colors.text} fontWeight="bold">{product.profiles?.full_name || product.profiles?.username}</Text>
               </Text>
             </HStack>
 
-            <Box bg="#1A1A1A" p={5} borderRadius="12px" border="1px solid #2A2A2A">
+            <Box bg={colors.card} p={5} borderRadius="12px" border={`1px solid ${colors.border}`}>
               <Text fontSize="16px" fontWeight="bold" mb={3}>Description</Text>
-              <Text color="gray.300" lineHeight="1.7" whiteSpace="pre-wrap">
+              <Text color={colors.textMuted} lineHeight="1.7" whiteSpace="pre-wrap">
                 {product.description || "Aucune description."}
               </Text>
             </Box>
           </Box>
 
           <Box w={{ base: "100%", md: "350px" }}>
-            <Box bg="#1A1A1A" p={6} borderRadius="16px" border="1px solid #2A2A2A" position="sticky" top="100px">
-              <Text fontSize="14px" color="gray.400" mb={1}>Prix</Text>
-              <Text fontSize="36px" fontWeight="bold" color="#8B5CF6" mb={6}>
+            <Box bg={colors.card} p={6} borderRadius="16px" border={`1px solid ${colors.border}`} position="sticky" top="100px">
+              <Text fontSize="14px" color={colors.textMuted} mb={1}>Prix</Text>
+              <Text fontSize="36px" fontWeight="bold" color={colors.primary} mb={6}>
                 {product.price.toLocaleString('fr-FR')} FCFA
               </Text>
 
-              <Divider borderColor="#2A2A2A" mb={6} />
+              <Divider borderColor={colors.border} mb={6} />
 
               {hasPurchased ? (
                 <VStack spacing={4} w="100%">
-                  <HStack color="#10B981" spacing={2}>
+                  <HStack color={colors.green} spacing={2}>
                     <Icon as={FaCheckCircle} boxSize={5} />
                     <Text fontWeight="bold">Achat confirmé</Text>
                   </HStack>
 
                   {isStoredLocally ? (
                     <>
-                      <Box w="100%" p={3} bg="green.500/10" borderRadius="8px" border="1px solid green.500/30">
+                      <Box w="100%" p={3} bg="rgba(16, 185, 129, 0.1)" borderRadius="8px" border={`1px solid ${colors.green}`}>
                         <HStack>
-                          <Icon as={FaCheckCircle} color="green.400" />
-                          <Text fontSize="13px" color="green.400" fontWeight="bold">
+                          <Icon as={FaCheckCircle} color={colors.green} />
+                          <Text fontSize="13px" color={colors.green} fontWeight="bold">
                             Fichier stocké dans l'application
                           </Text>
                         </HStack>
                       </Box>
                       <Button
                         w="100%"
-                        bg="#10B981"
+                        bg={colors.green}
                         color="white"
-                        _hover={{ bg: "#059669" }}
+                        _hover={{ bg: colors.greenHover }}
                         leftIcon={<Icon as={FaPlayCircle} />}
                         size="lg"
                         fontWeight="bold"
@@ -329,9 +350,9 @@ export default function ProductDetailPage() {
                   ) : (
                     <Button
                       w="100%"
-                      bg="#8B5CF6"
-                      color="white"
-                      _hover={{ bg: "#7C3AED" }}
+                      bg={colors.primary}
+                      color={colors.primaryText}
+                      _hover={{ opacity: 0.9 }}
                       leftIcon={<Icon as={FaDownload} />}
                       size="lg"
                       fontWeight="bold"
@@ -345,14 +366,14 @@ export default function ProductDetailPage() {
                 </VStack>
               ) : (
                 <VStack spacing={4} w="100%">
-                  <Text color="gray.300" fontSize="14px" textAlign="center">
+                  <Text color={colors.textMuted} fontSize="14px" textAlign="center">
                     En achetant ce produit, vous obtenez un accès permanent au contenu.
                   </Text>
                   <Button
                     w="100%"
-                    bg="#8B5CF6"
-                    color="white"
-                    _hover={{ bg: "#7C3AED" }}
+                    bg={colors.primary}
+                    color={colors.primaryText}
+                    _hover={{ opacity: 0.9 }}
                     size="lg"
                     fontWeight="bold"
                     leftIcon={<Icon as={FaShoppingCart} />}

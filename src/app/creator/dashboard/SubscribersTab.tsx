@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function SubscribersTab() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   const [subscribers, setSubscribers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -18,13 +20,16 @@ export default function SubscribersTab() {
     last6Months: 0,
   });
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     green: "#22C55E",
     blue: "#3B82F6",
     orange: "#F97316",
@@ -40,7 +45,6 @@ export default function SubscribersTab() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // ✅ CORRECTION ICI : On précise !subscriptions_fan_id_fkey pour cibler le profil du fan
       const { data: allSubs, error } = await supabase
         .from('subscriptions')
         .select(`
@@ -60,7 +64,6 @@ export default function SubscribersTab() {
 
       if (error) throw error;
 
-      // Calculer les métriques
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -79,13 +82,11 @@ export default function SubscribersTab() {
 
       setMetrics({ currentMonth, lastMonth, last6Months });
 
-      // Filtrer la liste
       let filteredSubs = allSubs || [];
       if (selectedFilter !== "all") {
         filteredSubs = filteredSubs.filter((sub: any) => sub.tier_type === selectedFilter);
       }
 
-      // Trier par date de fin d'abonnement
       filteredSubs.sort((a: any, b: any) => 
         new Date(a.end_date).getTime() - new Date(b.end_date).getTime()
       );
@@ -131,9 +132,9 @@ export default function SubscribersTab() {
       
       {/* 1. SECTION MÉTRIQUES */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "16px" }}>
-        <MiniMetricCard label="Ce mois" value={metrics.currentMonth} icon="📈" color={colors.green} />
-        <MiniMetricCard label="Mois dernier" value={metrics.lastMonth} icon="🕒" color={colors.blue} />
-        <MiniMetricCard label="6 derniers mois" value={metrics.last6Months} icon="📅" color={colors.primary} />
+        <MiniMetricCard label="Ce mois" value={metrics.currentMonth} icon="📈" color={colors.green} colors={colors} />
+        <MiniMetricCard label="Mois dernier" value={metrics.lastMonth} icon="🕒" color={colors.blue} colors={colors} />
+        <MiniMetricCard label="6 derniers mois" value={metrics.last6Months} icon="📅" color={colors.primary} colors={colors} />
       </div>
 
       {/* 2. SECTION FILTRES */}
@@ -147,7 +148,7 @@ export default function SubscribersTab() {
               borderRadius: "20px",
               border: `1px solid ${selectedFilter === filter ? colors.primary : colors.border}`,
               backgroundColor: selectedFilter === filter ? colors.primary : colors.card,
-              color: selectedFilter === filter ? colors.text : colors.textMuted,
+              color: selectedFilter === filter ? colors.primaryText : colors.textMuted,
               fontSize: "13px",
               fontWeight: "600",
               cursor: "pointer",
@@ -189,7 +190,7 @@ export default function SubscribersTab() {
                     cursor: "pointer",
                     transition: "background 0.2s, transform 0.1s"
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#252525"; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = colors.hover; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = colors.card; }}
                   onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.98)"; }}
                   onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
@@ -197,7 +198,7 @@ export default function SubscribersTab() {
                   {/* Avatar */}
                   <div style={{
                     width: "48px", height: "48px", borderRadius: "50%",
-                    backgroundColor: `${colors.primary}33`,
+                    backgroundColor: colors.hover,
                     backgroundImage: profile?.avatar_url ? `url(${profile.avatar_url})` : undefined,
                     backgroundSize: "cover", backgroundPosition: "center",
                     display: "flex", alignItems: "center", justifyContent: "center",
@@ -217,7 +218,7 @@ export default function SubscribersTab() {
                         padding: "4px 8px",
                         borderRadius: "6px",
                         backgroundColor: sub.tier_type === 'pro' ? colors.primary : colors.border,
-                        color: colors.text,
+                        color: sub.tier_type === 'pro' ? colors.primaryText : colors.text,
                         fontSize: "10px",
                         fontWeight: "bold"
                       }}>
@@ -249,13 +250,12 @@ export default function SubscribersTab() {
   );
 }
 
-// Composant Carte Métrique Réutilisable
-function MiniMetricCard({ label, value, icon, color }: { label: string; value: number; icon: string; color: string }) {
+function MiniMetricCard({ label, value, icon, color, colors }: { label: string; value: number; icon: string; color: string; colors: any }) {
   return (
     <div style={{
-      backgroundColor: "#1A1A1A",
+      backgroundColor: colors.card,
       borderRadius: "12px",
-      border: "1px solid #2A2A2A",
+      border: `1px solid ${colors.border}`,
       padding: "12px 8px",
       display: "flex",
       flexDirection: "column",
@@ -263,8 +263,8 @@ function MiniMetricCard({ label, value, icon, color }: { label: string; value: n
       textAlign: "center"
     }}>
       <span style={{ fontSize: "20px", marginBottom: "6px" }}>{icon}</span>
-      <div style={{ color: "#FFFFFF", fontSize: "18px", fontWeight: "bold" }}>{value}</div>
-      <div style={{ color: "#9CA3AF", fontSize: "10px", marginTop: "2px", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <div style={{ color: colors.text, fontSize: "18px", fontWeight: "bold" }}>{value}</div>
+      <div style={{ color: colors.textMuted, fontSize: "10px", marginTop: "2px", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {label}
       </div>
     </div>

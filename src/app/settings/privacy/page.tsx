@@ -2,22 +2,29 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function PrivacySettingsPage() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
 
   // États pour les options de confidentialité
   const [isPrivateProfile, setIsPrivateProfile] = useState(false);
   const [showOnlineStatus, setShowOnlineStatus] = useState(true);
   const [allowDirectMessages, setAllowDirectMessages] = useState(true);
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#000000",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
-    divider: "#333333",
-    primary: "#8B5CF6",
-    switchBgOff: "#4B5563",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
+    divider: theme.border,
+    switchBgOff: isDark ? "#4B5563" : "#D1D5DB",
   };
 
   return (
@@ -46,7 +53,6 @@ export default function PrivacySettingsPage() {
       {/* Liste des paramètres */}
       <div style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}>
         
-        {/* Option 1 : Profil privé */}
         <SettingItem 
           title="Profil privé" 
           subtitle="Seuls vos abonnés peuvent voir vos publications" 
@@ -57,7 +63,6 @@ export default function PrivacySettingsPage() {
         
         <Divider color={colors.divider} />
 
-        {/* Option 2 : Statut en ligne */}
         <SettingItem 
           title="Statut en ligne" 
           subtitle="Afficher quand vous êtes connecté" 
@@ -68,7 +73,6 @@ export default function PrivacySettingsPage() {
 
         <Divider color={colors.divider} />
 
-        {/* Option 3 : Messages directs */}
         <SettingItem 
           title="Messages directs" 
           subtitle="Autoriser les fans à vous envoyer des messages" 
@@ -82,7 +86,7 @@ export default function PrivacySettingsPage() {
   );
 }
 
-// --- Composants Helpers pour garder le code propre ---
+// --- Composants Helpers ---
 
 function SettingItem({ title, subtitle, value, onChange, colors }: any) {
   return (
@@ -105,7 +109,7 @@ function SettingItem({ title, subtitle, value, onChange, colors }: any) {
         </div>
       </div>
       
-      {/* Interrupteur (Switch) personnalisé */}
+      {/* Switch personnalisé */}
       <div 
         onClick={(e) => { e.stopPropagation(); onChange(!value); }}
         style={{

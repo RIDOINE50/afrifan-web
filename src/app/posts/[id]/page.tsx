@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 import { 
   ArrowLeft, 
   Eye, 
@@ -18,11 +19,29 @@ export default function PostStatsPage() {
   const router = useRouter();
   const params = useParams();
   const postId = params.id as string;
+  const { isDark, theme } = useAppTheme();
 
   const [post, setPost] = useState<any>(null);
   const [creator, setCreator] = useState<any>(null);
   const [stats, setStats] = useState<any>({});
   const [isLoading, setIsLoading] = useState(true);
+
+  // ✅ Couleurs dynamiques
+  const colors = {
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
+    overlay: isDark ? "rgba(10,10,10,0.95)" : "rgba(255,255,255,0.95)",
+    blue: "#3B82F6",
+    red: "#EF4444",
+    orange: "#F97316",
+    green: "#10B981",
+  };
 
   useEffect(() => {
     if (postId) {
@@ -33,7 +52,6 @@ export default function PostStatsPage() {
   const loadPostStats = async () => {
     setIsLoading(true);
     try {
-      // 1. Récupérer les données du post
       const { data: postData, error: postError } = await supabase
         .from("posts")
         .select("*")
@@ -43,7 +61,6 @@ export default function PostStatsPage() {
       if (postError || !postData) throw new Error("Post introuvable");
       setPost(postData);
 
-      // 2. Récupérer les infos du créateur (pour l'affichage)
       if (postData.user_id) {
         const { data: creatorData } = await supabase
           .from("profiles")
@@ -53,7 +70,6 @@ export default function PostStatsPage() {
         setCreator(creatorData);
       }
 
-      // 3. Calculer les statistiques
       const views = postData.views_count || 0;
       const likes = postData.likes_count || 0;
       const comments = postData.comments_count || 0;
@@ -67,7 +83,6 @@ export default function PostStatsPage() {
     }
   };
 
-  // ✅ LOGIQUE SIMPLIFIÉE : Cette page est privée, c'est toujours MON profil.
   const handleCreatorClick = () => {
     router.push("/profile");
   };
@@ -87,15 +102,15 @@ export default function PostStatsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-gray-800 border-t-[#8B5CF6] rounded-full animate-spin"></div>
+      <div style={{ minHeight: "100vh", backgroundColor: colors.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: "40px", height: "40px", border: `4px solid ${colors.border}`, borderTop: `4px solid ${colors.primary}`, borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
       </div>
     );
   }
 
   if (!post) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center text-white">
+      <div style={{ minHeight: "100vh", backgroundColor: colors.bg, display: "flex", alignItems: "center", justifyContent: "center", color: colors.text }}>
         <p>Post introuvable</p>
       </div>
     );
@@ -107,130 +122,161 @@ export default function PostStatsPage() {
   const creatorName = creator?.full_name || creator?.username || "Utilisateur";
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col">
+    <div style={{ minHeight: "100vh", backgroundColor: colors.bg, color: colors.text, display: "flex", flexDirection: "column" }}>
       {/* 1. HEADER */}
-      <div className="flex items-center gap-4 p-4 border-b border-white/10 sticky top-0 bg-[#0A0A0A]/95 backdrop-blur-sm z-10">
+      <div style={{ 
+        display: "flex", alignItems: "center", gap: "16px", padding: "16px", 
+        borderBottom: `1px solid ${colors.border}`, position: "sticky", top: 0, 
+        backgroundColor: colors.overlay, backdropFilter: "blur(10px)", zIndex: 10 
+      }}>
         <button 
           onClick={() => router.back()} 
-          className="p-2 hover:bg-white/10 rounded-full transition"
+          style={{ padding: "8px", background: "none", border: "none", color: colors.text, borderRadius: "50%", cursor: "pointer" }}
         >
-          <ArrowLeft className="w-6 h-6" />
+          <ArrowLeft style={{ width: "24px", height: "24px" }} />
         </button>
-        <h1 className="text-lg font-bold">Statistiques du post</h1>
+        <h1 style={{ fontSize: "18px", fontWeight: "bold", margin: 0 }}>Statistiques du post</h1>
       </div>
 
       {/* 2. CONTENU SCROLLABLE */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-8 max-w-2xl mx-auto w-full">
+      <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "32px", maxWidth: "672px", margin: "0 auto", width: "100%" }}>
         
-        {/* APERÇU DU POST AVEC INFOS CRÉATEUR */}
-        <div className="flex gap-4">
-          <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-800 flex-shrink-0 border border-white/10">
+        {/* APERÇU DU POST */}
+        <div style={{ display: "flex", gap: "16px" }}>
+          <div style={{ 
+            width: "80px", height: "80px", borderRadius: "12px", overflow: "hidden", 
+            backgroundColor: colors.hover, flexShrink: 0, border: `1px solid ${colors.border}`,
+            display: "flex", alignItems: "center", justifyContent: "center"
+          }}>
             {mediaUrl ? (
               <img 
                 src={mediaUrl} 
                 alt="Post" 
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
-                }}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
-            ) : null}
-            <div className={`w-full h-full flex items-center justify-center ${mediaUrl ? "hidden" : ""}`}>
-              <ImageIcon className="w-8 h-8 text-gray-500" />
-            </div>
+            ) : (
+              <ImageIcon style={{ width: "32px", height: "32px", color: colors.textMuted }} />
+            )}
           </div>
           
-          <div className="flex-1 min-w-0 flex flex-col justify-between">
-            {/* ✅ NOM DU CRÉATEUR CLIQUABLE : Renvoie TOUJOURS à /profile */}
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
             <div 
               onClick={handleCreatorClick}
-              className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition mb-1"
+              style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", marginBottom: "4px" }}
             >
-              <div className="w-6 h-6 rounded-full bg-gray-700 overflow-hidden">
+              <div style={{ width: "24px", height: "24px", borderRadius: "50%", backgroundColor: colors.hover, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {creator?.avatar_url ? (
-                  <img src={creator.avatar_url} alt="" className="w-full h-full object-cover" />
+                  <img src={creator.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
-                  <User className="w-full h-full p-1 text-gray-400" />
+                  <User style={{ width: "100%", height: "100%", padding: "4px", color: colors.textMuted }} />
                 )}
               </div>
-              <span className="text-sm font-bold text-[#8B5CF6] truncate">
+              <span style={{ fontSize: "14px", fontWeight: "bold", color: colors.primary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {creatorName}
               </span>
             </div>
 
-            <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed mb-1">
+            <p style={{ fontSize: "12px", color: colors.textMuted, lineHeight: 1.5, marginBottom: "4px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
               {caption || "(Pas de légende)"}
             </p>
-            <p className="text-[10px] text-gray-500">
+            <p style={{ fontSize: "10px", color: colors.textMuted }}>
               Publié le {formatDate(createdAt)}
             </p>
           </div>
         </div>
 
-        {/* GRANDES CARTES DE MÉTRIQUES */}
+        {/* MÉTRIQUES */}
         <div>
-          <h2 className="text-lg font-bold mb-4">Performance</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <MetricCard title="Vues" value={stats.views.toLocaleString("fr-FR")} icon={<Eye className="w-6 h-6 text-blue-500" />} />
-            <MetricCard title="Likes" value={stats.likes.toLocaleString("fr-FR")} icon={<Heart className="w-6 h-6 text-red-500" />} />
-            <MetricCard title="Commentaires" value={stats.comments.toLocaleString("fr-FR")} icon={<MessageCircle className="w-6 h-6 text-orange-500" />} />
-            <MetricCard title="Engagement" value={`${stats.engagementRate.toFixed(1)}%`} icon={<TrendingUp className="w-6 h-6 text-green-500" />} />
+          <h2 style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "16px" }}>Performance</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            <MetricCard title="Vues" value={stats.views.toLocaleString("fr-FR")} icon={<Eye style={{ width: "24px", height: "24px", color: colors.blue }} />} colors={colors} />
+            <MetricCard title="Likes" value={stats.likes.toLocaleString("fr-FR")} icon={<Heart style={{ width: "24px", height: "24px", color: colors.red }} />} colors={colors} />
+            <MetricCard title="Commentaires" value={stats.comments.toLocaleString("fr-FR")} icon={<MessageCircle style={{ width: "24px", height: "24px", color: colors.orange }} />} colors={colors} />
+            <MetricCard title="Engagement" value={`${stats.engagementRate.toFixed(1)}%`} icon={<TrendingUp style={{ width: "24px", height: "24px", color: colors.green }} />} colors={colors} />
           </div>
         </div>
 
         {/* SOURCES DE TRAFIC */}
         <div>
-          <h2 className="text-lg font-bold mb-4">D'où viennent vos vues ?</h2>
-          <div className="bg-[#1A1A1A] rounded-2xl p-4 space-y-5 border border-white/5">
-            <TrafficBar label="Pour toi (Découverte)" percentage={0.65} color="bg-[#8B5CF6]" />
-            <TrafficBar label="Abonnés" percentage={0.25} color="bg-blue-500" />
-            <TrafficBar label="Profil & Partages" percentage={0.10} color="bg-gray-500" />
+          <h2 style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "16px" }}>D'où viennent vos vues ?</h2>
+          <div style={{ backgroundColor: colors.card, borderRadius: "16px", padding: "16px", display: "flex", flexDirection: "column", gap: "20px", border: `1px solid ${colors.border}` }}>
+            <TrafficBar label="Pour toi (Découverte)" percentage={0.65} color={colors.primary} colors={colors} />
+            <TrafficBar label="Abonnés" percentage={0.25} color={colors.blue} colors={colors} />
+            <TrafficBar label="Profil & Partages" percentage={0.10} color={colors.textMuted} colors={colors} />
           </div>
         </div>
 
         {/* BOUTON D'ACTION */}
         <button
           onClick={() => router.push(`/post/${postId}`)}
-          className="w-full bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+          style={{
+            width: "100%",
+            backgroundColor: colors.primary,
+            color: colors.primaryText,
+            fontWeight: "bold",
+            padding: "16px",
+            border: "none",
+            borderRadius: "12px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+            cursor: "pointer",
+            transition: "opacity 0.2s"
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.opacity = "0.9"}
+          onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
         >
-          <Play className="w-5 h-5 fill-current" />
+          <Play style={{ width: "20px", height: "20px" }} />
           Voir le post
         </button>
         
-        <div className="h-8"></div>
+        <div style={{ height: "32px" }}></div>
       </div>
+
+      <style>{`
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
 
-// --- COMPOSANTS UTILITAIRES ---
-
-function MetricCard({ title, value, icon }: { title: string; value: string; icon: React.ReactNode }) {
+function MetricCard({ title, value, icon, colors }: { title: string; value: string; icon: React.ReactNode; colors: any }) {
   return (
-    <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-white/5 flex flex-col gap-3 hover:bg-[#222222] transition-colors">
-      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
+    <div style={{ 
+      backgroundColor: colors.card, 
+      borderRadius: "16px", 
+      padding: "16px", 
+      border: `1px solid ${colors.border}`, 
+      display: "flex", flexDirection: "column", gap: "12px" 
+    }}>
+      <div style={{ width: "40px", height: "40px", borderRadius: "8px", backgroundColor: colors.hover, display: "flex", alignItems: "center", justifyContent: "center" }}>
         {icon}
       </div>
       <div>
-        <p className="text-2xl font-bold text-white">{value}</p>
-        <p className="text-xs text-gray-500 mt-1">{title}</p>
+        <p style={{ fontSize: "24px", fontWeight: "bold", color: colors.text, margin: 0 }}>{value}</p>
+        <p style={{ fontSize: "12px", color: colors.textMuted, marginTop: "4px", margin: 0 }}>{title}</p>
       </div>
     </div>
   );
 }
 
-function TrafficBar({ label, percentage, color }: { label: string; percentage: number; color: string }) {
+function TrafficBar({ label, percentage, color, colors }: { label: string; percentage: number; color: string; colors: any }) {
   return (
-    <div className="space-y-2">
-      <div className="flex justify-between items-center text-sm">
-        <span className="text-gray-300">{label}</span>
-        <span className="font-bold text-white">{Math.round(percentage * 100)}%</span>
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "14px" }}>
+        <span style={{ color: colors.textMuted }}>{label}</span>
+        <span style={{ fontWeight: "bold", color: colors.text }}>{Math.round(percentage * 100)}%</span>
       </div>
-      <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+      <div style={{ height: "8px", backgroundColor: colors.hover, borderRadius: "999px", overflow: "hidden" }}>
         <div 
-          className={`h-full rounded-full ${color} transition-all duration-1000 ease-out`}
-          style={{ width: `${percentage * 100}%` }}
+          style={{ 
+            height: "100%", 
+            borderRadius: "999px", 
+            backgroundColor: color,
+            width: `${percentage * 100}%`,
+            transition: "width 1s ease-out"
+          }}
         />
       </div>
     </div>

@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function TrendingCreatorsPage() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   
   const [user, setUser] = useState<any>(null);
   const [creators, setCreators] = useState<any[]>([]);
@@ -14,17 +16,18 @@ export default function TrendingCreatorsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#000000",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
-    textSecondary: "#D1D5DB",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
   };
 
-  // ✅ Équivalent de initState : se lance une seule fois au montage du composant
   useEffect(() => {
     if (!hasLoadedOnce) {
       loadData();
@@ -40,7 +43,6 @@ export default function TrendingCreatorsPage() {
       const currentUserId = session?.user?.id;
       setUser(session?.user || null);
 
-      // 1. Récupérer les IDs des créateurs déjà suivis
       let newFollowedIds = new Set<string>();
       if (currentUserId) {
         const { data: follows } = await supabase
@@ -54,7 +56,6 @@ export default function TrendingCreatorsPage() {
       }
       setFollowedIds(newFollowedIds);
 
-      // 2. Récupérer les profils (en excluant l'utilisateur actuel)
       let query = supabase
         .from('profiles')
         .select('id, username, full_name, avatar_url, is_verified')
@@ -78,7 +79,6 @@ export default function TrendingCreatorsPage() {
     }
   };
 
-  // ✅ Mise à jour optimiste (Optimistic UI) exactement comme dans Flutter
   const toggleFollow = async (creatorId: string) => {
     if (!user) {
       router.push("/login");
@@ -87,7 +87,6 @@ export default function TrendingCreatorsPage() {
 
     const isFollowing = followedIds.has(creatorId);
 
-    // 1. Mise à jour immédiate de l'interface
     const newFollowedIds = new Set(followedIds);
     if (isFollowing) {
       newFollowedIds.delete(creatorId);
@@ -97,7 +96,6 @@ export default function TrendingCreatorsPage() {
     setFollowedIds(newFollowedIds);
 
     try {
-      // 2. Requête Supabase
       if (isFollowing) {
         await supabase
           .from('follows')
@@ -110,7 +108,6 @@ export default function TrendingCreatorsPage() {
       }
     } catch (error) {
       console.error("❌ Erreur toggle follow:", error);
-      // 3. Rollback en cas d'erreur
       const rollbackIds = new Set(followedIds);
       if (isFollowing) {
         rollbackIds.add(creatorId);
@@ -188,7 +185,7 @@ export default function TrendingCreatorsPage() {
                     gap: "14px",
                     transition: "background 0.2s"
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#252525"}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.hover}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.card}
                 >
                   {/* Avatar cliquable */}
@@ -196,7 +193,7 @@ export default function TrendingCreatorsPage() {
                     onClick={() => handleCreatorClick(creatorId)}
                     style={{ 
                       width: "52px", height: "52px", borderRadius: "50%", 
-                      backgroundColor: "#374151", flexShrink: 0, cursor: "pointer",
+                      backgroundColor: colors.hover, flexShrink: 0, cursor: "pointer",
                       backgroundImage: avatarUrl ? `url(${avatarUrl})` : undefined,
                       backgroundSize: "cover", backgroundPosition: "center",
                       display: "flex", alignItems: "center", justifyContent: "center"
@@ -205,7 +202,7 @@ export default function TrendingCreatorsPage() {
                     {!avatarUrl && <span style={{ fontSize: "24px", color: colors.textMuted }}>👤</span>}
                   </div>
 
-                  {/* Nom et Username (avec troncature) */}
+                  {/* Nom et Username */}
                   <div 
                     onClick={() => handleCreatorClick(creatorId)}
                     style={{ flex: 1, minWidth: 0, cursor: "pointer" }}
@@ -218,7 +215,7 @@ export default function TrendingCreatorsPage() {
                         {fullName || username}
                       </span>
                       {isVerified && <span style={{ color: colors.primary, fontSize: "16px" }}>✓</span>}
-                   0</div>
+                    </div>
                     <div style={{ 
                       whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                       color: colors.textMuted, fontSize: "13px", marginTop: "4px"
@@ -236,7 +233,7 @@ export default function TrendingCreatorsPage() {
                       borderRadius: "20px",
                       border: isFollowing ? `1px solid ${colors.border}` : "none",
                       backgroundColor: isFollowing ? colors.card : colors.primary,
-                      color: colors.text,
+                      color: isFollowing ? colors.text : colors.primaryText,
                       fontSize: "13px",
                       fontWeight: "bold",
                       cursor: "pointer",

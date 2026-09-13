@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import TipDialog from "@/components/TipDialog"; // ✅ Import du composant TipDialog
+import TipDialog from "@/components/TipDialog";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 function formatCount(count: number): string {
   if (count >= 1000000) return (count / 1000000).toFixed(1) + "M";
@@ -14,6 +15,7 @@ function formatCount(count: number): string {
 export default function PostDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const { isDark, theme } = useAppTheme();
   
   const postId = params.postId as string;
   
@@ -31,21 +33,24 @@ export default function PostDetailPage() {
   const [newComment, setNewComment] = useState("");
   const [isMuted, setIsMuted] = useState(true);
   
-  // ✅ État pour gérer l'ouverture du modal de pourboire
   const [showTipModal, setShowTipModal] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#000000",
-    card: "#121212",
-    border: "#2F2F2F",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#A1A1A1",
+    bg: isDark ? "#000000" : "#F3F4F6",
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     success: "#10B981",
     danger: "#EF4444",
+    overlay: isDark ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.5)",
   };
 
   useEffect(() => {
@@ -353,7 +358,6 @@ export default function PostDetailPage() {
                 <ActionButton icon={postIsLiked ? "❤️" : "🤍"} label={formatCount(post.likes_count)} color={postIsLiked ? "#EF4444" : "white"} onClick={(e) => handleLike(post, e)} />
                 <ActionButton icon="💬" label={formatCount(post.comments_count)} onClick={toggleCommentsPanel} />
                 
-                {/* ✅ MODIFICATION : Ouvre le modal TipDialog au lieu de rediriger */}
                 <ActionButton icon="☕" label="Tip" color="#F97316" onClick={() => setShowTipModal(true)} />
                 
                 <ActionButton icon="↗️" label="Partager" onClick={handleShare} />
@@ -367,7 +371,7 @@ export default function PostDetailPage() {
                       width: "40px", 
                       height: "40px", 
                       borderRadius: "50%", 
-                      backgroundColor: colors.border,
+                      backgroundColor: "rgba(255,255,255,0.2)",
                       backgroundImage: creatorInfo.avatar ? `url(${creatorInfo.avatar})` : undefined,
                       backgroundSize: "cover",
                       backgroundPosition: "center",
@@ -390,7 +394,19 @@ export default function PostDetailPage() {
                         @{creatorInfo.name}
                       </span>
                       {!isFollowing ? (
-                        <button onClick={handleFollow} style={{ padding: "4px 12px", backgroundColor: colors.primary, border: "none", borderRadius: "16px", color: "white", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}>
+                        <button 
+                          onClick={handleFollow} 
+                          style={{ 
+                            padding: "4px 12px", 
+                            backgroundColor: colors.primary, 
+                            border: "none", 
+                            borderRadius: "16px", 
+                            color: colors.primaryText, 
+                            fontSize: "12px", 
+                            fontWeight: "bold", 
+                            cursor: "pointer" 
+                          }}
+                        >
                           Suivre
                         </button>
                       ) : (
@@ -414,9 +430,9 @@ export default function PostDetailPage() {
       {showCommentsPanel && (
         <>
           <div className="comments-overlay" onClick={() => setShowCommentsPanel(false)} />
-          <div className="comments-panel">
+          <div className="comments-panel" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
             <div style={{ padding: "16px", borderBottom: `1px solid ${colors.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: "bold", fontSize: "16px" }}>Commentaires ({formatCount(currentPost.comments_count)})</span>
+              <span style={{ fontWeight: "bold", fontSize: "16px", color: colors.text }}>Commentaires ({formatCount(currentPost.comments_count)})</span>
               <button onClick={() => setShowCommentsPanel(false)} style={{ background: "none", border: "none", color: colors.text, fontSize: "24px", cursor: "pointer" }}>✕</button>
             </div>
 
@@ -429,9 +445,9 @@ export default function PostDetailPage() {
               ) : (
                 comments.map((comment: any, i: number) => (
                   <div key={i} style={{ marginBottom: "16px", display: "flex", gap: "12px" }}>
-                    <div style={{ width: "32px", height: "32px", borderRadius: "50%", backgroundColor: colors.border, backgroundImage: comment.profiles?.avatar_url ? `url(${comment.profiles.avatar_url})` : undefined, backgroundSize: "cover", flexShrink: 0 }} />
+                    <div style={{ width: "32px", height: "32px", borderRadius: "50%", backgroundColor: colors.hover, backgroundImage: comment.profiles?.avatar_url ? `url(${comment.profiles.avatar_url})` : undefined, backgroundSize: "cover", flexShrink: 0 }} />
                     <div>
-                      <div style={{ fontWeight: "bold", fontSize: "13px", marginBottom: "4px" }}>{comment.profiles?.full_name || comment.user_name || 'Utilisateur'}</div>
+                      <div style={{ fontWeight: "bold", fontSize: "13px", marginBottom: "4px", color: colors.text }}>{comment.profiles?.full_name || comment.user_name || 'Utilisateur'}</div>
                       <p style={{ fontSize: "14px", lineHeight: "1.4", margin: 0, color: colors.text }}>{comment.content}</p>
                     </div>
                   </div>
@@ -446,9 +462,33 @@ export default function PostDetailPage() {
                 onChange={(e) => setNewComment(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && submitComment()}
                 placeholder="Ajouter un commentaire..."
-                style={{ flex: 1, backgroundColor: colors.bg, border: `1px solid ${colors.border}`, borderRadius: "20px", padding: "10px 16px", color: colors.text, fontSize: "14px", outline: "none" }}
+                style={{ 
+                  flex: 1, 
+                  backgroundColor: colors.bg, 
+                  border: `1px solid ${colors.border}`, 
+                  borderRadius: "20px", 
+                  padding: "10px 16px", 
+                  color: colors.text, 
+                  fontSize: "14px", 
+                  outline: "none" 
+                }}
               />
-              <button onClick={submitComment} disabled={!newComment.trim()} style={{ backgroundColor: newComment.trim() ? colors.primary : colors.border, border: "none", borderRadius: "50%", width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", cursor: newComment.trim() ? "pointer" : "not-allowed", color: "white" }}>
+              <button 
+                onClick={submitComment} 
+                disabled={!newComment.trim()} 
+                style={{ 
+                  backgroundColor: newComment.trim() ? colors.primary : colors.border, 
+                  border: "none", 
+                  borderRadius: "50%", 
+                  width: "36px", 
+                  height: "36px", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center", 
+                  cursor: newComment.trim() ? "pointer" : "not-allowed", 
+                  color: newComment.trim() ? colors.primaryText : colors.textMuted
+                }}
+              >
                 ↑
               </button>
             </div>
@@ -456,7 +496,6 @@ export default function PostDetailPage() {
         </>
       )}
 
-      {/* ✅ MODIFICATION : Rendu conditionnel du Modal de Pourboire */}
       {showTipModal && (
         <TipDialog 
           creatorId={creatorInfo.id} 
@@ -464,7 +503,6 @@ export default function PostDetailPage() {
           onClose={() => setShowTipModal(false)} 
           onSuccess={() => {
             console.log("Pourboire envoyé avec succès !");
-            // Tu peux ajouter ici un toast de notification si tu en as un
           }} 
         />
       )}
@@ -475,7 +513,7 @@ export default function PostDetailPage() {
         .page-wrapper {
           min-height: 100vh;
           width: 100%;
-          background-color: #000;
+          background-color: ${isDark ? "#000" : "#F3F4F6"};
           display: flex;
           align-items: center;
           justify-content: center;
@@ -507,7 +545,7 @@ export default function PostDetailPage() {
           display: none;
           position: fixed;
           inset: 0;
-          background-color: rgba(0,0,0,0.8);
+          background-color: ${colors.overlay};
           z-index: 40;
         }
         
@@ -518,13 +556,13 @@ export default function PostDetailPage() {
           width: 100%;
           max-width: 400px;
           height: 70vh;
-          background-color: #121212;
+          background-color: ${colors.card};
           border-top-left-radius: 20px;
           border-top-right-radius: 20px;
           z-index: 50;
           display: flex;
           flex-direction: column;
-          border: 1px solid #2F2F2F;
+          border: 1px solid ${colors.border};
           border-top: none;
         }
 
@@ -533,7 +571,7 @@ export default function PostDetailPage() {
             width: 450px;
             height: 85vh;
             border-radius: 16px;
-            border: 1px solid #2F2F2F;
+            border: 1px solid ${colors.border};
             box-shadow: 0 20px 50px rgba(0,0,0,0.8);
           }
           
@@ -561,7 +599,7 @@ export default function PostDetailPage() {
             height: 85vh;
             max-height: 600px;
             border-radius: 16px;
-            border: 1px solid #2F2F2F;
+            border: 1px solid ${colors.border};
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
           }
         }

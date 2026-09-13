@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function TrendingPostsPage() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   
   const [user, setUser] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
@@ -14,15 +16,18 @@ export default function TrendingPostsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#000000",
-    card: "#1A1A1A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
   };
 
-  // ✅ Équivalent de initState + AutomaticKeepAliveClientMixin
   useEffect(() => {
     if (!hasLoadedOnce) {
       loadData();
@@ -43,7 +48,6 @@ export default function TrendingPostsPage() {
       const currentUserId = session?.user?.id;
       setUser(session?.user || null);
 
-      // 1. Récupérer les abonnements actifs de l'utilisateur
       let newSubscribedIds = new Set<string>();
       if (currentUserId) {
         const { data: subs } = await supabase
@@ -58,7 +62,6 @@ export default function TrendingPostsPage() {
       }
       setSubscribedCreatorIds(newSubscribedIds);
 
-      // 2. Récupérer les posts les plus populaires
       const { data: postsData, error: postsError } = await supabase
         .from('posts')
         .select('id, user_id, media_url, media_type, caption, title, likes_count, comments_count, created_at')
@@ -74,7 +77,6 @@ export default function TrendingPostsPage() {
         return;
       }
 
-      // 3. Récupérer les profils des créateurs de ces posts
       const userIds = [...new Set(postsData.map((p: any) => p.user_id))];
       const { data: profilesData } = await supabase
         .from('profiles')
@@ -84,7 +86,6 @@ export default function TrendingPostsPage() {
       const profilesMap: Record<string, any> = {};
       profilesData?.forEach((p: any) => { profilesMap[p.id] = p; });
 
-      // 4. Fusionner les posts avec les profils
       const mergedPosts = postsData.map((post: any) => ({
         ...post,
         profile: profilesMap[post.user_id] || { username: 'Créateur', full_name: 'Créateur' },
@@ -108,10 +109,8 @@ export default function TrendingPostsPage() {
     const creatorName = post.profile?.full_name || post.profile?.username || 'Créateur';
 
     if (isLocked) {
-      // Si verrouillé, on ouvre l'écran de paiement
       router.push(`/subscribe/${creatorId}?tier=premium&price=2000&name=${encodeURIComponent(creatorName)}`);
     } else {
-      // Si déverrouillé, on ouvre le détail du post
       router.push(`/post/${post.id}?creatorId=${creatorId}`);
     }
   };
@@ -119,7 +118,7 @@ export default function TrendingPostsPage() {
   if (isLoading) {
     return (
       <div style={{ minHeight: "100vh", backgroundColor: colors.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ width: "40px", height: "40px", border: `4px solid ${colors.card}`, borderTop: `4px solid ${colors.primary}`, borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
+        <div style={{ width: "40px", height: "40px", border: `4px solid ${colors.border}`, borderTop: `4px solid ${colors.primary}`, borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
       </div>
     );
   }
@@ -130,7 +129,7 @@ export default function TrendingPostsPage() {
       {/* Header */}
       <div style={{ 
         position: "sticky", top: 0, zIndex: 50, backgroundColor: colors.bg, 
-        borderBottom: `1px solid ${colors.card}`, padding: "12px 16px",
+        borderBottom: `1px solid ${colors.border}`, padding: "12px 16px",
         display: "flex", alignItems: "center", justifyContent: "space-between"
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -197,20 +196,21 @@ export default function TrendingPostsPage() {
                         width: "100%", 
                         height: "100%", 
                         objectFit: "cover", 
-                        filter: isLocked ? "blur(12px)" : "none",
+                        filter: isLocked ? "blur(25px) brightness(0.6)" : "none",
+                        transform: isLocked ? "scale(1.1)" : "none",
                         transition: "filter 0.3s"
                       }} 
                     />
                   ) : (
-                    <div style={{ width: "100%", height: "100%", backgroundColor: "#374151" }} />
+                    <div style={{ width: "100%", height: "100%", backgroundColor: colors.hover }} />
                   )}
 
                   {/* 2. OVERLAY SOMBRE SI VERROUILLÉ */}
                   {isLocked && (
-                    <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.5)" }} />
+                    <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.6)" }} />
                   )}
 
-                  {/* 3. ICÔNE CADENAS + TEXTE (SI VERROUILLÉ) */}
+                  {/* 3. ICÔNE CADENAS (SI VERROUILLÉ) */}
                   {isLocked && (
                     <div style={{ 
                       position: "absolute", inset: 0, 
@@ -220,11 +220,11 @@ export default function TrendingPostsPage() {
                     }}>
                       <div style={{ 
                         padding: "12px", 
-                        backgroundColor: `${colors.primary}E6`, 
+                        backgroundColor: colors.primary, 
                         borderRadius: "50%",
                         display: "flex", alignItems: "center", justifyContent: "center"
                       }}>
-                        <span style={{ fontSize: "24px", color: "white" }}>🔒</span>
+                        <span style={{ fontSize: "24px", color: colors.primaryText }}>🔒</span>
                       </div>
                       <span style={{ 
                         color: "white", fontSize: "12px", fontWeight: "bold", 
@@ -235,7 +235,7 @@ export default function TrendingPostsPage() {
                     </div>
                   )}
 
-                  {/* 4. ICÔNE PLAY SI C'EST UNE VIDÉO ET DÉVERROUILLÉ */}
+                  {/* 4. ICÔNE PLAY SI VIDÉO DÉVERROUILLÉE */}
                   {post.media_type === 'video' && !isLocked && (
                     <div style={{ 
                       position: "absolute", inset: 0, 
@@ -246,7 +246,7 @@ export default function TrendingPostsPage() {
                     </div>
                   )}
 
-                  {/* 5. INFOS EN BAS (NOM + LIKES) */}
+                  {/* 5. INFOS EN BAS */}
                   <div style={{
                     position: "absolute", bottom: 0, left: 0, right: 0,
                     padding: "8px",
@@ -281,7 +281,6 @@ export default function TrendingPostsPage() {
           100% { transform: rotate(360deg); }
         }
         @media (min-width: 768px) {
-          /* Sur PC, on peut afficher 3 ou 4 colonnes pour mieux utiliser l'espace */
           div[style*="grid-template-columns: repeat(2, 1fr)"] {
             grid-template-columns: repeat(3, 1fr) !important;
           }

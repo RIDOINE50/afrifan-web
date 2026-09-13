@@ -2,21 +2,33 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function CreatorPricingScreen() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   
-  // 1. Récupérer les données des étapes précédentes
   const [previousData, setPreviousData] = useState<any>(null);
 
-  // 2. États du formulaire
   const [selectedCurrency, setSelectedCurrency] = useState("XOF");
   const [premiumPrice, setPremiumPrice] = useState("");
   const [proPrice, setProPrice] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 3. Configuration des devises (Taux par rapport au FCFA)
+  // ✅ Couleurs dynamiques
+  const colors = {
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
+    red: "#EF4444",
+  };
+
   const currencies = [
     { code: 'XOF', symbol: 'FCFA', name: 'Franc CFA', rate: 1.0 },
     { code: 'XAF', symbol: 'FCFA', name: 'Franc CFA (CEMAC)', rate: 1.0 },
@@ -27,13 +39,11 @@ export default function CreatorPricingScreen() {
 
   const currentCurrency = currencies.find(c => c.code === selectedCurrency) || currencies[0];
 
-  // 4. Constantes de prix en FCFA
   const PREMIUM_MIN_FCFA = 90;
   const PREMIUM_MAX_FCFA = 2000;
   const PRO_MIN_FCFA = 2001;
   const PRO_MAX_FCFA = 10000;
 
-  // Vérification au chargement
   useEffect(() => {
     const savedData = sessionStorage.getItem('creator_activation_step2');
     if (!savedData) {
@@ -43,11 +53,9 @@ export default function CreatorPricingScreen() {
     }
   }, [router]);
 
-  // --- Fonctions de conversion ---
   const convertToCurrency = (fcfaAmount: number) => (fcfaAmount * currentCurrency.rate).toFixed(2);
   const convertToFCFA = (amount: number) => Math.round(amount / currentCurrency.rate);
 
-  // --- Validation ---
   const validatePrices = () => {
     const pPrice = parseFloat(premiumPrice);
     const prPrice = parseFloat(proPrice);
@@ -65,7 +73,6 @@ export default function CreatorPricingScreen() {
     return true;
   };
 
-  // --- Soumission vers l'étape finale ---
   const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -78,25 +85,19 @@ export default function CreatorPricingScreen() {
     setIsLoading(true);
 
     try {
-      // Conversion finale en FCFA pour la base de données
       const premiumPriceFCFA = convertToFCFA(parseFloat(premiumPrice));
       const proPriceFCFA = convertToFCFA(parseFloat(proPrice));
 
-      // Simulation UX (comme dans ton code Flutter)
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Combiner TOUTES les données pour l'étape de paiement
       const finalActivationData = {
-        ...previousData, // Contient déjà fullName, birthDate, city, category, idCardUrl, phoneVerified
+        ...previousData,
         premiumPrice: premiumPriceFCFA,
         proPrice: proPriceFCFA,
         currency: selectedCurrency,
       };
 
-      // Sauvegarder pour la dernière étape
       sessionStorage.setItem('creator_activation_final', JSON.stringify(finalActivationData));
-
-      // Redirection vers l'étape de paiement
       router.push("/creator/activate/payment");
 
     } catch (err) {
@@ -108,37 +109,37 @@ export default function CreatorPricingScreen() {
 
   if (!previousData) {
     return (
-      <div style={{ height: "100vh", backgroundColor: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ width: "40px", height: "40px", border: "4px solid #262626", borderTop: "4px solid #8B5CF6", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
+      <div style={{ height: "100vh", backgroundColor: colors.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: "40px", height: "40px", border: `4px solid ${colors.border}`, borderTop: `4px solid ${colors.primary}`, borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#0A0A0A", color: "#FFFFFF", display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", backgroundColor: colors.bg, color: colors.text, display: "flex", flexDirection: "column" }}>
       <div style={{ flex: 1, padding: "24px", maxWidth: "600px", margin: "0 auto", width: "100%" }}>
         
         {/* Barre de progression */}
         <div style={{ marginBottom: "24px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-            <span style={{ color: "#8B5CF6", fontWeight: 600, fontSize: "14px" }}>Tarification des abonnements</span>
-            <span style={{ backgroundColor: "rgba(139, 92, 246, 0.2)", color: "#8B5CF6", padding: "4px 12px", borderRadius: "12px", fontSize: "14px", fontWeight: "bold" }}>Étape 3/3</span>
+            <span style={{ color: colors.primary, fontWeight: 600, fontSize: "14px" }}>Tarification des abonnements</span>
+            <span style={{ backgroundColor: colors.hover, color: colors.primary, padding: "4px 12px", borderRadius: "12px", fontSize: "14px", fontWeight: "bold" }}>Étape 3/3</span>
           </div>
-          <div style={{ height: "6px", backgroundColor: "#1A1A1A", borderRadius: "8px", overflow: "hidden" }}>
-            <div style={{ width: "85%", height: "100%", backgroundColor: "#8B5CF6", borderRadius: "8px", transition: "width 0.3s" }} />
+          <div style={{ height: "6px", backgroundColor: colors.card, borderRadius: "8px", overflow: "hidden" }}>
+            <div style={{ width: "85%", height: "100%", backgroundColor: colors.primary, borderRadius: "8px", transition: "width 0.3s" }} />
           </div>
         </div>
 
         <h1 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "8px" }}>Définissez vos tarifs</h1>
-        <p style={{ color: "#888888", fontSize: "14px", marginBottom: "24px" }}>
+        <p style={{ color: colors.textMuted, fontSize: "14px", marginBottom: "24px" }}>
           Choisissez combien vos abonnés paieront pour accéder à vos contenus exclusifs.
         </p>
 
         {error && (
           <div style={{
             padding: "12px 16px", backgroundColor: "rgba(239, 68, 68, 0.1)",
-            border: "1px solid #EF4444", borderRadius: "12px",
-            color: "#EF4444", fontSize: "14px", marginBottom: "24px", textAlign: "center"
+            border: `1px solid ${colors.red}`, borderRadius: "12px",
+            color: colors.red, fontSize: "14px", marginBottom: "24px", textAlign: "center"
           }}>
             {error}
           </div>
@@ -148,25 +149,25 @@ export default function CreatorPricingScreen() {
           
           {/* Sélecteur de devise */}
           <div style={{
-            padding: "12px 16px", backgroundColor: "#161616",
-            borderRadius: "12px", border: "1px solid #262626",
+            padding: "12px 16px", backgroundColor: colors.card,
+            borderRadius: "12px", border: `1px solid ${colors.border}`,
             display: "flex", justifyContent: "space-between", alignItems: "center"
           }}>
-            <span style={{ color: "#FFFFFF", fontWeight: 500 }}>Devise :</span>
+            <span style={{ color: colors.text, fontWeight: 500 }}>Devise :</span>
             <select
               value={selectedCurrency}
               onChange={(e) => {
                 setSelectedCurrency(e.target.value);
-                setPremiumPrice(""); // Reset des prix quand la devise change
+                setPremiumPrice("");
                 setProPrice("");
               }}
               style={{
-                backgroundColor: "transparent", color: "#FFFFFF", fontWeight: "bold",
+                backgroundColor: "transparent", color: colors.text, fontWeight: "bold",
                 border: "none", outline: "none", cursor: "pointer", fontSize: "14px"
               }}
             >
               {currencies.map((curr) => (
-                <option key={curr.code} value={curr.code} style={{ backgroundColor: "#161616", color: "#FFFFFF" }}>
+                <option key={curr.code} value={curr.code} style={{ backgroundColor: colors.card, color: colors.text }}>
                   {curr.name} ({curr.symbol})
                 </option>
               ))}
@@ -182,6 +183,7 @@ export default function CreatorPricingScreen() {
             minText={convertToCurrency(PREMIUM_MIN_FCFA)}
             maxText={convertToCurrency(PREMIUM_MAX_FCFA)}
             symbol={currentCurrency.symbol}
+            colors={colors}
           />
 
           {/* Carte Pro / VIP */}
@@ -193,6 +195,7 @@ export default function CreatorPricingScreen() {
             minText={convertToCurrency(PRO_MIN_FCFA)}
             maxText={convertToCurrency(PRO_MAX_FCFA)}
             symbol={currentCurrency.symbol}
+            colors={colors}
           />
 
           {/* Bouton Continuer */}
@@ -201,16 +204,16 @@ export default function CreatorPricingScreen() {
             disabled={isLoading}
             style={{
               width: "100%", height: "55px", marginTop: "10px",
-              backgroundColor: isLoading ? "#4B5563" : "#8B5CF6",
+              backgroundColor: isLoading ? colors.border : colors.primary,
               border: "none", borderRadius: "16px",
-              color: "#FFFFFF", fontSize: "16px", fontWeight: "bold",
+              color: colors.primaryText, fontSize: "16px", fontWeight: "bold",
               cursor: isLoading ? "not-allowed" : "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
               transition: "background 0.2s"
             }}
           >
             {isLoading ? (
-              <div style={{ width: "24px", height: "24px", border: "3px solid white", borderTop: "3px solid transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
+              <div style={{ width: "24px", height: "24px", border: `3px solid ${colors.primaryText}`, borderTop: "3px solid transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
             ) : (
               "Continuer vers le paiement"
             )}
@@ -234,19 +237,18 @@ export default function CreatorPricingScreen() {
   );
 }
 
-// --- Composant Carte de Prix Réutilisable ---
 function PricingCard({ 
-  title, description, value, onChange, minText, maxText, symbol 
+  title, description, value, onChange, minText, maxText, symbol, colors 
 }: { 
-  title: string, description: string, value: string, onChange: (val: string) => void, minText: string, maxText: string, symbol: string 
+  title: string, description: string, value: string, onChange: (val: string) => void, minText: string, maxText: string, symbol: string, colors: any 
 }) {
   return (
     <div style={{
-      padding: "16px", backgroundColor: "#161616",
-      borderRadius: "16px", border: "1px solid #262626"
+      padding: "16px", backgroundColor: colors.card,
+      borderRadius: "16px", border: `1px solid ${colors.border}`
     }}>
-      <div style={{ color: "#FFFFFF", fontSize: "18px", fontWeight: "bold", marginBottom: "4px" }}>{title}</div>
-      <div style={{ color: "#888888", fontSize: "13px", marginBottom: "16px" }}>{description}</div>
+      <div style={{ color: colors.text, fontSize: "18px", fontWeight: "bold", marginBottom: "4px" }}>{title}</div>
+      <div style={{ color: colors.textMuted, fontSize: "13px", marginBottom: "16px" }}>{description}</div>
       
       <div style={{ position: "relative" }}>
         <input
@@ -257,18 +259,18 @@ function PricingCard({
           placeholder={`Recommandé : ${minText} - ${maxText}`}
           style={{
             width: "100%", padding: "14px 16px", paddingRight: "50px",
-            backgroundColor: "#0A0A0A", border: "1px solid #262626",
-            borderRadius: "12px", color: "#FFFFFF", fontSize: "16px", outline: "none", boxSizing: "border-box"
+            backgroundColor: colors.bg, border: `1px solid ${colors.border}`,
+            borderRadius: "12px", color: colors.text, fontSize: "16px", outline: "none", boxSizing: "border-box"
           }}
         />
         <span style={{
           position: "absolute", right: "16px", top: "50%", transform: "translateY(-50%)",
-          color: "#888888", fontSize: "14px", fontWeight: "bold", pointerEvents: "none"
+          color: colors.textMuted, fontSize: "14px", fontWeight: "bold", pointerEvents: "none"
         }}>
           {symbol}
         </span>
       </div>
-      <div style={{ color: "#666666", fontSize: "11px", marginTop: "6px" }}>
+      <div style={{ color: colors.textMuted, fontSize: "11px", marginTop: "6px", opacity: 0.7 }}>
         Plage autorisée : {minText} à {maxText} {symbol}
       </div>
     </div>

@@ -3,19 +3,24 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function TipsTab() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   const [tips, setTips] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#737373",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     greenAccent: "#4ADE80",
     orangeAccent: "#FB923C",
   };
@@ -98,7 +103,6 @@ export default function TipsTab() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "20px" }}>
       {tips.map((tip) => {
-        // Supabase renvoie toujours l'objet sous le nom "profiles" même avec la syntaxe !tips_fan_id_fkey
         const profile = tip.profiles;
         const fanName = profile?.full_name || profile?.username || "Un fan anonyme";
         const fanAvatar = profile?.avatar_url;
@@ -127,7 +131,7 @@ export default function TipsTab() {
                 <div style={{ position: "relative" }}>
                   <div style={{
                     width: "48px", height: "48px", borderRadius: "50%",
-                    backgroundColor: `${colors.primary}33`,
+                    backgroundColor: colors.hover,
                     backgroundImage: fanAvatar ? `url(${fanAvatar})` : undefined,
                     backgroundSize: "cover", backgroundPosition: "center",
                     display: "flex", alignItems: "center", justifyContent: "center",
@@ -173,13 +177,13 @@ export default function TipsTab() {
             {message && (
               <div style={{
                 width: "100%", padding: "12px",
-                backgroundColor: `${colors.primary}1A`,
+                backgroundColor: colors.hover,
                 borderRadius: "12px",
                 display: "flex", gap: "8px", alignItems: "flex-start"
               }}>
                 <span style={{ fontSize: "18px", color: colors.primary, lineHeight: "1" }}>❝</span>
                 <p style={{ 
-                  margin: 0, color: "rgba(255,255,255,0.7)", fontSize: "14px", 
+                  margin: 0, color: colors.textMuted, fontSize: "14px", 
                   fontStyle: "italic", lineHeight: "1.4" 
                 }}>
                   {message}

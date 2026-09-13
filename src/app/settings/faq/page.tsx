@@ -2,16 +2,22 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function FaqPage() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#000000",
-    card: "#1A1A1A",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
-    primary: "#8B5CF6",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
   };
 
   const faqs = [
@@ -40,7 +46,7 @@ export default function FaqPage() {
       {/* Header */}
       <div style={{ 
         position: "sticky", top: 0, zIndex: 50, backgroundColor: colors.bg, 
-        borderBottom: "1px solid #1A1A1A", padding: "12px 16px",
+        borderBottom: `1px solid ${colors.border}`, padding: "12px 16px",
         display: "flex", alignItems: "center", gap: "12px"
       }}>
         <button 
@@ -69,7 +75,7 @@ export default function FaqPage() {
   );
 }
 
-// --- Composant Accordéon (équivalent de ExpansionTile) ---
+// --- Composant Accordéon ---
 
 function FaqItem({ question, answer, colors }: { question: string; answer: string; colors: any }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -94,7 +100,7 @@ function FaqItem({ question, answer, colors }: { question: string; answer: strin
           cursor: "pointer",
           transition: "background 0.2s"
         }}
-        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)"}
+        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.hover}
         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
       >
         <span style={{ 

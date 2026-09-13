@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function PaymentInfoStep() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   
-  // 1. Récupérer TOUTES les données accumulées
   const [finalData, setFinalData] = useState<any>(null);
 
-  // 2. États du formulaire
   const [selectedOperator, setSelectedOperator] = useState("mtn");
   const [accountNumber, setAccountNumber] = useState("");
   const [accountHolder, setAccountHolder] = useState("");
@@ -17,21 +17,23 @@ export default function PaymentInfoStep() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ✅ Couleurs dynamiques (avec textMuted ajouté)
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textSecondary: "#888888",
-    hint: "#555555",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textSecondary: theme.textMuted,
+    textMuted: theme.textMuted,   // ✅ AJOUTÉ pour corriger l'erreur TS
+    hover: theme.hover,
     mtn: "#FFCC00",
     moov: "#00B2A9",
     orange: "#FF6600",
     red: "#EF4444",
   };
 
-  // Vérification au chargement
   useEffect(() => {
     const savedData = sessionStorage.getItem('creator_activation_final');
     if (!savedData) {
@@ -49,7 +51,6 @@ export default function PaymentInfoStep() {
 
   const currentOperator = operators.find(op => op.id === selectedOperator) || operators[0];
 
-  // 3. ✅ MODIFIÉ : On ne fait PLUS l'insertion ici, on prépare juste les données
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -66,18 +67,14 @@ export default function PaymentInfoStep() {
     setIsLoading(true);
 
     try {
-      // ✅ AJOUTER les infos de paiement aux données existantes
       const completeFinalData = {
-        ...finalData, // Contient déjà : fullName, birthDate, city, category, idCardUrl, phoneVerified, premiumPrice, proPrice, currency
+        ...finalData,
         paymentMethod: selectedOperator,
         paymentAccountNumber: accountNumber.trim(),
         paymentHolderName: accountHolder.trim(),
       };
 
-      // ✅ Sauvegarder le paquet COMPLET pour l'écran de confirmation
       sessionStorage.setItem('creator_activation_final', JSON.stringify(completeFinalData));
-
-      // ✅ Redirection vers l'écran de confirmation (qui fera l'insertion Supabase)
       router.push("/creator/activate/confirmation");
       
     } catch (err: any) {
@@ -100,13 +97,13 @@ export default function PaymentInfoStep() {
     <div style={{ minHeight: "100vh", backgroundColor: colors.bg, color: colors.text, display: "flex", flexDirection: "column" }}>
       <div style={{ flex: 1, padding: "24px", maxWidth: "600px", margin: "0 auto", width: "100%" }}>
         
-        {/* Barre de progression (100%) */}
+        {/* Barre de progression */}
         <div style={{ marginBottom: "30px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
             <span style={{ color: colors.primary, fontWeight: 600, fontSize: "14px" }}>Finalisation</span>
-            <span style={{ backgroundColor: `${colors.primary}33`, color: colors.primary, padding: "4px 12px", borderRadius: "12px", fontSize: "14px", fontWeight: "bold" }}>3/3</span>
+            <span style={{ backgroundColor: colors.hover, color: colors.primary, padding: "4px 12px", borderRadius: "12px", fontSize: "14px", fontWeight: "bold" }}>3/3</span>
           </div>
-          <div style={{ height: "6px", backgroundColor: "#1A1A1A", borderRadius: "8px", overflow: "hidden" }}>
+          <div style={{ height: "6px", backgroundColor: colors.card, borderRadius: "8px", overflow: "hidden" }}>
             <div style={{ width: "100%", height: "100%", backgroundColor: colors.primary, borderRadius: "8px" }} />
           </div>
         </div>
@@ -118,7 +115,7 @@ export default function PaymentInfoStep() {
 
         {error && (
           <div style={{
-            padding: "12px 16px", backgroundColor: `${colors.red}1A`,
+            padding: "12px 16px", backgroundColor: "rgba(239, 68, 68, 0.1)",
             border: `1px solid ${colors.red}`, borderRadius: "12px",
             color: colors.red, fontSize: "14px", marginBottom: "24px", textAlign: "center"
           }}>
@@ -147,14 +144,14 @@ export default function PaymentInfoStep() {
                     <div style={{
                       width: "70px", height: "70px", borderRadius: "50%",
                       backgroundColor: isSelected ? `${op.color}33` : colors.bg,
-                      border: `2px solid ${isSelected ? op.color : "#374151"}`,
+                      border: `2px solid ${isSelected ? op.color : colors.border}`,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: "28px", fontWeight: "bold", color: isSelected ? op.color : "#6B7280",
+                      fontSize: "28px", fontWeight: "bold", color: isSelected ? op.color : colors.textMuted,
                       transition: "all 0.2s"
                     }}>
                       {op.name[0]}
                     </div>
-                    <span style={{ color: isSelected ? op.color : "#6B7280", fontSize: "14px", fontWeight: isSelected ? "bold" : "normal" }}>
+                    <span style={{ color: isSelected ? op.color : colors.textMuted, fontSize: "14px", fontWeight: isSelected ? "bold" : "normal" }}>
                       {op.name}
                     </span>
                     {isSelected && <div style={{ width: "20px", height: "3px", backgroundColor: op.color, borderRadius: "2px" }} />}
@@ -237,16 +234,16 @@ export default function PaymentInfoStep() {
             disabled={isLoading}
             style={{
               width: "100%", height: "55px", marginTop: "16px",
-              backgroundColor: isLoading ? "#4B5563" : colors.primary,
+              backgroundColor: isLoading ? colors.border : colors.primary,
               border: "none", borderRadius: "16px",
-              color: "#FFFFFF", fontSize: "16px", fontWeight: "bold",
+              color: colors.primaryText, fontSize: "16px", fontWeight: "bold",
               cursor: isLoading ? "not-allowed" : "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
               transition: "background 0.2s"
             }}
           >
             {isLoading ? (
-              <div style={{ width: "24px", height: "24px", border: "3px solid white", borderTop: "3px solid transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
+              <div style={{ width: "24px", height: "24px", border: `3px solid ${colors.primaryText}`, borderTop: "3px solid transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
             ) : (
               "Continuer vers confirmation"
             )}

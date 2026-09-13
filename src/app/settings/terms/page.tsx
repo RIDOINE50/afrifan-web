@@ -1,14 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function TermsOfServicePage() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#000000",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF", // Équivalent de Colors.grey dans Flutter
+    bg: theme.bg,
+    border: theme.border,
+    text: theme.text,
+    textMuted: theme.textMuted,
   };
 
   return (
@@ -22,7 +26,7 @@ export default function TermsOfServicePage() {
       {/* AppBar */}
       <div style={{ 
         position: "sticky", top: 0, zIndex: 50, backgroundColor: colors.bg, 
-        borderBottom: "1px solid #1A1A1A", padding: "12px 16px",
+        borderBottom: `1px solid ${colors.border}`, padding: "12px 16px",
         display: "flex", alignItems: "center", gap: "12px"
       }}>
         <button 
@@ -34,7 +38,7 @@ export default function TermsOfServicePage() {
         <h1 style={{ margin: 0, fontSize: "18px", fontWeight: "bold" }}>Conditions Générales</h1>
       </div>
 
-      {/* Corps de la page (Scrollable) */}
+      {/* Corps */}
       <div style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}>
         
         {/* Section 1 */}

@@ -3,23 +3,28 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
+  const { isDark, theme } = useAppTheme();
   const [user, setUser] = useState<any>(null);
   const [followedCreators, setFollowedCreators] = useState<any[]>([]);
   
-  // ✅ NOUVEAU : État pour ouvrir/fermer le menu sur mobile
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
+    overlay: isDark ? "rgba(0,0,0,0.7)" : "rgba(0,0,0,0.4)",
     danger: "#EF4444",
     pink: "#EC4899",
   };
@@ -42,13 +47,12 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setIsMobileMenuOpen(false); // Fermer le menu mobile après déconnexion
+    setIsMobileMenuOpen(false);
     router.push("/login");
   };
 
-  // ✅ NOUVEAU : Ajout de l'onglet "Créer"
   const navItems = [
-    { name: "Créer", icon: "➕", path: "/create", isAction: true }, // Bouton spécial
+    { name: "Créer", icon: "➕", path: "/create", isAction: true },
     { name: "Pour toi", icon: "🏠", path: "/" },
     { name: "Explorer", icon: "🧭", path: "/explore" },
     { name: "LIVE", icon: "📡", path: "/live" },
@@ -63,8 +67,8 @@ export default function Sidebar() {
     padding: isAction ? "12px" : "10px 12px",
     borderRadius: "8px",
     cursor: "pointer",
-    color: isAction ? "white" : (pathname === path ? colors.primary : colors.text),
-    backgroundColor: isAction ? colors.primary : (pathname === path ? `${colors.primary}15` : "transparent"),
+    color: isAction ? colors.primaryText : (pathname === path ? colors.primary : colors.text),
+    backgroundColor: isAction ? colors.primary : (pathname === path ? colors.hover : "transparent"),
     fontWeight: pathname === path || isAction ? "bold" : "500",
     fontSize: "15px",
     transition: "all 0.2s",
@@ -74,14 +78,12 @@ export default function Sidebar() {
 
   const handleNavigation = (path: string) => {
     router.push(path);
-    setIsMobileMenuOpen(false); // ✅ Ferme le menu mobile après un clic
+    setIsMobileMenuOpen(false);
   };
 
   return (
     <>
-      {/* ==========================================
-          1. BOUTON HAMBURGER (Visible UNIQUEMENT sur mobile)
-      ========================================== */}
+      {/* 1. BOUTON HAMBURGER (Mobile) */}
       <button 
         className="mobile-hamburger-btn"
         onClick={() => setIsMobileMenuOpen(true)}
@@ -97,15 +99,13 @@ export default function Sidebar() {
           color: colors.text,
           fontSize: "20px",
           cursor: "pointer",
-          display: "none", // Caché sur desktop, activé par CSS media query
+          display: "none",
         }}
       >
         ☰
       </button>
 
-      {/* ==========================================
-          2. OVERLAY SOMBRE (Pour fermer en cliquant dehors sur mobile)
-      ========================================== */}
+      {/* 2. OVERLAY */}
       {isMobileMenuOpen && (
         <div 
           className="mobile-overlay"
@@ -113,16 +113,14 @@ export default function Sidebar() {
           style={{
             position: "fixed",
             inset: 0,
-            backgroundColor: "rgba(0,0,0,0.7)",
+            backgroundColor: colors.overlay,
             zIndex: 90,
             backdropFilter: "blur(4px)",
           }}
         />
       )}
 
-      {/* ==========================================
-          3. LA SIDEBAR (Desktop + Mobile Drawer)
-      ========================================== */}
+      {/* 3. SIDEBAR */}
       <aside 
         className={`sidebar-container ${isMobileMenuOpen ? 'mobile-open' : ''}`}
         style={{
@@ -140,7 +138,7 @@ export default function Sidebar() {
           transition: "transform 0.3s ease-in-out",
         }}
       >
-        {/* En-tête avec bouton fermer (Mobile uniquement) */}
+        {/* En-tête */}
         <div style={{ 
           display: "flex", 
           justifyContent: "space-between", 
@@ -154,14 +152,14 @@ export default function Sidebar() {
           >
             <div style={{
               width: "36px", height: "36px", borderRadius: "8px",
-              background: `linear-gradient(135deg, ${colors.primary}, ${colors.pink})`,
+              backgroundColor: colors.primary,
+              color: colors.primaryText,
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontWeight: "bold", fontSize: "18px", color: "white"
+              fontWeight: "bold", fontSize: "18px"
             }}>A</div>
             <span style={{ fontSize: "20px", fontWeight: "bold", color: colors.text }}>Afrifan</span>
           </div>
           
-          {/* Bouton X pour fermer sur mobile */}
           <button 
             className="mobile-close-btn"
             onClick={() => setIsMobileMenuOpen(false)}
@@ -223,12 +221,12 @@ export default function Sidebar() {
                   display: "flex", alignItems: "center", gap: "10px", padding: "8px 12px",
                   borderRadius: "8px", cursor: "pointer", transition: "background 0.2s",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.card)}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hover)}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
               >
                 <div style={{
                   width: "28px", height: "28px", borderRadius: "50%",
-                  backgroundColor: colors.card,
+                  backgroundColor: colors.hover,
                   backgroundImage: creator.avatar_url ? `url(${creator.avatar_url})` : undefined,
                   backgroundSize: "cover", backgroundPosition: "center",
                   display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", color: colors.textMuted
@@ -266,38 +264,30 @@ export default function Sidebar() {
         </button>
       </aside>
 
-      {/* ==========================================
-          4. CSS MEDIA QUERIES (Le secret du responsive)
-      ========================================== */}
+      {/* 4. CSS MEDIA QUERIES */}
       <style>{`
-        /* Par défaut (Desktop) : Tout est normal */
         .mobile-hamburger-btn { display: none !important; }
         .mobile-close-btn { display: none !important; }
         .mobile-overlay { display: none !important; }
         .sidebar-container { transform: translateX(0) !important; }
 
-        /* Sur Mobile (écrans < 768px) */
         @media (max-width: 768px) {
-          /* Afficher le bouton hamburger */
           .mobile-hamburger-btn { display: block !important; }
           
-          /* Cacher la sidebar par défaut (la pousser hors de l'écran) */
           .sidebar-container {
             position: fixed !important;
             top: 0;
             left: 0;
             height: 100vh;
-            transform: translateX(-100%) !important; /* Caché à gauche */
+            transform: translateX(-100%) !important;
             border-right: none;
             box-shadow: 4px 0 20px rgba(0,0,0,0.5);
           }
           
-          /* Quand le menu est ouvert, le faire glisser */
           .sidebar-container.mobile-open {
             transform: translateX(0) !important;
           }
           
-          /* Afficher le bouton fermer et l'overlay */
           .mobile-close-btn { display: block !important; }
         }
       `}</style>

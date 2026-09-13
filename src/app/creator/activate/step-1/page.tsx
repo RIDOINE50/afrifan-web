@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function PersonalInfoStep() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,14 +20,16 @@ export default function PersonalInfoStep() {
     'Cuisine', 'Art & Design', 'Technologie', 'Autre'
   ];
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#333333",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textSecondary: "#9CA3AF",
-    hint: "#6B7280",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textSecondary: theme.textMuted,
+    hover: theme.hover,
     red: "#EF4444",
   };
 
@@ -33,7 +37,6 @@ export default function PersonalInfoStep() {
     e.preventDefault();
     setError(null);
 
-    // 1. Validations (équivalent du FormValidator Flutter)
     if (!fullName.trim()) {
       setError("Le nom complet est requis.");
       return;
@@ -54,8 +57,6 @@ export default function PersonalInfoStep() {
     setIsLoading(true);
 
     try {
-      // 2. Sauvegarder les données dans sessionStorage pour les passer à l'étape suivante
-      // (Équivalent de passer les props au IdentityVerificationStep en Flutter)
       sessionStorage.setItem('creator_activation_step1', JSON.stringify({
         fullName: fullName.trim(),
         birthDate: birthDate,
@@ -63,10 +64,7 @@ export default function PersonalInfoStep() {
         category: category,
       }));
 
-      // Simuler un petit délai pour l'effet de chargement (comme dans ton code Flutter)
       await new Promise(resolve => setTimeout(resolve, 300));
-
-      // 3. Rediriger vers l'étape 2
       router.push("/creator/activate/step-2");
       
     } catch (err) {
@@ -96,10 +94,9 @@ export default function PersonalInfoStep() {
           Remplissez ces informations pour compléter votre profil
         </p>
 
-        {/* Message d'erreur */}
         {error && (
           <div style={{
-            padding: "12px 16px", backgroundColor: `${colors.red}1A`,
+            padding: "12px 16px", backgroundColor: "rgba(239, 68, 68, 0.1)",
             border: `1px solid ${colors.red}`, borderRadius: "12px",
             color: colors.red, fontSize: "14px", marginBottom: "24px", textAlign: "center"
           }}>
@@ -137,12 +134,12 @@ export default function PersonalInfoStep() {
                 type="date"
                 value={birthDate}
                 onChange={(e) => setBirthDate(e.target.value)}
-                max={new Date().toISOString().split("T")[0]} // Empêche de choisir une date future
+                max={new Date().toISOString().split("T")[0]}
                 style={{
                   width: "100%", padding: "18px 16px 18px 48px",
                   backgroundColor: colors.card, border: `1px solid ${colors.border}`,
                   borderRadius: "12px", color: colors.text, fontSize: "16px", outline: "none", boxSizing: "border-box",
-                  colorScheme: "dark" // Force le calendrier en mode sombre
+                  colorScheme: isDark ? "dark" : "light"
                 }}
               />
             </div>
@@ -185,7 +182,7 @@ export default function PersonalInfoStep() {
               >
                 <option value="" disabled>Sélectionnez une catégorie</option>
                 {categories.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
+                  <option key={cat} value={cat} style={{ backgroundColor: colors.card, color: colors.text }}>{cat}</option>
                 ))}
               </select>
               <span style={{ position: "absolute", right: "16px", top: "50%", transform: "translateY(-50%)", color: colors.primary, fontSize: "28px", pointerEvents: "none" }}>▼</span>
@@ -198,16 +195,16 @@ export default function PersonalInfoStep() {
             disabled={isLoading}
             style={{
               width: "100%", height: "55px", marginTop: "14px",
-              backgroundColor: isLoading ? colors.textSecondary : colors.primary,
+              backgroundColor: isLoading ? colors.border : colors.primary,
               border: "none", borderRadius: "16px",
-              color: "#FFFFFF", fontSize: "16px", fontWeight: "bold",
+              color: colors.primaryText, fontSize: "16px", fontWeight: "bold",
               cursor: isLoading ? "not-allowed" : "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
               transition: "background 0.2s"
             }}
           >
             {isLoading ? (
-              <div style={{ width: "24px", height: "24px", border: "2px solid white", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
+              <div style={{ width: "24px", height: "24px", border: `2px solid ${colors.primaryText}`, borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
             ) : (
               "Suivant"
             )}
@@ -219,9 +216,9 @@ export default function PersonalInfoStep() {
       <style>{`
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         select option { background-color: ${colors.card}; color: ${colors.text}; }
-        /* Force l'icône du calendrier en blanc pour le mode sombre */
+        /* ✅ Icône calendrier : noire en light, blanche en dark */
         input[type="date"]::-webkit-calendar-picker-indicator {
-          filter: invert(1);
+          filter: ${isDark ? "invert(1)" : "invert(0)"};
           cursor: pointer;
         }
       `}</style>

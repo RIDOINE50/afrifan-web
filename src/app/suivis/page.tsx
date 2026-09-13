@@ -4,21 +4,26 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import DashboardLayout from "@/components/DashboardLayout";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function SuivisPage() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   const [user, setUser] = useState<any>(null);
   const [followings, setFollowings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [unfollowingIds, setUnfollowingIds] = useState<Set<string>>(new Set());
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     green: "#10B981",
     danger: "#EF4444",
   };
@@ -39,7 +44,6 @@ export default function SuivisPage() {
   const fetchFollowings = async (userId: string) => {
     setIsLoading(true);
     try {
-      // 1. Récupérer tous les following_id que cet utilisateur suit
       const { data: followsData, error: followsError } = await supabase
         .from("follows")
         .select("following_id, created_at")
@@ -54,7 +58,6 @@ export default function SuivisPage() {
         return;
       }
 
-      // 2. Récupérer les profils de ces personnes suivies
       const followingIds = followsData.map((f: any) => f.following_id);
       const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
@@ -63,7 +66,6 @@ export default function SuivisPage() {
 
       if (profilesError) throw profilesError;
 
-      // 3. Fusionner les données pour l'affichage
       const mergedFollowings = followsData.map((follow: any) => {
         const profile = profilesData?.find((p: any) => p.id === follow.following_id);
         return {
@@ -81,12 +83,10 @@ export default function SuivisPage() {
     }
   };
 
-  // ✅ Fonction pour se désabonner d'un utilisateur
   const handleUnfollow = async (targetUserId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user) return;
 
-    // État de chargement pour le bouton
     setUnfollowingIds(prev => new Set(prev).add(targetUserId));
 
     try {
@@ -98,7 +98,6 @@ export default function SuivisPage() {
 
       if (error) throw error;
 
-      // Retirer de la liste immédiatement
       setFollowings(prev => prev.filter(f => f.following_id !== targetUserId));
     } catch (error) {
       console.error("❌ Erreur unfollow:", error);
@@ -134,7 +133,7 @@ export default function SuivisPage() {
     <DashboardLayout>
       <div style={{ maxWidth: "800px", margin: "0 auto", padding: "24px", minHeight: "100dvh", backgroundColor: colors.bg }}>
         
-        {/* Header de la page */}
+        {/* Header */}
         <div style={{ marginBottom: "24px" }}>
           <h1 style={{ fontSize: "28px", fontWeight: "bold", color: colors.text, margin: "0 0 8px 0" }}>
             Mes Suivis
@@ -144,7 +143,7 @@ export default function SuivisPage() {
           </p>
         </div>
 
-        {/* Liste des suivis */}
+        {/* Liste */}
         {followings.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 20px", backgroundColor: colors.card, borderRadius: "16px", border: `1px solid ${colors.border}` }}>
             <div style={{ fontSize: "48px", marginBottom: "16px" }}>👥</div>
@@ -160,7 +159,7 @@ export default function SuivisPage() {
                 backgroundColor: colors.primary,
                 border: "none",
                 borderRadius: "20px",
-                color: "#FFFFFF",
+                color: colors.primaryText,
                 fontWeight: "bold",
                 fontSize: "14px",
                 cursor: "pointer",
@@ -187,7 +186,7 @@ export default function SuivisPage() {
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.backgroundColor = "#222222";
+                  e.currentTarget.style.backgroundColor = colors.hover;
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = "translateY(0)";
@@ -201,7 +200,7 @@ export default function SuivisPage() {
                     width: "56px",
                     height: "56px",
                     borderRadius: "50%",
-                    backgroundColor: colors.border,
+                    backgroundColor: colors.hover,
                     backgroundImage: following.profile?.avatar_url ? `url(${following.profile.avatar_url})` : undefined,
                     backgroundSize: "cover",
                     backgroundPosition: "center",

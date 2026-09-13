@@ -3,21 +3,26 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function ConfirmationScreen() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   
   const [isLoading, setIsLoading] = useState(true);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textSecondary: "#888888",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textSecondary: theme.textMuted,
+    hover: theme.hover,
     green: "#22C55E",
     red: "#EF4444",
   };
@@ -30,18 +35,15 @@ export default function ConfirmationScreen() {
     try {
       console.log("📤 Envoi final de la demande créateur à Supabase...");
 
-      // 1. Récupérer les données accumulées (y compris les infos de paiement de l'étape précédente)
       const finalDataStr = sessionStorage.getItem("creator_activation_final");
       if (!finalDataStr) {
         throw new Error("Données de candidature introuvables. Veuillez recommencer.");
       }
       const data = JSON.parse(finalDataStr);
 
-      // 2. Vérifier l'utilisateur
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Utilisateur non connecté.");
 
-      // 3. Insertion dans la table creator_applications
       const { error } = await supabase.from("creator_applications").insert({
         user_id: user.id,
         full_name: data.fullName,
@@ -64,7 +66,6 @@ export default function ConfirmationScreen() {
 
       console.log("✅ Demande créateur enregistrée avec succès !");
 
-      // 4. Nettoyage du sessionStorage
       sessionStorage.removeItem("creator_activation_step1");
       sessionStorage.removeItem("creator_activation_step2");
       sessionStorage.removeItem("creator_activation_final");
@@ -83,7 +84,7 @@ export default function ConfirmationScreen() {
     return (
       <div style={{ minHeight: "100vh", backgroundColor: colors.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "30px" }}>
         <div style={{ textAlign: "center" }}>
-          <div style={{ width: "40px", height: "40px", border: "3px solid #2A2A2A", borderTop: `3px solid ${colors.primary}`, borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 24px" }}></div>
+          <div style={{ width: "40px", height: "40px", border: `3px solid ${colors.border}`, borderTop: `3px solid ${colors.primary}`, borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 24px" }}></div>
           <h2 style={{ color: colors.text, fontSize: "18px", fontWeight: "bold", marginBottom: "8px" }}>Envoi de votre demande...</h2>
           <p style={{ color: colors.textSecondary, fontSize: "14px" }}>Veuillez ne pas quitter la page.</p>
         </div>
@@ -103,7 +104,7 @@ export default function ConfirmationScreen() {
             onClick={submitApplication}
             style={{
               width: "100%", height: "55px", backgroundColor: colors.primary, border: "none", borderRadius: "16px",
-              color: "#FFFFFF", fontSize: "16px", fontWeight: "bold", cursor: "pointer"
+              color: colors.primaryText, fontSize: "16px", fontWeight: "bold", cursor: "pointer"
             }}
           >
             Réessayer
@@ -152,11 +153,11 @@ export default function ConfirmationScreen() {
 
         {/* Bouton d'action */}
         <button
-          onClick={() => router.replace("/profile")} // Redirige vers le profil et remplace l'historique
+          onClick={() => router.replace("/profile")}
           style={{
             width: "100%", height: "55px", backgroundColor: colors.primary, border: "none", borderRadius: "16px",
-            color: "#FFFFFF", fontSize: "16px", fontWeight: "bold", cursor: "pointer",
-            boxShadow: `0 4px 14px ${colors.primary}40`
+            color: colors.primaryText, fontSize: "16px", fontWeight: "bold", cursor: "pointer",
+            boxShadow: isDark ? `0 4px 14px rgba(255,255,255,0.2)` : `0 4px 14px rgba(0,0,0,0.15)`
           }}
         >
           Retour à mon profil

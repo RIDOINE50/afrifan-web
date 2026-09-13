@@ -4,20 +4,25 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import DashboardLayout from "@/components/DashboardLayout";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function AbonnementsPage() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   const [user, setUser] = useState<any>(null);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ✅ Couleurs dynamiques selon le thème
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     green: "#10B981",
     orange: "#F97316",
     red: "#EF4444",
@@ -40,7 +45,6 @@ export default function AbonnementsPage() {
   const fetchSubscriptions = async (userId: string) => {
     setIsLoading(true);
     try {
-      // 1. Récupérer tous les abonnements de l'utilisateur
       const { data: subsData, error: subsError } = await supabase
         .from("subscriptions")
         .select("*")
@@ -55,7 +59,6 @@ export default function AbonnementsPage() {
         return;
       }
 
-      // 2. Récupérer les profils des créateurs
       const creatorIds = [...new Set(subsData.map((s: any) => s.creator_id))];
       const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
@@ -64,7 +67,6 @@ export default function AbonnementsPage() {
 
       if (profilesError) throw profilesError;
 
-      // 3. Grouper les abonnements par créateur (garder le plus récent/élevé)
       const groupedSubs: Record<string, any> = {};
       
       subsData.forEach((sub: any) => {
@@ -86,24 +88,20 @@ export default function AbonnementsPage() {
         groupedSubs[creatorId].subscriptions.push(sub);
       });
 
-      // 4. Pour chaque créateur, déterminer le statut global
       const now = new Date();
       const finalSubscriptions = Object.values(groupedSubs).map((group: any) => {
-        // Trouver l'abonnement le plus récent ou actif
         const activeSub = group.subscriptions.find((s: any) => s.status === "active");
-        const latestSub = group.subscriptions[0]; // Le plus récent (trié par created_at DESC)
+        const latestSub = group.subscriptions[0];
         
         const currentSub = activeSub || latestSub;
         const endDate = new Date(currentSub.end_date);
         const isExpired = endDate < now;
         const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
         
-        // Déterminer le statut d'affichage
         let displayStatus = "active";
         if (isExpired) displayStatus = "expired";
         else if (daysRemaining <= 7) displayStatus = "expiring_soon";
         
-        // Obtenir le tier le plus élevé
         const tiers = group.subscriptions.map((s: any) => s.tier_type);
         const highestTier = tiers.includes("pro") ? "pro" : tiers.includes("premium") ? "premium" : "basic";
         
@@ -119,7 +117,6 @@ export default function AbonnementsPage() {
         };
       });
 
-      // Trier : actifs d'abord, puis expirés
       finalSubscriptions.sort((a: any, b: any) => {
         if (a.display_status === "active" && b.display_status !== "active") return -1;
         if (a.display_status !== "active" && b.display_status === "active") return 1;
@@ -153,9 +150,9 @@ export default function AbonnementsPage() {
 
   const getTierColor = (tier: string) => {
     switch (tier) {
-      case "pro": return "#F59E0B"; // Or
-      case "premium": return "#8B5CF6"; // Violet
-      case "basic": return "#10B981"; // Vert
+      case "pro": return "#F59E0B";
+      case "premium": return "#8B5CF6";
+      case "basic": return "#10B981";
       default: return "#9CA3AF";
     }
   };
@@ -217,7 +214,7 @@ export default function AbonnementsPage() {
                 backgroundColor: colors.primary,
                 border: "none",
                 borderRadius: "20px",
-                color: "#FFFFFF",
+                color: colors.primaryText,
                 fontWeight: "bold",
                 fontSize: "14px",
                 cursor: "pointer",
@@ -245,7 +242,6 @@ export default function AbonnementsPage() {
                   onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-2px)")}
                   onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
                 >
-                  {/* Header de la carte */}
                   <div
                     style={{
                       display: "flex",
@@ -256,7 +252,6 @@ export default function AbonnementsPage() {
                     }}
                     onClick={() => handleViewProfile(sub.creator_id)}
                   >
-                    {/* Avatar */}
                     <div
                       style={{
                         width: "64px",
@@ -277,7 +272,6 @@ export default function AbonnementsPage() {
                       {!sub.profile?.avatar_url && "👤"}
                     </div>
 
-                    {/* Infos */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
                         <span style={{ fontWeight: "bold", fontSize: "18px", color: colors.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -291,7 +285,6 @@ export default function AbonnementsPage() {
                         @{sub.profile?.username}
                       </div>
                       
-                      {/* Badge de statut */}
                       <div
                         style={{
                           display: "inline-block",
@@ -307,7 +300,6 @@ export default function AbonnementsPage() {
                       </div>
                     </div>
 
-                    {/* Badge Tier */}
                     <div
                       style={{
                         padding: "8px 16px",
@@ -324,11 +316,10 @@ export default function AbonnementsPage() {
                     </div>
                   </div>
 
-                  {/* Footer avec infos et bouton */}
                   <div
                     style={{
                       padding: "12px 16px",
-                      backgroundColor: "rgba(0, 0, 0, 0.2)",
+                      backgroundColor: colors.hover,
                       borderTop: `1px solid ${colors.border}`,
                       display: "flex",
                       justifyContent: "space-between",
@@ -337,7 +328,6 @@ export default function AbonnementsPage() {
                       gap: "12px",
                     }}
                   >
-                    {/* Date d'expiration */}
                     <div style={{ fontSize: "13px", color: colors.textMuted }}>
                       {sub.is_expired ? (
                         <span style={{ color: colors.red }}>
@@ -350,7 +340,6 @@ export default function AbonnementsPage() {
                       )}
                     </div>
 
-                    {/* Bouton Renouveler */}
                     {sub.is_expired && (
                       <button
                         onClick={() => handleRenew(sub.creator_id)}
@@ -359,7 +348,7 @@ export default function AbonnementsPage() {
                           backgroundColor: colors.primary,
                           border: "none",
                           borderRadius: "20px",
-                          color: "#FFFFFF",
+                          color: colors.primaryText,
                           fontWeight: "bold",
                           fontSize: "13px",
                           cursor: "pointer",
@@ -368,8 +357,8 @@ export default function AbonnementsPage() {
                           alignItems: "center",
                           gap: "6px",
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#7C3AED")}
-                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = colors.primary)}
+                        onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.9")}
+                        onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
                       >
                         🔄 Renouveler
                       </button>

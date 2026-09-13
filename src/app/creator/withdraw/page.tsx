@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function WithdrawalScreen() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   
   const [currentBalance, setCurrentBalance] = useState(0);
   const [amount, setAmount] = useState("");
@@ -16,14 +18,16 @@ export default function WithdrawalScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    primaryHover: "#7C3AED",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     green: "#22C55E",
     red: "#EF4444",
   };
@@ -40,8 +44,6 @@ export default function WithdrawalScreen() {
         return;
       }
 
-      // ✅ CORRECTION ICI : On utilise 'creator_id' au lieu de 'user_id'
-      // pour matcher exactement la logique de ton DashboardService Flutter
       const { data, error } = await supabase
         .from('wallets') 
         .select('balance')
@@ -51,7 +53,6 @@ export default function WithdrawalScreen() {
       if (data && data.balance !== null && data.balance !== undefined) {
         setCurrentBalance(data.balance);
       } else {
-        // Fallback si la ligne n'existe pas encore pour ce créateur
         setCurrentBalance(0);
       }
     } catch (err) {
@@ -67,7 +68,6 @@ export default function WithdrawalScreen() {
 
     const amountValue = parseFloat(amount);
 
-    // 1. Validations
     if (isNaN(amountValue) || amountValue < 5000) {
       setError("Le montant minimum de retrait est de 5 000 FCFA.");
       return;
@@ -89,7 +89,6 @@ export default function WithdrawalScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Utilisateur non connecté");
 
-      // 2. Insérer la demande de retrait dans la table 'withdrawals'
       const { error: dbError } = await supabase.from('withdrawals').insert({
         creator_id: user.id,
         amount: amountValue,
@@ -101,17 +100,14 @@ export default function WithdrawalScreen() {
 
       if (dbError) throw dbError;
 
-      // 3. (Optionnel mais recommandé) Mettre à jour le solde dans la table wallets 
-      // pour qu'il baisse immédiatement, comme dans ton code Flutter
       const newBalance = currentBalance - amountValue;
       await supabase
         .from('wallets')
         .update({ balance: newBalance })
         .eq('creator_id', user.id);
 
-      // 4. Succès : Retour au dashboard
       alert("✅ Demande de retrait envoyée avec succès !");
-      router.push("/creator/dashboard?tab=wallet"); // Redirige vers l'onglet portefeuille
+      router.push("/creator/dashboard?tab=wallet");
       
     } catch (err: any) {
       console.error("❌ Erreur retrait:", err);
@@ -144,7 +140,7 @@ export default function WithdrawalScreen() {
         <div style={{
           width: "100%", padding: "24px", textAlign: "center",
           backgroundColor: colors.card, borderRadius: "16px",
-          border: `1px solid ${colors.primary}4D`
+          border: `1px solid ${colors.border}`
         }}>
           <div style={{ color: colors.textMuted, fontSize: "14px", marginBottom: "8px" }}>Solde disponible</div>
           <div style={{ color: colors.text, fontSize: "36px", fontWeight: "bold" }}>
@@ -154,7 +150,7 @@ export default function WithdrawalScreen() {
 
         {error && (
           <div style={{
-            padding: "12px 16px", backgroundColor: `${colors.red}1A`,
+            padding: "12px 16px", backgroundColor: "rgba(239, 68, 68, 0.1)",
             border: `1px solid ${colors.red}`, borderRadius: "12px",
             color: colors.red, fontSize: "14px", textAlign: "center"
           }}>
@@ -204,10 +200,10 @@ export default function WithdrawalScreen() {
               appearance: "none", cursor: "pointer"
             }}
           >
-            <option value="mtn">MTN Mobile Money</option>
-            <option value="orange">Orange Money</option>
-            <option value="wave">Wave</option>
-            <option value="moov">Moov Money</option>
+            <option value="mtn" style={{ backgroundColor: colors.card, color: colors.text }}>MTN Mobile Money</option>
+            <option value="orange" style={{ backgroundColor: colors.card, color: colors.text }}>Orange Money</option>
+            <option value="wave" style={{ backgroundColor: colors.card, color: colors.text }}>Wave</option>
+            <option value="moov" style={{ backgroundColor: colors.card, color: colors.text }}>Moov Money</option>
           </select>
         </div>
 
@@ -236,9 +232,9 @@ export default function WithdrawalScreen() {
           disabled={isSubmitting}
           style={{
             width: "100%", padding: "16px", marginTop: "16px",
-            backgroundColor: isSubmitting ? colors.textMuted : colors.primary,
+            backgroundColor: isSubmitting ? colors.border : colors.primary,
             border: "none", borderRadius: "12px",
-            color: colors.text, fontSize: "16px", fontWeight: "bold",
+            color: colors.primaryText, fontSize: "16px", fontWeight: "bold",
             cursor: isSubmitting ? "not-allowed" : "pointer",
             display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
             transition: "background 0.2s"
@@ -246,7 +242,7 @@ export default function WithdrawalScreen() {
         >
           {isSubmitting ? (
             <>
-              <div style={{ width: "20px", height: "20px", border: "2px solid white", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
+              <div style={{ width: "20px", height: "20px", border: `2px solid ${colors.primaryText}`, borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
               Traitement en cours...
             </>
           ) : (

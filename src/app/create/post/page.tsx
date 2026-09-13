@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
-// Interface pour les props (à adapter selon ta méthode de passage de données)
 interface PostSelectionProps {
   file?: File | null;
   mediaType?: "video" | "image";
@@ -17,41 +17,42 @@ export default function PostSelectionScreen({
   selectedSound = null 
 }: PostSelectionProps) {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   
-  // États
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [showFeedModal, setShowFeedModal] = useState(false);
   
-  // États du modal Feed
   const [feedTitle, setFeedTitle] = useState("");
   const [feedCaption, setFeedCaption] = useState("");
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
+    overlay: isDark ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.5)",
     pink: "#EC4899",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    mediaBg: "#111111",
   };
 
-  // 1. Créer l'URL de prévisualisation au montage
   useEffect(() => {
     if (file) {
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
-      return () => URL.revokeObjectURL(url); // Nettoyage mémoire
+      return () => URL.revokeObjectURL(url);
     } else {
-      // Fallback pour tester l'UI sans fichier réel
       setPreviewUrl(mediaType === "video" 
         ? "https://www.w3schools.com/html/mov_bbb.mp4" 
         : "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=600");
     }
   }, [file, mediaType]);
 
-  // 2. Logique de Publication (Story ou Feed)
   const handlePublish = async (target: "story" | "feed", title?: string, caption?: string) => {
     if (!file && !previewUrl?.startsWith("http")) {
       alert("Aucun média à publier.");
@@ -70,7 +71,6 @@ export default function PostSelectionScreen({
       let mediaUrl = previewUrl;
       let fileName = "";
 
-      // A. Upload du fichier vers Supabase Storage (si ce n'est pas une IA ou un test)
       if (file && !previewUrl?.startsWith("http")) {
         const fileExt = file.name.split('.').pop();
         fileName = `${user.id}/${Date.now()}.${fileExt}`;
@@ -86,10 +86,9 @@ export default function PostSelectionScreen({
         mediaUrl = data.publicUrl;
       }
 
-      // B. Insertion dans la base de données
       const table = target === "story" ? "stories" : "posts";
       const record: any = {
-        user_id: user.id, // ou creator_id pour stories selon ton schéma
+        user_id: user.id,
         media_url: mediaUrl,
         media_type: mediaType,
         created_at: new Date().toISOString(),
@@ -97,10 +96,9 @@ export default function PostSelectionScreen({
 
       if (target === "feed") {
         record.title = title || "";
-        record.content = caption || ""; // Adapte 'content' en 'caption' si c'est le nom de ta colonne
+        record.content = caption || "";
         record.music_url = selectedSound?.url || null;
       } else {
-        // Pour les stories
         record.creator_id = user.id;
         if (selectedSound) record.music_url = selectedSound.url;
       }
@@ -108,9 +106,8 @@ export default function PostSelectionScreen({
       const { error: dbError } = await supabase.from(table).insert(record);
       if (dbError) throw dbError;
 
-      // C. Succès
       alert(`✅ Publié avec succès dans ${target === "story" ? "vos Stories" : "votre Feed"} !`);
-      router.push("/"); // Retour à l'accueil
+      router.push("/");
       
     } catch (error) {
       console.error("❌ Erreur de publication:", error);
@@ -133,10 +130,10 @@ export default function PostSelectionScreen({
   return (
     <div style={{ minHeight: "100vh", backgroundColor: colors.bg, color: colors.text, display: "flex", flexDirection: "column" }}>
       
-      {/* 1. ZONE D'APERCÇU (Haut) */}
+      {/* 1. ZONE D'APERÇU */}
       <div style={{ 
         flex: 3, 
-        backgroundColor: "#111", 
+        backgroundColor: colors.mediaBg, 
         display: "flex", 
         alignItems: "center", 
         justifyContent: "center",
@@ -147,7 +144,13 @@ export default function PostSelectionScreen({
       }}>
         <button 
           onClick={() => router.back()}
-          style={{ position: "absolute", top: "20px", left: "20px", background: "rgba(0,0,0,0.5)", border: "none", color: "white", borderRadius: "50%", width: "40px", height: "40px", cursor: "pointer", fontSize: "20px", zIndex: 10 }}
+          style={{ 
+            position: "absolute", top: "20px", left: "20px", 
+            background: "rgba(0,0,0,0.5)", border: "none", 
+            color: "white", borderRadius: "50%", 
+            width: "40px", height: "40px", cursor: "pointer", 
+            fontSize: "20px", zIndex: 10 
+          }}
         >
           ←
         </button>
@@ -170,14 +173,13 @@ export default function PostSelectionScreen({
         )}
       </div>
 
-      {/* 2. ZONE DE CONTRÔLE (Bas) */}
+      {/* 2. ZONE DE CONTRÔLE */}
       <div style={{ flex: 2, padding: "24px", display: "flex", flexDirection: "column" }}>
         
-        {/* Son sélectionné */}
         {selectedSound && (
           <div style={{ 
             padding: "12px", 
-            backgroundColor: `${colors.primary}26`, 
+            backgroundColor: colors.hover, 
             borderRadius: "12px", 
             display: "flex", 
             alignItems: "center", 
@@ -186,7 +188,7 @@ export default function PostSelectionScreen({
           }}>
             <span style={{ fontSize: "20px" }}>🎵</span>
             <div style={{ flex: 1, overflow: "hidden" }}>
-              <div style={{ fontWeight: "bold", fontSize: "14px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div style={{ fontWeight: "bold", fontSize: "14px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: colors.text }}>
                 {selectedSound.title}
               </div>
               <div style={{ fontSize: "12px", color: colors.textMuted }}>
@@ -198,21 +200,23 @@ export default function PostSelectionScreen({
 
         <h2 style={{ fontSize: "22px", fontWeight: "bold", margin: "0 0 20px 0" }}>Où voulez-vous publier ?</h2>
 
-        {/* Carte Story */}
         <PublishCard 
           icon="⚡"
           title="Ma Story"
           subtitle="Disparaît après 24h"
           color={colors.primary}
+          textColor={colors.primaryText}
+          textMuted={colors.textMuted}
           onClick={() => handlePublish("story")}
         />
 
-        {/* Carte Feed */}
         <PublishCard 
           icon="📱"
           title="Mon Feed"
           subtitle="Reste sur votre profil"
           color={colors.pink}
+          textColor="#FFFFFF"
+          textMuted={colors.textMuted}
           onClick={() => setShowFeedModal(true)}
         />
       </div>
@@ -220,16 +224,16 @@ export default function PostSelectionScreen({
       {/* 3. MODAL PUBLICATION FEED */}
       {showFeedModal && (
         <div style={{ 
-          position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.8)", zIndex: 100, 
+          position: "fixed", inset: 0, backgroundColor: colors.overlay, zIndex: 100, 
           display: "flex", alignItems: "flex-end", justifyContent: "center" 
         }}>
           <div style={{ 
             backgroundColor: colors.card, width: "100%", maxWidth: "600px", 
             borderTopLeftRadius: "24px", borderTopRightRadius: "24px", padding: "24px" 
           }}>
-            <div style={{ width: "40px", height: "4px", backgroundColor: colors.textMuted, borderRadius: "2px", margin: "0 auto 24px" }} />
+            <div style={{ width: "40px", height: "4px", backgroundColor: colors.border, borderRadius: "2px", margin: "0 auto 24px" }} />
             
-            <h3 style={{ margin: "0 0 20px", fontSize: "20px", fontWeight: "bold" }}>Détails de la publication</h3>
+            <h3 style={{ margin: "0 0 20px", fontSize: "20px", fontWeight: "bold", color: colors.text }}>Détails de la publication</h3>
             
             <input
               type="text"
@@ -239,7 +243,8 @@ export default function PostSelectionScreen({
               style={{
                 width: "100%", padding: "14px 16px", marginBottom: "12px",
                 backgroundColor: colors.bg, border: `1px solid ${colors.border}`,
-                borderRadius: "12px", color: colors.text, fontSize: "15px", outline: "none", boxSizing: "border-box"
+                borderRadius: "12px", color: colors.text, fontSize: "15px", 
+                outline: "none", boxSizing: "border-box"
               }}
             />
             
@@ -251,7 +256,8 @@ export default function PostSelectionScreen({
               style={{
                 width: "100%", padding: "14px 16px", marginBottom: "24px",
                 backgroundColor: colors.bg, border: `1px solid ${colors.border}`,
-                borderRadius: "12px", color: colors.text, fontSize: "15px", outline: "none", resize: "none", boxSizing: "border-box"
+                borderRadius: "12px", color: colors.text, fontSize: "15px", 
+                outline: "none", resize: "none", boxSizing: "border-box"
               }}
             />
 
@@ -259,7 +265,7 @@ export default function PostSelectionScreen({
               onClick={() => handlePublish("feed", feedTitle, feedCaption)}
               style={{
                 width: "100%", padding: "16px", backgroundColor: colors.primary,
-                border: "none", borderRadius: "12px", color: "white",
+                border: "none", borderRadius: "12px", color: colors.primaryText,
                 fontWeight: "bold", fontSize: "16px", cursor: "pointer"
               }}
             >
@@ -269,8 +275,10 @@ export default function PostSelectionScreen({
             <button
               onClick={() => setShowFeedModal(false)}
               style={{
-                width: "100%", padding: "16px", marginTop: "12px", backgroundColor: "transparent",
-                border: `1px solid ${colors.border}`, borderRadius: "12px", color: colors.textMuted,
+                width: "100%", padding: "16px", marginTop: "12px", 
+                backgroundColor: "transparent",
+                border: `1px solid ${colors.border}`, 
+                borderRadius: "12px", color: colors.textMuted,
                 fontWeight: "bold", fontSize: "14px", cursor: "pointer"
               }}
             >
@@ -287,8 +295,12 @@ export default function PostSelectionScreen({
   );
 }
 
-// Composant réutilisable pour les cartes de publication
-function PublishCard({ icon, title, subtitle, color, onClick }: { icon: string; title: string; subtitle: string; color: string; onClick: () => void }) {
+function PublishCard({ 
+  icon, title, subtitle, color, textColor, textMuted, onClick 
+}: { 
+  icon: string; title: string; subtitle: string; color: string; 
+  textColor: string; textMuted: string; onClick: () => void 
+}) {
   return (
     <button
       onClick={onClick}
@@ -306,15 +318,15 @@ function PublishCard({ icon, title, subtitle, color, onClick }: { icon: string; 
       <div style={{ 
         width: "48px", height: "48px", borderRadius: "12px", 
         backgroundColor: color, display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: "24px"
+        fontSize: "24px", color: textColor
       }}>
         {icon}
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ color: "#FFFFFF", fontSize: "16px", fontWeight: "bold", marginBottom: "4px" }}>{title}</div>
-        <div style={{ color: "#9CA3AF", fontSize: "13px" }}>{subtitle}</div>
+        <div style={{ color: textColor === "#FFFFFF" ? "#FFFFFF" : textColor, fontSize: "16px", fontWeight: "bold", marginBottom: "4px" }}>{title}</div>
+        <div style={{ color: textMuted, fontSize: "13px" }}>{subtitle}</div>
       </div>
-      <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "18px" }}>›</div>
+      <div style={{ color: textMuted, fontSize: "18px" }}>›</div>
     </button>
   );
 }

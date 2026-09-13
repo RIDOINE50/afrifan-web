@@ -3,10 +3,27 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function IncomingCallModal() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   const [incomingCall, setIncomingCall] = useState<any>(null);
+
+  // ✅ Couleurs dynamiques
+  const colors = {
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
+    overlay: isDark ? "rgba(0,0,0,0.95)" : "rgba(0,0,0,0.75)",
+    red: "#EF4444",
+    green: "#22C55E",
+  };
 
   useEffect(() => {
     let callChannel: any = null;
@@ -17,7 +34,6 @@ export default function IncomingCallModal() {
 
       console.log("📡 Écouteur d'appels activé pour:", user.id);
 
-      // Nom unique pour éviter les conflits React
       const channelName = `global_calls_${user.id}_${Date.now()}`;
 
       callChannel = supabase
@@ -44,7 +60,6 @@ export default function IncomingCallModal() {
 
     setupListener();
 
-    // Nettoyage propre
     return () => {
       if (callChannel) {
         supabase.removeChannel(callChannel);
@@ -56,11 +71,7 @@ export default function IncomingCallModal() {
     if (!incomingCall) return;
 
     try {
-      // ✅ 1. Mise à jour de la BDD uniquement. 
-      // C'est plus fiable et l'appelant écoute déjà ce changement !
       await supabase.from("calls").update({ status: "connected" }).eq("id", incomingCall.id);
-      
-      // ✅ 2. Redirection vers l'écran d'appel vocal
       router.push(`/calls/audio?callId=${incomingCall.id}&otherId=${incomingCall.caller_id}&name=Appelant&isReceiver=true`);
       setIncomingCall(null);
     } catch (error) {
@@ -72,7 +83,6 @@ export default function IncomingCallModal() {
     if (!incomingCall) return;
 
     try {
-      // ✅ 1. Mise à jour de la BDD uniquement
       await supabase.from("calls").update({ status: "rejected" }).eq("id", incomingCall.id);
     } catch (error) {
       console.error("Erreur refus:", error);
@@ -81,7 +91,6 @@ export default function IncomingCallModal() {
     }
   };
 
-  // Si aucun appel n'arrive, on n'affiche rien
   if (!incomingCall) return null;
 
   return (
@@ -91,26 +100,26 @@ export default function IncomingCallModal() {
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: "rgba(0,0,0,0.95)",
+      backgroundColor: colors.overlay,
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
       zIndex: 9999,
-      color: "#FFFFFF",
+      color: colors.text,
       fontFamily: "sans-serif"
     }}>
-      <p style={{ color: "#9CA3AF", fontSize: "16px", marginBottom: "24px" }}>Appel vocal entrant...</p>
+      <p style={{ color: colors.textMuted, fontSize: "16px", marginBottom: "24px" }}>Appel vocal entrant...</p>
       
       <div style={{
-        width: "120px", height: "120px", borderRadius: "50%", backgroundColor: "#1C1C1F",
+        width: "120px", height: "120px", borderRadius: "50%", backgroundColor: colors.card,
         display: "flex", alignItems: "center", justifyContent: "center",
         marginBottom: "24px", fontSize: "60px"
       }}>
         👤
       </div>
 
-      <h1 style={{ fontSize: "28px", fontWeight: "bold", marginBottom: "60px" }}>
+      <h1 style={{ fontSize: "28px", fontWeight: "bold", marginBottom: "60px", color: colors.text }}>
         {incomingCall.caller_name || "Appelant"}
       </h1>
 
@@ -119,7 +128,7 @@ export default function IncomingCallModal() {
         <button
           onClick={handleDecline}
           style={{
-            width: "72px", height: "72px", borderRadius: "50%", backgroundColor: "#EF4444",
+            width: "72px", height: "72px", borderRadius: "50%", backgroundColor: colors.red,
             border: "none", fontSize: "32px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center"
           }}
         >
@@ -130,7 +139,7 @@ export default function IncomingCallModal() {
         <button
           onClick={handleAnswer}
           style={{
-            width: "72px", height: "72px", borderRadius: "50%", backgroundColor: "#22C55E",
+            width: "72px", height: "72px", borderRadius: "50%", backgroundColor: colors.green,
             border: "none", fontSize: "32px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center"
           }}
         >

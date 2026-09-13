@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function StatsTab() {
   const router = useRouter();
-  const [selectedPeriod, setSelectedPeriod] = useState(7); // 7, 30, ou 90 jours
+  const { isDark, theme } = useAppTheme();
+  const [selectedPeriod, setSelectedPeriod] = useState(7);
   const [stats, setStats] = useState<any>({
     totalViews: 0,
     newFollowers: 0,
@@ -17,13 +19,16 @@ export default function StatsTab() {
   const [topPosts, setTopPosts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#0A0A0A",
-    card: "#1A1A1A",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    card: theme.card,
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     blue: "#3B82F6",
     green: "#22C55E",
     red: "#EF4444",
@@ -40,31 +45,27 @@ export default function StatsTab() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Calculer la date de coupure
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - selectedPeriod);
       const dateStr = cutoffDate.toISOString();
 
-      // 1. Total Abonnés
       const { count: totalFollowers } = await supabase
         .from('follows')
         .select('*', { count: 'exact', head: true })
         .eq('following_id', user.id);
 
-      // 2. Nouveaux Abonnés (sur la période)
       const { count: newFollowers } = await supabase
         .from('follows')
         .select('*', { count: 'exact', head: true })
         .eq('following_id', user.id)
         .gte('created_at', dateStr);
 
-      // 3. Récupérer tous les posts pour calculer les likes, vues et le graphique
       const { data: posts } = await supabase
         .from('posts')
         .select('id, media_url, likes_count, views_count, created_at')
         .eq('user_id', user.id)
         .order('views_count', { ascending: false })
-        .limit(50); // On prend les 50 derniers pour le graphique et le top 5
+        .limit(50);
 
       let totalViews = 0;
       let totalLikes = 0;
@@ -75,7 +76,6 @@ export default function StatsTab() {
           totalViews += post.views_count || 0;
           totalLikes += post.likes_count || 0;
 
-          // Agrégation pour le graphique (uniquement si dans la période)
           const postDate = new Date(post.created_at);
           if (postDate >= cutoffDate) {
             const dayKey = postDate.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
@@ -84,16 +84,14 @@ export default function StatsTab() {
         });
       }
 
-      // Trier les données du graphique chronologiquement
       const sortedViewsByDay: Record<string, number> = {};
       Object.keys(viewsByDay)
         .sort((a, b) => {
-          // Petit hack pour trier les dates "JJ/MM"
           const [dA, mA] = a.split('/');
           const [dB, mB] = b.split('/');
           return new Date(2024, parseInt(mB)-1, parseInt(dB)).getTime() - new Date(2024, parseInt(mA)-1, parseInt(dA)).getTime();
         })
-        .reverse() // Du plus ancien au plus récent pour l'affichage gauche -> droite
+        .reverse()
         .forEach(key => { sortedViewsByDay[key] = viewsByDay[key]; });
 
       setStats({
@@ -104,7 +102,6 @@ export default function StatsTab() {
         viewsByDay: sortedViewsByDay,
       });
 
-      // 4. Top 5 des posts
       setTopPosts(posts ? posts.slice(0, 5) : []);
 
     } catch (error) {
@@ -136,7 +133,6 @@ export default function StatsTab() {
     );
   }
 
-  // Calcul pour le graphique
   const chartEntries = Object.entries(stats.viewsByDay);
   const maxValue = Math.max(1, ...chartEntries.map(([_, val]) => val as number));
 
@@ -152,7 +148,8 @@ export default function StatsTab() {
             style={{
               flex: 1, padding: "12px", borderRadius: "12px", border: "none",
               backgroundColor: selectedPeriod === days ? colors.primary : colors.card,
-              color: colors.text, fontWeight: "bold", fontSize: "14px", cursor: "pointer",
+              color: selectedPeriod === days ? colors.primaryText : colors.text,
+              fontWeight: "bold", fontSize: "14px", cursor: "pointer",
               transition: "background 0.2s"
             }}
           >
@@ -163,13 +160,13 @@ export default function StatsTab() {
 
       {/* 2. CARTES DE STATISTIQUES */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-        <StatCard title="Vues totales" value={formatNumber(stats.totalViews)} icon="👁️" color={colors.blue} />
-        <StatCard title="Nouveaux abonnés" value={formatNumber(stats.newFollowers)} icon="👤+" color={colors.green} />
-        <StatCard title="Total Likes" value={formatNumber(stats.totalLikes)} icon="❤️" color={colors.red} />
-        <StatCard title="Total Abonnés" value={formatNumber(stats.totalFollowers)} icon="👥" color={colors.purple} />
+        <StatCard title="Vues totales" value={formatNumber(stats.totalViews)} icon="👁️" color={colors.blue} colors={colors} />
+        <StatCard title="Nouveaux abonnés" value={formatNumber(stats.newFollowers)} icon="👤+" color={colors.green} colors={colors} />
+        <StatCard title="Total Likes" value={formatNumber(stats.totalLikes)} icon="❤️" color={colors.red} colors={colors} />
+        <StatCard title="Total Abonnés" value={formatNumber(stats.totalFollowers)} icon="👥" color={colors.purple} colors={colors} />
       </div>
 
-      {/* 3. GRAPHIQUE SIMPLE (Évolution des vues) */}
+      {/* 3. GRAPHIQUE */}
       <div>
         <h3 style={{ color: colors.text, fontSize: "18px", fontWeight: "bold", marginBottom: "16px" }}>Évolution des vues</h3>
         <div style={{ backgroundColor: colors.card, borderRadius: "12px", padding: "16px", height: "180px", display: "flex", alignItems: "flex-end", justifyContent: "space-around", gap: "8px" }}>
@@ -183,7 +180,7 @@ export default function StatsTab() {
                   <span style={{ color: colors.textMuted, fontSize: "10px", marginBottom: "4px" }}>{formatNumber(value as number)}</span>
                   <div style={{ 
                     width: "100%", maxWidth: "30px", 
-                    height: `${Math.max(heightPercent, 5)}%`, // Min 5% pour la visibilité
+                    height: `${Math.max(heightPercent, 5)}%`,
                     backgroundColor: colors.primary, 
                     borderRadius: "4px 4px 0 0",
                     transition: "height 0.5s ease"
@@ -206,18 +203,18 @@ export default function StatsTab() {
             topPosts.map((post) => (
               <div 
                 key={post.id} 
-                onClick={() => router.push(`/creator/post-stats/${post.id}`)} // À adapter selon ta route
+                onClick={() => router.push(`/creator/post-stats/${post.id}`)}
                 style={{
                   backgroundColor: colors.card, borderRadius: "12px", padding: "12px",
                   border: `1px solid ${colors.border}`, cursor: "pointer", display: "flex", alignItems: "center", gap: "12px",
                   transition: "background 0.2s"
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#252525"}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.hover}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.card}
               >
                 {/* Miniature */}
                 <div style={{
-                  width: "60px", height: "60px", borderRadius: "8px", backgroundColor: "#2A2A2A",
+                  width: "60px", height: "60px", borderRadius: "8px", backgroundColor: colors.hover,
                   backgroundImage: post.media_url ? `url(${post.media_url})` : undefined,
                   backgroundSize: "cover", backgroundPosition: "center",
                   display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
@@ -254,16 +251,15 @@ export default function StatsTab() {
   );
 }
 
-// Composant Carte de Statistique réutilisable
-function StatCard({ title, value, icon, color }: { title: string; value: string; icon: string; color: string }) {
+function StatCard({ title, value, icon, color, colors }: { title: string; value: string; icon: string; color: string; colors: any }) {
   return (
     <div style={{
-      backgroundColor: "#1A1A1A", borderRadius: "16px", padding: "16px",
-      border: "1px solid #2A2A2A", display: "flex", flexDirection: "column", gap: "12px"
+      backgroundColor: colors.card, borderRadius: "16px", padding: "16px",
+      border: `1px solid ${colors.border}`, display: "flex", flexDirection: "column", gap: "12px"
     }}>
       <span style={{ fontSize: "28px" }}>{icon}</span>
-      <div style={{ color: "#FFFFFF", fontSize: "24px", fontWeight: "bold" }}>{value}</div>
-      <div style={{ color: "#9CA3AF", fontSize: "12px" }}>{title}</div>
+      <div style={{ color: colors.text, fontSize: "24px", fontWeight: "bold" }}>{value}</div>
+      <div style={{ color: colors.textMuted, fontSize: "12px" }}>{title}</div>
     </div>
   );
 }

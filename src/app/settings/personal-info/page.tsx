@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function PersonalInfoPage() {
   const router = useRouter();
+  const { isDark, theme } = useAppTheme();
   
   const [user, setUser] = useState<any>(null);
   const [username, setUsername] = useState("");
@@ -15,19 +17,21 @@ export default function PersonalInfoPage() {
   const [isUsernameFocused, setIsUsernameFocused] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
+  // ✅ Couleurs dynamiques
   const colors = {
-    bg: "#000000",
-    card: "#1A1A1A",
-    cardDisabled: "#151515",
-    border: "#2A2A2A",
-    primary: "#8B5CF6",
-    text: "#FFFFFF",
-    textMuted: "#9CA3AF",
+    bg: theme.bg,
+    card: theme.card,
+    cardDisabled: isDark ? "#151515" : "#E5E7EB",
+    border: theme.border,
+    primary: theme.primary,
+    primaryText: theme.primaryText,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    hover: theme.hover,
     success: "#22C55E",
     error: "#EF4444",
   };
 
-  // 1. Récupération des vraies données au chargement
   useEffect(() => {
     const fetchData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -40,7 +44,6 @@ export default function PersonalInfoPage() {
       setUser(session.user);
       setEmail(session.user.email || "");
 
-      // Récupérer le username depuis la table profiles
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('username')
@@ -57,7 +60,6 @@ export default function PersonalInfoPage() {
     fetchData();
   }, [router]);
 
-  // 2. Sauvegarde des modifications
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -113,7 +115,7 @@ export default function PersonalInfoPage() {
         </p>
 
         <form onSubmit={handleSave}>
-          {/* Message de succès ou d'erreur */}
+          {/* Message */}
           {message && (
             <div style={{ 
               padding: "12px 16px", 
@@ -187,10 +189,10 @@ export default function PersonalInfoPage() {
             style={{
               width: "100%",
               padding: "16px",
-              backgroundColor: isSaving ? "#374151" : colors.primary,
+              backgroundColor: isSaving ? colors.border : colors.primary,
               border: "none",
               borderRadius: "12px",
-              color: colors.text,
+              color: colors.primaryText,
               fontSize: "16px",
               fontWeight: "bold",
               cursor: isSaving ? "not-allowed" : "pointer",
@@ -201,7 +203,7 @@ export default function PersonalInfoPage() {
             }}
           >
             {isSaving ? (
-              <div style={{ width: "20px", height: "20px", border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #FFFFFF", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
+              <div style={{ width: "20px", height: "20px", border: `2px solid ${colors.primaryText}`, borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
             ) : (
               "Enregistrer les modifications"
             )}
