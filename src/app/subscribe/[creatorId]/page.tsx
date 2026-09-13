@@ -5,9 +5,9 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 const PAYMENT_METHODS = [
-  { id: 'mtn_momo', name: 'MTN Mobile Money', color: '#FFCC00', icon: '📱' },
-  { id: 'orange_money', name: 'Orange Money', color: '#FF6600', icon: '🍊' },
-  { id: 'moov_money', name: 'Moov Money', color: '#0066CC', icon: '📶' },
+  { id: 'mtn', name: 'MTN Mobile Money', color: '#FFCC00', icon: '📱' },
+  { id: 'orange', name: 'Orange Money', color: '#FF6600', icon: '🍊' },
+  { id: 'moov', name: 'Moov Money', color: '#0066CC', icon: '📶' },
   { id: 'wave', name: 'Wave', color: '#00BFFF', icon: '🌊' },
 ];
 
@@ -16,10 +16,8 @@ export default function PaymentPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   
-  // ✅ Détection du type de paiement (produit ou abonnement)
   const paymentType = searchParams.get('type') || 'subscription'; 
   
-  // ✅ Récupération des paramètres (compatibles avec les deux flux)
   const productId = searchParams.get('productId');
   const productName = searchParams.get('productName') || 'Produit numérique';
   const tierType = searchParams.get('tier') || 'premium';
@@ -50,6 +48,7 @@ export default function PaymentPage() {
     init();
   }, [router]);
 
+  // ✅ APPEL À TA FONCTION EXISTANTE 'kikiapay-payment'
   const handlePayment = async () => {
     if (!selectedMethod) {
       setError("Veuillez sélectionner un moyen de paiement.");
@@ -64,47 +63,29 @@ export default function PaymentPage() {
     setError("");
 
     try {
-      // 1. Simuler un délai de traitement (remplacer plus tard par l'API de paiement réelle)
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // 1. Appel à ta fonction Edge Supabase existante
+      const { data, error: fnError } = await supabase.functions.invoke('kikiapay-payment', {
+        body: {
+          amount: price,
+          type: paymentType === 'product' ? 'product' : 'subscription',
+          reference_id: paymentType === 'product' ? productId : creatorId,
+          phone: phoneNumber,
+          network: selectedMethod, // ex: 'mtn', 'orange', 'wave'
+        }
+      });
 
-      // ✅ 2. Insertion dans Supabase selon le type de paiement
-      if (paymentType === 'product' && productId) {
-        // --- CAS D'UN ACHAT DE PRODUIT ---
-        const { error: dbError } = await supabase.from('product_purchases').insert({
-          product_id: productId,
-          buyer_id: user.id,
-          creator_id: creatorId,
-          amount_paid: price,
-          payment_status: 'completed',
-          purchase_date: new Date().toISOString(),
-        });
+      if (fnError) throw fnError;
 
-        if (dbError) throw dbError;
-
+      // 2. Gestion de la réponse de ta fonction
+      if (data.success) {
+        setShowSuccess(true);
       } else {
-        // --- CAS D'UN ABONNEMENT ---
-        const startDate = new Date().toISOString();
-        const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-
-        const { error: dbError } = await supabase.from('subscriptions').insert({
-          fan_id: user.id,
-          creator_id: creatorId,
-          tier_type: tierType,
-          amount_paid: price,
-          start_date: startDate,
-          end_date: endDate,
-          status: 'active',
-        });
-
-        if (dbError) throw dbError;
+        throw new Error(data.message || "Le paiement a échoué.");
       }
-
-      // 3. Succès
-      setShowSuccess(true);
       
     } catch (err: any) {
       console.error("❌ Erreur paiement:", err);
-      setError("Échec du paiement. Vérifiez votre connexion ou réessayez.");
+      setError(err.message || "Échec du paiement. Vérifiez votre solde ou réessayez.");
     } finally {
       setIsLoading(false);
     }
@@ -112,15 +93,14 @@ export default function PaymentPage() {
 
   const handleSuccessClose = () => {
     setShowSuccess(false);
-    // ✅ Redirection adaptée selon le type d'achat
     if (paymentType === 'product' && productId) {
-      router.push(`/product/${productId}`); // Retourne au produit pour le télécharger
+      router.push(`/product/${productId}`);
     } else {
-      router.push(`/createur?id=${creatorId}`); // Retourne au profil du créateur
+      router.push(`/createur?id=${creatorId}`);
     }
   };
 
-  if (!user) return null; // Redirection en cours
+  if (!user) return null;
 
   const isProduct = paymentType === 'product';
 
@@ -315,7 +295,7 @@ export default function PaymentPage() {
             {isLoading ? (
               <>
                 <div style={{ width: "20px", height: "20px", border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #FFF", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
-                Traitement...
+                Traitement en cours...
               </>
             ) : (
               `Confirmer le paiement de ${price.toFixed(0)} FCFA`
@@ -342,12 +322,12 @@ export default function PaymentPage() {
           }}>
             <div style={{ fontSize: "48px", marginBottom: "16px" }}>✅</div>
             <h2 style={{ color: "#FFF", fontSize: "20px", fontWeight: "bold", marginBottom: "12px" }}>
-              Paiement réussi !
+              Paiement lancé !
             </h2>
             <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "15px", lineHeight: 1.5, marginBottom: "24px" }}>
               {isProduct 
-                ? "Votre achat est confirmé. Vous pouvez maintenant accéder à votre contenu." 
-                : `Vous êtes maintenant abonné. Profitez du contenu exclusif de ${creatorName} !`}
+                ? "Veuillez valider le retrait sur votre téléphone. Vous aurez accès au produit dès validation." 
+                : `Veuillez valider le retrait sur votre téléphone pour activer votre abonnement.`}
             </p>
             <button
               onClick={handleSuccessClose}
@@ -363,7 +343,7 @@ export default function PaymentPage() {
                 cursor: "pointer"
               }}
             >
-              Super !
+              Compris
             </button>
           </div>
         </div>

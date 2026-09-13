@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+// ✅ Ajout des composants Chakra UI pour le bouton Google (comme dans Register)
+import { Button, Flex, Text, Box } from "@chakra-ui/react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,6 +13,25 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ✅ NOUVEAU : Fonction pour la connexion Google
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const { error: signInError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (signInError) throw signInError;
+    } catch (err: any) {
+      setError(err.message || "Impossible de se connecter avec Google.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,26 +63,23 @@ export default function LoginPage() {
 
         // Si le profil existe et est marqué comme banni
         if (profile?.is_banned === true) {
-          // On déconnecte immédiatement l'utilisateur
           await supabase.auth.signOut();
-          
-          // On affiche le message d'erreur spécifique
-          setError("🚫 Votre compte a été banni de la plateforme Afrifan. Veuillez contacter le support pour plus d'informations.");
+          setError("🚫 Votre compte a été banni de la plateforme Afrifan. Veuillez contacter le support.");
           setIsLoading(false);
-          return; // ⛔ ON ARRÊTE TOUT ICI. Pas de redirection vers /home.
+          return; 
         }
       }
 
-      // 3. Si tout est bon (pas banni), on redirige vers l'accueil
+      // 3. Si tout est bon, on redirige
       router.push("/home");       
     } catch (err: any) {
-      setError(err.message || "Erreur de connexion.");
+      setError(err.message || "Email ou mot de passe incorrect.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // ✅ STYLES TYPSÉS POUR ÉVITER LES ERREURS VERCEL/TYPESCRIPT
+  // ✅ TES STYLES (inchangés)
   const styles: Record<string, React.CSSProperties> = {
     container: {
       minHeight: "100vh",
@@ -138,31 +156,6 @@ export default function LoginPage() {
       justifyContent: "center",
       gap: "8px",
     },
-    divider: {
-      display: "flex",
-      alignItems: "center",
-      gap: "16px",
-      marginTop: "32px",
-    },
-    dividerLine: {
-      flex: 1,
-      height: "1px",
-      backgroundColor: "#2A2A2A",
-    },
-    dividerText: {
-      color: "#9CA3AF",
-      fontSize: "14px",
-    },
-    socialButton: {
-      padding: "12px",
-      borderRadius: "9999px",
-      backgroundColor: "#0A0A0A",
-      border: "1px solid #2A2A2A",
-      cursor: "pointer",
-      transition: "all 0.2s",
-      color: "#FFFFFF",
-      fontWeight: "bold",
-    },
     footer: {
       textAlign: "center",
       marginTop: "32px",
@@ -190,9 +183,9 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           <div>
-            <label style={styles.label}>Email ou numéro de téléphone</label>
+            <label style={styles.label}>Email</label>
             <input
-              type="text"
+              type="email"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               style={styles.input}
@@ -253,24 +246,40 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div style={styles.divider}>
-          <div style={styles.dividerLine}></div>
-          <span style={styles.dividerText}>Ou continuer avec</span>
-          <div style={styles.dividerLine}></div>
-        </div>
+        {/* ✅ NOUVEAU : Séparateur et Vrai Bouton Google (Style Chakra UI) */}
+        <Flex align="center" w="100%" my={8}>
+          <Box flex="1" h="1px" bg="#2A2A2A" />
+          <Text px={4} color="#9CA3AF" fontSize="14px">Ou continuer avec</Text>
+          <Box flex="1" h="1px" bg="#2A2A2A" />
+        </Flex>
 
-        <div style={{ display: "flex", justifyContent: "center", gap: "16px", marginTop: "24px" }}>
-          <button style={styles.socialButton}>G</button>
-          <button style={styles.socialButton}>f</button>
-          <button style={styles.socialButton}>X</button>
-        </div>
+        <Button
+          w="100%"
+          h="50px"
+          bg="white"
+          color="#1A1A1A"
+          _hover={{ bg: "gray.100" }}
+          fontWeight="medium"
+          onClick={handleGoogleSignIn}
+          isLoading={isLoading}
+          leftIcon={
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24px" height="24px">
+              <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z" />
+              <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z" />
+              <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z" />
+              <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
+            </svg>
+          }
+        >
+          Continuer avec Google
+        </Button>
 
         <div style={styles.footer}>
           Pas encore de compte ?{" "}
           <button 
             type="button"
             style={styles.link}
-            onClick={() => router.push("/register")} // Assure-toi que cette route existe
+            onClick={() => router.push("/register")}
           >
             S'inscrire
           </button>
