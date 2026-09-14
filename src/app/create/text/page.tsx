@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppTheme } from "@/contexts/ThemeContext";
-import { useToast } from "@chakra-ui/react"; // ✅ Import du système de notification élégant
+import { useToast } from "@chakra-ui/react";
 
 // ==========================================
 // ✅ VRAIES ICÔNES SVG PROFESSIONNELLES
@@ -35,12 +35,13 @@ const BG_COLORS = [
 
 export default function TextPostScreen() {
   const router = useRouter();
-  const toast = useToast(); // ✅ Initialisation du Toast
+  const toast = useToast();
   const { isDark, theme } = useAppTheme();
   
   const [text, setText] = useState("");
   const [selectedBgColor, setSelectedBgColor] = useState(BG_COLORS[0]);
   const [isPosting, setIsPosting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   
   const MAX_CHARS = 500;
   const charCount = text.length;
@@ -49,7 +50,6 @@ export default function TextPostScreen() {
 
   const handlePublish = async () => {
     if (text.trim().length === 0) {
-      // ✅ Message d'avertissement élégant au lieu de alert()
       toast({
         title: "Oups !",
         description: "Veuillez écrire quelque chose avant de publier.",
@@ -76,24 +76,17 @@ export default function TextPostScreen() {
 
       if (error) throw error;
 
-      // ✅ Message de succès élégant au lieu de alert()
-      toast({
-        title: "Publication réussie ! 🎉",
-        description: "Votre post a été ajouté à votre fil d'actualité.",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-        position: "top",
-      });
+      // ✅ Afficher le beau message de succès
+      setIsPosting(false);
+      setShowSuccess(true);
 
-      // ✅ Redirection propre vers l'Accueil après un court délai pour laisser le temps de voir le message
+      // ✅ Redirection après 2 secondes vers /home
       setTimeout(() => {
-router.push("/home");
-      }, 1000);
+        router.push("/home");
+      }, 2000);
       
     } catch (error: any) {
       console.error("❌ Erreur publication:", error);
-      // ✅ Message d'erreur élégant
       toast({
         title: "Erreur de publication",
         description: error.message || "Une erreur inattendue est survenue.",
@@ -102,10 +95,90 @@ router.push("/home");
         isClosable: true,
         position: "top",
       });
-    } finally {
       setIsPosting(false);
     }
   };
+
+  // ✅ ÉCRAN DE SUCCÈS
+  if (showSuccess) {
+    return (
+      <div style={{ 
+        minHeight: "100vh", 
+        backgroundColor: isDark ? "#000000" : "#FFFFFF", 
+        display: "flex", 
+        flexDirection: "column", 
+        alignItems: "center", 
+        justifyContent: "center",
+        padding: "24px",
+        animation: "fadeIn 0.3s ease"
+      }}>
+        <div style={{
+          position: "relative",
+          width: "120px",
+          height: "120px",
+          borderRadius: "50%",
+          background: `linear-gradient(135deg, ${theme.primary}26, #EC489926)`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: "32px",
+          animation: "pop 0.5s ease",
+        }}>
+          <div style={{
+            width: "90px",
+            height: "90px",
+            borderRadius: "50%",
+            backgroundColor: "#22C55E",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: `0 10px 40px #22C55E66`,
+          }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+        </div>
+
+        <h1 style={{ 
+          fontSize: "26px", 
+          fontWeight: "bold", 
+          color: isDark ? "#FFFFFF" : "#000000", 
+          margin: "0 0 12px 0",
+          textAlign: "center"
+        }}>
+          Publié avec succès !
+        </h1>
+
+        <p style={{ 
+          fontSize: "15px", 
+          color: isDark ? "#9CA3AF" : "#6B7280", 
+          margin: 0, 
+          textAlign: "center",
+          maxWidth: "300px",
+          lineHeight: 1.5
+        }}>
+          Ton texte est maintenant en ligne. Redirection en cours...
+        </p>
+
+        <div style={{
+          marginTop: "32px",
+          display: "flex",
+          gap: "8px",
+        }}>
+          <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: theme.primary, animation: "bounce 1.4s infinite ease-in-out both", animationDelay: "0s" }} />
+          <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: theme.primary, animation: "bounce 1.4s infinite ease-in-out both", animationDelay: "0.2s" }} />
+          <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: theme.primary, animation: "bounce 1.4s infinite ease-in-out both", animationDelay: "0.4s" }} />
+        </div>
+
+        <style>{`
+          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes pop { 0% { transform: scale(0.5); opacity: 0; } 70% { transform: scale(1.05); } 100% { transform: scale(1); opacity: 1; } }
+          @keyframes bounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; } 40% { transform: scale(1); opacity: 1; } }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <div style={{ 

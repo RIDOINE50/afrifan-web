@@ -29,11 +29,6 @@ const Icons = {
     <polyline points="17 8 12 3 7 8" />
     <line x1="12" y1="3" x2="12" y2="15" />
   </>} />,
-  Music: (props: any) => <Icon {...props} path={<>
-    <path d="M9 18V5l12-2v13" />
-    <circle cx="6" cy="18" r="3" />
-    <circle cx="18" cy="16" r="3" />
-  </>} />,
   X: (props: any) => <Icon {...props} path={<>
     <path d="M18 6 6 18" /><path d="m6 6 12 12" />
   </>} />,
@@ -50,12 +45,6 @@ const Icons = {
     <rect x="5" y="2" width="14" height="20" rx="2" />
     <path d="M12 18h.01" />
   </>} />,
-  Check: (props: any) => <Icon {...props} path={<>
-    <polyline points="20 6 9 17 4 12" />
-  </>} />,
-  Sparkles: (props: any) => <Icon {...props} path={<>
-    <path d="m12 3-1.9 5.8L4 10.7l5.8 1.9L12 18.4l2.1-5.8L20 10.7l-6.1-1.9Z" />
-  </>} />,
 };
 
 // ─── COMPOSANT CONTENU (utilise useSearchParams) ──────────
@@ -63,7 +52,6 @@ function CreateContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const { isDark, theme } = useAppTheme();
 
   const [step, setStep] = useState<"upload" | "review">("upload");
@@ -74,10 +62,6 @@ function CreateContent() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<"video" | "photo" | null>(null);
-  
-  const [sounds, setSounds] = useState<any[]>([]);
-  const [selectedSound, setSelectedSound] = useState<any>(null);
-  const [showSoundModal, setShowSoundModal] = useState(false);
 
   const [feedTitle, setFeedTitle] = useState("");
   const [feedCaption, setFeedCaption] = useState("");
@@ -100,8 +84,6 @@ function CreateContent() {
   };
 
   useEffect(() => {
-    fetchSounds();
-    
     const aiImageBase64 = sessionStorage.getItem('ai_generated_image');
     const aiDesc = sessionStorage.getItem('ai_generated_desc');
 
@@ -119,14 +101,8 @@ function CreateContent() {
       if (previewUrl && !previewUrl.startsWith('http') && !previewUrl.startsWith('data:')) {
         URL.revokeObjectURL(previewUrl);
       }
-      if (audioRef.current) audioRef.current.pause();
     };
   }, []);
-
-  const fetchSounds = async () => {
-    const { data, error } = await supabase.from("sounds").select("*").limit(20);
-    if (!error && data) setSounds(data);
-  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -144,22 +120,6 @@ function CreateContent() {
     setSelectedFile(file);
     setPreviewUrl(URL.createObjectURL(file));
     setStep("upload");
-  };
-
-  const playSound = (sound: any) => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-    if (selectedSound?.id === sound.id) {
-      setSelectedSound(null);
-    } else {
-      const audio = new Audio(sound.url);
-      audioRef.current = audio;
-      audio.play().catch(err => console.error("Erreur lecture audio:", err));
-      setSelectedSound(sound);
-    }
-    setShowSoundModal(false);
   };
 
   const handlePublish = async (target: "story" | "feed") => {
@@ -210,7 +170,6 @@ function CreateContent() {
           media_type: mediaType,
           content: feedCaption || "",
           caption: feedCaption || "",
-          music_url: selectedSound?.url || null,
           created_at: new Date().toISOString(),
         });
         if (dbError) throw dbError;
@@ -224,7 +183,6 @@ function CreateContent() {
         if (dbError) throw dbError;
       }
 
-      // ✅ Afficher le beau message de succès
       setSelectedFile(null);
       setPreviewUrl(null);
       setFeedCaption("");
@@ -235,7 +193,6 @@ function CreateContent() {
       
       setShowSuccess(true);
 
-      // ✅ Redirection après 2 secondes vers /home
       setTimeout(() => {
         router.push("/home");
       }, 2000);
@@ -456,86 +413,22 @@ function CreateContent() {
           )}
         </div>
 
-        {/* ÉTAPE 1 : SÉLECTION DU SON */}
+        {/* BOUTON SUIVANT */}
         {step === "upload" && (selectedFile || previewUrl) && !searchParams.get('ai_url') && (
-          <>
-            <div style={{ backgroundColor: colors.card, borderRadius: "16px", padding: "16px", border: `1px solid ${colors.border}` }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}>
-                  <Icons.Music size={18} /> Son
-                </h3>
-                <button onClick={() => setShowSoundModal(true)} style={{ background: "none", border: "none", color: colors.primary, fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>
-                  {selectedSound ? "Changer" : "Ajouter un son"}
-                </button>
-              </div>
-              {selectedSound ? (
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <div style={{ width: "40px", height: "40px", borderRadius: "8px", backgroundColor: colors.bg, display: "flex", alignItems: "center", justifyContent: "center", color: colors.primary }}>
-                    <Icons.Music size={20} />
-                  </div>
-                  <div style={{ flex: 1, overflow: "hidden" }}>
-                    <div style={{ fontWeight: "bold", fontSize: "14px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{selectedSound.title}</div>
-                    <div style={{ fontSize: "12px", color: colors.textMuted }}>{selectedSound.artist}</div>
-                  </div>
-                  <button onClick={() => { setSelectedSound(null); if(audioRef.current) audioRef.current.pause(); }} style={{ background: "none", border: "none", color: colors.textMuted, cursor: "pointer", display: "flex" }}>
-                    <Icons.X size={18} />
-                  </button>
-                </div>
-              ) : (
-                <div style={{ textAlign: "center", padding: "12px", color: colors.textMuted, fontSize: "14px", border: `1px dashed ${colors.border}`, borderRadius: "8px" }}>Aucun son sélectionné</div>
-              )}
-            </div>
-            <button onClick={() => setStep("review")} style={{ width: "100%", padding: "16px", backgroundColor: colors.primary, border: "none", borderRadius: "12px", color: colors.primaryText, fontWeight: "bold", fontSize: "16px", cursor: "pointer" }}>
-              Suivant
-            </button>
-          </>
+          <button onClick={() => setStep("review")} style={{ width: "100%", padding: "16px", backgroundColor: colors.primary, border: "none", borderRadius: "12px", color: colors.primaryText, fontWeight: "bold", fontSize: "16px", cursor: "pointer" }}>
+            Suivant
+          </button>
         )}
 
         {/* ÉTAPE 2 : CHOIX DE PUBLICATION */}
         {step === "review" && (
           <>
-            {selectedSound && (
-              <div style={{ padding: "12px", backgroundColor: colors.hover, borderRadius: "12px", display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                <span style={{ color: colors.primary, display: "flex" }}><Icons.Music size={20} /></span>
-                <div style={{ flex: 1, overflow: "hidden" }}>
-                  <div style={{ fontWeight: "bold", fontSize: "14px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{selectedSound.title}</div>
-                  <div style={{ fontSize: "12px", color: colors.textMuted }}>{selectedSound.artist}</div>
-                </div>
-              </div>
-            )}
-
             <h2 style={{ fontSize: "22px", fontWeight: "bold", margin: "0 0 20px 0" }}>Où voulez-vous publier ?</h2>
             <PublishCard icon={<Icons.Story size={24} />} title="Ma Story" subtitle="Disparaît après 24h" color={colors.primary} textColor={colors.primaryText} textMuted={colors.textMuted} onClick={() => handlePublish("story")} />
             <PublishCard icon={<Icons.Feed size={24} />} title="Mon Feed" subtitle="Reste sur votre profil" color={colors.pink} textColor="#FFFFFF" textMuted={colors.textMuted} onClick={() => setShowFeedModal(true)} />
           </>
         )}
       </div>
-
-      {/* MODAL SONS */}
-      {showSoundModal && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: colors.overlay, zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => setShowSoundModal(false)}>
-          <div style={{ backgroundColor: colors.card, width: "100%", maxWidth: "500px", borderTopLeftRadius: "24px", borderTopRightRadius: "24px", padding: "24px", maxHeight: "60vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-            <div style={{ width: "40px", height: "4px", backgroundColor: colors.border, borderRadius: "2px", margin: "0 auto 20px" }} />
-            <h3 style={{ margin: "0 0 20px", textAlign: "center" }}>Choisir un son</h3>
-            {sounds.length === 0 ? (
-              <p style={{ textAlign: "center", color: colors.textMuted }}>Chargement des sons...</p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {sounds.map((sound: any) => (
-                  <div key={sound.id} onClick={() => playSound(sound)} style={{ padding: "12px", borderBottom: `1px solid ${colors.border}`, cursor: "pointer", display: "flex", alignItems: "center", gap: "12px", borderRadius: "8px", backgroundColor: selectedSound?.id === sound.id ? colors.hover : "transparent" }}>
-                    <span style={{ color: colors.primary, display: "flex" }}><Icons.Music size={22} /></span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: "bold", fontSize: "14px" }}>{sound.title}</div>
-                      <div style={{ fontSize: "12px", color: colors.textMuted }}>{sound.artist}</div>
-                    </div>
-                    {selectedSound?.id === sound.id && <span style={{ color: colors.primary, display: "flex" }}><Icons.Check size={18} /></span>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* MODAL FEED */}
       {showFeedModal && (
