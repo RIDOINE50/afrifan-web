@@ -209,6 +209,42 @@ function CreateContent() {
         <div style={{ width: "24px" }} />
       </div>
 
+      {/* ONGLETS */}
+      <div style={{ display: "flex", borderBottom: `1px solid ${colors.border}`, padding: "0 24px" }}>
+        <button
+          onClick={() => router.push("/create/ia")}
+          style={{
+            flex: 1,
+            padding: "14px 0",
+            background: "none",
+            border: "none",
+            borderBottom: `2px solid transparent`,
+            color: colors.textMuted,
+            fontWeight: "bold",
+            fontSize: "14px",
+            cursor: "pointer",
+          }}
+        >
+          🤖 Créer avec l'IA
+        </button>
+        <button
+          onClick={() => router.push("/create/text")}
+          style={{
+            flex: 1,
+            padding: "14px 0",
+            background: "none",
+            border: "none",
+            borderBottom: `2px solid transparent`,
+            color: colors.textMuted,
+            fontWeight: "bold",
+            fontSize: "14px",
+            cursor: "pointer",
+          }}
+        >
+          ✍️ Créer un texte
+        </button>
+      </div>
+
       {/* CONTENU PRINCIPAL */}
       <div style={{ flex: 1, padding: "24px", display: "flex", flexDirection: "column", gap: "24px", maxWidth: "600px", margin: "0 auto", width: "100%" }}>
         
