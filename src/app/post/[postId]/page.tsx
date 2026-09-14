@@ -6,7 +6,10 @@ import { supabase } from "@/lib/supabaseClient";
 import { downloadForOffline } from "@/lib/offlineManager";
 import TipDialog from "@/components/TipDialog";
 import { useAppTheme } from "@/contexts/ThemeContext";
-import { useToast, Box, Button, Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody, ModalFooter, VStack } from "@chakra-ui/react";
+import { 
+  useToast, 
+  Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody, ModalFooter, VStack, Button, Textarea 
+} from "@chakra-ui/react";
 
 function formatCount(count: number): string {
   if (count >= 1000000) return (count / 1000000).toFixed(1) + "M";
@@ -142,6 +145,11 @@ export default function PostDetailPage() {
   const [showMoreMenu, setShowMoreMenu] = useState<string | null>(null);
   const [reportPostId, setReportPostId] = useState<string>("");
   const [isReportOpen, setIsReportOpen] = useState(false);
+
+  // ✅ NOUVEAUX ÉTATS POUR LA MODIFICATION DYNAMIQUE
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editCaption, setEditCaption] = useState("");
+  const [postToEdit, setPostToEdit] = useState<any>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
@@ -328,27 +336,57 @@ export default function PostDetailPage() {
     }
   };
 
-  const handleEdit = (postId: string) => {
-    toast({ title: "Modification bientôt disponible", description: "Redirection vers l'éditeur...", status: "info", duration: 3000 });
-    // router.push(`/edit-post/${postId}`); // À activer quand la page existera
+  // ✅ 1. OUVRIR LA MODALE DE MODIFICATION
+  const openEditModal = (post: any) => {
+    setPostToEdit(post);
+    setEditCaption(post.caption || post.title || "");
+    setIsEditModalOpen(true);
+    setShowMoreMenu(null); // Fermer le menu 3 points
   };
 
-  const handleDelete = async (postId: string) => {
+  // ✅ 2. SAUVEGARDER LA MODIFICATION DANS SUPABASE
+  const saveEdit = async () => {
+    if (!postToEdit) return;
+    try {
+      await supabase.from('posts').update({
+        caption: editCaption,
+        title: editCaption
+      }).eq('id', postToEdit.id);
+
+      // Mise à jour immédiate de l'interface (Optimistic UI)
+      setPosts(prev => prev.map(p => p.id === postToEdit.id ? { ...p, caption: editCaption, title: editCaption } : p));
+
+      toast({ title: "✅ Post modifié avec succès", status: "success", duration: 3000 });
+      setIsEditModalOpen(false);
+    } catch (error) {
+      console.error("Erreur modification:", error);
+      toast({ title: "Erreur lors de la modification", status: "error", duration: 3000 });
+    }
+  };
+
+  // ✅ 3. SUPPRESSION DYNAMIQUE
+  const handleDelete = async (postIdToDelete: string) => {
     if (!confirm("Voulez-vous vraiment supprimer ce post ? Cette action est irréversible.")) return;
     try {
-      await supabase.from('posts').delete().eq('id', postId);
-      toast({ title: "Post supprimé avec succès", status: "success", duration: 3000 });
-      router.push("/"); 
+      await supabase.from('posts').delete().eq('id', postIdToDelete);
+      toast({ title: "🗑️ Post supprimé avec succès", status: "success", duration: 3000 });
+      setShowMoreMenu(null);
+      
+      // Redirection vers le profil du créateur ou l'accueil
+      setTimeout(() => {
+        router.push(`/createur?id=${creatorInfo.id}`);
+      }, 1000);
     } catch (error) {
+      console.error("Erreur suppression:", error);
       toast({ title: "Erreur lors de la suppression", status: "error", duration: 3000 });
     }
   };
 
-  const fetchComments = async (postId: string) => {
+  const fetchComments = async (postIdToFetch: string) => {
     const { data, error } = await supabase
       .from('comments')
       .select('*, profiles:profiles(username, full_name, avatar_url)')
-      .eq('post_id', postId)
+      .eq('post_id', postIdToFetch)
       .order('created_at', { ascending: false });
     
     if (!error) setComments(data || []);
@@ -517,10 +555,10 @@ export default function PostDetailPage() {
                         overflow: "hidden",
                         minWidth: "140px"
                       }}>
-                        <button onClick={() => { setShowMoreMenu(null); handleEdit(post.id); }} style={{ width: "100%", padding: "12px 16px", display: "flex", alignItems: "center", gap: "8px", backgroundColor: "transparent", border: "none", borderBottom: `1px solid ${colors.border}`, color: colors.text, cursor: "pointer", fontSize: "14px" }}>
+                        <button onClick={() => openEditModal(post)} style={{ width: "100%", padding: "12px 16px", display: "flex", alignItems: "center", gap: "8px", backgroundColor: "transparent", border: "none", borderBottom: `1px solid ${colors.border}`, color: colors.text, cursor: "pointer", fontSize: "14px" }}>
                           <EditIcon /> Modifier
                         </button>
-                        <button onClick={() => { setShowMoreMenu(null); handleDelete(post.id); }} style={{ width: "100%", padding: "12px 16px", display: "flex", alignItems: "center", gap: "8px", backgroundColor: "transparent", border: "none", color: "#EF4444", cursor: "pointer", fontSize: "14px" }}>
+                        <button onClick={() => handleDelete(post.id)} style={{ width: "100%", padding: "12px 16px", display: "flex", alignItems: "center", gap: "8px", backgroundColor: "transparent", border: "none", color: "#EF4444", cursor: "pointer", fontSize: "14px" }}>
                           <TrashIcon /> Supprimer
                         </button>
                       </div>
@@ -542,7 +580,7 @@ export default function PostDetailPage() {
                     <ActionButton 
                       icon={<FlagIcon />} 
                       label="Signaler" 
-                      onClick={() => { setReportPostId(post.id); setIsReportOpen(true); }} 
+                      onClick={() => { setReportPostId(post.id); setIsReportOpen(true); setShowMoreMenu(null); }} 
                     />
                     <ActionButton 
                       icon={<DownloadIcon />} 
@@ -691,6 +729,37 @@ export default function PostDetailPage() {
         </>
       )}
 
+      {/* ✅ MODALE DE MODIFICATION DYNAMIQUE */}
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} isCentered>
+        <ModalOverlay bg="blackAlpha.700" />
+        <ModalContent bg={isDark ? "#1A1A1A" : "#FFFFFF"} color={colors.text} maxW="500px" borderRadius="16px">
+          <ModalHeader>Modifier le post</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Textarea
+              value={editCaption}
+              onChange={(e) => setEditCaption(e.target.value)}
+              placeholder="Nouvelle légende..."
+              rows={4}
+              bg={colors.bg}
+              border={`1px solid ${colors.border}`}
+              color={colors.text}
+              _focus={{ borderColor: colors.primary, boxShadow: "none" }}
+            />
+          </ModalBody>
+          <ModalFooter>
+            <VStack w="100%" spacing="3">
+              <Button w="100%" bg={colors.primary} color={colors.primaryText} _hover={{ opacity: 0.9 }} onClick={saveEdit} isDisabled={!editCaption.trim()}>
+                Enregistrer les modifications
+              </Button>
+              <Button w="100%" variant="ghost" onClick={() => setIsEditModalOpen(false)}>
+                Annuler
+              </Button>
+            </VStack>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
       {showTipModal && currentTipPost && (
         <TipDialog 
           creatorId={creatorInfo.id} 
@@ -702,6 +771,7 @@ export default function PostDetailPage() {
         />
       )}
 
+      {/* ✅ MODALE DE SIGNALEMENT (Déjà dynamique via Supabase) */}
       <ReportModal isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} postId={reportPostId} />
 
       <style>{`
@@ -825,6 +895,7 @@ function ReportModal({ isOpen, onClose, postId }: { isOpen: boolean; onClose: ()
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
+      // ✅ DYNAMIQUE : Enregistre dans la table 'reports' de Supabase
       await supabase.from('reports').insert({ post_id: postId, reporter_id: session.user.id, reason: selectedReason });
       toast({ title: "✅ Signalement envoyé", status: "success", duration: 3000 });
       onClose();
@@ -837,7 +908,7 @@ function ReportModal({ isOpen, onClose, postId }: { isOpen: boolean; onClose: ()
   return (
     <Modal isOpen={isOpen} onClose={onClose} isCentered>
       <ModalOverlay bg="blackAlpha.700" />
-      <ModalContent bg="#1A1A1A" color="white" maxW="400px" borderRadius="16px">
+      <ModalContent bg={isDark ? "#1A1A1A" : "#FFFFFF"} color={isDark ? "white" : "black"} maxW="400px" borderRadius="16px">
         <ModalHeader>Signaler ce post</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
@@ -846,9 +917,9 @@ function ReportModal({ isOpen, onClose, postId }: { isOpen: boolean; onClose: ()
               <Button
                 key={reason}
                 justifyContent="flex-start"
-                bg={selectedReason === reason ? "#3B82F6" : "#2D3748"}
-                color="white"
-                border="1px solid #4A5568"
+                bg={selectedReason === reason ? "#3B82F6" : (isDark ? "#2D3748" : "#E2E8F0")}
+                color={isDark ? "white" : "black"}
+                border={`1px solid ${isDark ? "#4A5568" : "#CBD5E0"}`}
                 _hover={{ opacity: 0.9 }}
                 onClick={() => setSelectedReason(reason)}
               >
