@@ -2,45 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image"; // ✅ Import du composant Image optimisé
 import { supabase } from "@/lib/supabaseClient";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useAppTheme } from "@/contexts/ThemeContext";
-import { useToast } from "@chakra-ui/react";
 
-// ✅ INTERFACES TYPES STRICTES (Plus de 'any')
-interface Creator {
-  id: string;
-  username: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  is_verified: boolean;
-}
-
-interface PostProfile {
-  id: string;
-  username: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  premium_price: number;
-  pro_price: number;
-}
-
-interface Post {
-  id: string;
-  user_id: string;
-  media_url: string | null;
-  media_type: string;
-  caption: string | null;
-  title: string | null;
-  likes_count: number;
-  comments_count: number;
-  created_at: string;
-  is_premium: boolean; // ✅ Ajouté pour la logique de verrouillage
-  profile: PostProfile;
-}
-
-// ✅ VRAIES ICÔNES SVG (Pas d'émojis/stickers)
+// ✅ VRAIES ICÔNES SVG (Plus aucun émoji/sticker)
 const SearchIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
 const CloseIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
 const StarIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>;
@@ -49,15 +15,7 @@ const LockIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="non
 const PlayIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>;
 const HeartIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="#EF4444" stroke="none"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>;
 const RefreshIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>;
-
-// ✅ Fonction utilitaire pour obtenir la première lettre et une couleur cohérente
-const getInitials = (name: string) => (name ? name.charAt(0).toUpperCase() : "?");
-const getAvatarColor = (name: string) => {
-  const colors = ["#A855F7", "#F97316", "#EF4444", "#3B82F6", "#10B981", "#EC4899"];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
-};
+const BellIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>;
 
 function formatCount(count: number): string {
   if (count >= 1000000) return (count / 1000000).toFixed(1) + "M";
@@ -67,18 +25,15 @@ function formatCount(count: number): string {
 
 export default function ExplorePage() {
   const router = useRouter();
-  const toast = useToast(); // ✅ Initialisation du toast
   const { isDark, theme } = useAppTheme();
-  
   const [user, setUser] = useState<any>(null);
-  const [creators, setCreators] = useState<Creator[]>([]);
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [creators, setCreators] = useState<any[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
   const [subscribedCreatorIds, setSubscribedCreatorIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  const [followingLoadingId, setFollowingLoadingId] = useState<string | null>(null); // Pour le loader du bouton suivre
 
   const colors = {
     bg: theme.bg,
@@ -115,7 +70,7 @@ export default function ExplorePage() {
       await Promise.all([
         fetchFollowedIds(userId),
         fetchSubscriptions(userId),
-        fetchCreators(), // ✅ Pas d'ordre, récupère 50 au hasard comme demandé
+        fetchCreators(userId),
         fetchPosts(),
       ]);
       setHasLoadedOnce(true);
@@ -136,11 +91,11 @@ export default function ExplorePage() {
     setSubscribedCreatorIds(new Set(data?.map((s: any) => s.creator_id) || []));
   };
 
-  const fetchCreators = async () => {
-    // ✅ Gardé sans .order() pour avoir un échantillon aléatoire comme demandé
+  const fetchCreators = async (userId: string) => {
     const { data } = await supabase
       .from('profiles')
       .select('id, username, full_name, avatar_url, is_verified')
+      .neq('id', userId)
       .limit(50);
     
     setCreators(data || []);
@@ -149,7 +104,7 @@ export default function ExplorePage() {
   const fetchPosts = async () => {
     const { data: postsData } = await supabase
       .from('posts')
-      // ✅ Ajout de is_premium pour la logique de verrouillage
+      // ✅ Ajout de is_premium pour cibler uniquement les contenus créateurs payants
       .select('id, user_id, media_url, media_type, caption, title, likes_count, comments_count, created_at, is_premium')
       .order('created_at', { ascending: false })
       .limit(30);
@@ -163,23 +118,14 @@ export default function ExplorePage() {
       .select('id, username, full_name, avatar_url, premium_price, pro_price')
       .in('id', userIds);
 
-    const profilesMap: Record<string, PostProfile> = {};
-    profilesData?.forEach((p: any) => { 
-      profilesMap[p.id] = { 
-        id: p.id, 
-        username: p.username, 
-        full_name: p.full_name, 
-        avatar_url: p.avatar_url, 
-        premium_price: p.premium_price || 0, 
-        pro_price: p.pro_price || 0 
-      }; 
-    });
+    const profilesMap: Record<string, any> = {};
+    profilesData?.forEach((p: any) => { profilesMap[p.id] = p; });
 
-    const mergedPosts: Post[] = postsData.map((post: any) => ({
+    const mergedPosts = postsData.map((post: any) => ({
       ...post,
-      profile: profilesMap[post.user_id] || { id: post.user_id, username: 'inconnu', full_name: null, avatar_url: null, premium_price: 0, pro_price: 0 },
+      profile: profilesMap[post.user_id] || { username: 'inconnu', premium_price: 0, pro_price: 0 },
       likes_count: post.likes_count ?? 0,
-      is_premium: post.is_premium ?? false,
+      is_premium: post.is_premium ?? false, // ✅ Récupération du statut premium
     }));
 
     setPosts(mergedPosts);
@@ -190,11 +136,8 @@ export default function ExplorePage() {
       router.push("/login");
       return;
     }
-    
     const isFollowing = followedIds.has(creatorId);
-    setFollowingLoadingId(creatorId);
 
-    // Mise à jour optimiste
     setFollowedIds(prev => {
       const next = new Set(prev);
       if (isFollowing) next.delete(creatorId);
@@ -210,22 +153,12 @@ export default function ExplorePage() {
       }
     } catch (error) {
       console.error("❌ Erreur toggle follow:", error);
-      // Rollback en cas d'erreur
       setFollowedIds(prev => {
         const next = new Set(prev);
         if (isFollowing) next.add(creatorId);
         else next.delete(creatorId);
         return next;
       });
-      // ✅ TOAST D'ERREUR
-      toast({
-        title: "Erreur",
-        description: "Impossible de modifier l'abonnement. Vérifiez votre connexion.",
-        status: "error",
-        duration: 3000,
-      });
-    } finally {
-      setFollowingLoadingId(null);
     }
   };
 
@@ -263,21 +196,29 @@ export default function ExplorePage() {
 
   return (
     <DashboardLayout>
-      <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "20px", backgroundColor: colors.bg, minHeight: "100vh" }}>
-        
+      <div style={{ 
+        maxWidth: "1400px", 
+        margin: "0 auto", 
+        padding: "20px", 
+        backgroundColor: colors.bg,
+        minHeight: "100vh"
+      }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
           <h1 style={{ color: colors.text, fontSize: "28px", fontWeight: "bold", margin: 0 }}>Découvrir</h1>
           <button 
             onClick={() => router.push("/notifications")}
-            style={{ background: "none", border: "none", color: colors.text, fontSize: "24px", cursor: "pointer", padding: "8px" }}
+            style={{ background: "none", border: "none", color: colors.text, cursor: "pointer", padding: "8px", display: "flex" }}
           >
-            🔔
+            <BellIcon />
           </button>
         </div>
 
         {/* Barre de recherche */}
-        <div style={{ display: "flex", alignItems: "center", backgroundColor: colors.card, borderRadius: "999px", padding: "12px 20px", marginBottom: "32px", border: `1px solid ${colors.border}` }}>
+        <div style={{ 
+          display: "flex", alignItems: "center", backgroundColor: colors.card, borderRadius: "999px", 
+          padding: "12px 20px", marginBottom: "32px", border: `1px solid ${colors.border}`
+        }}>
           <span style={{ color: colors.textMuted, marginRight: "12px", display: "flex" }}><SearchIcon /></span>
           <input
             type="text"
@@ -312,10 +253,10 @@ export default function ExplorePage() {
             {filteredCreators.length === 0 ? (
               <div style={{ color: colors.textMuted, padding: "20px" }}>Aucun créateur trouvé</div>
             ) : (
-              filteredCreators.map((creator) => {
+              filteredCreators.map((creator: any) => {
                 const isFollowing = followedIds.has(creator.id);
                 const displayName = creator.full_name || creator.username;
-                
+
                 return (
                   <div
                     key={creator.id}
@@ -328,23 +269,21 @@ export default function ExplorePage() {
                     onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
                     onClick={() => router.push(`/createur?id=${creator.id}`)}
                   >
-                    {/* ✅ AVATAR AVEC INITIALE (Plus de sticker bonhomme) */}
+                    {/* ✅ PHOTO RÉELLE OU INITIALE (Plus de sticker "bonhomme") */}
                     {creator.avatar_url ? (
-                      <Image 
+                      <img 
                         src={creator.avatar_url} 
                         alt={displayName} 
-                        width={64} 
-                        height={64} 
-                        style={{ borderRadius: "50%", objectFit: "cover" }}
+                        style={{ width: "64px", height: "64px", borderRadius: "50%", objectFit: "cover" }}
                       />
                     ) : (
                       <div style={{
                         width: "64px", height: "64px", borderRadius: "50%", 
-                        backgroundColor: getAvatarColor(displayName),
+                        backgroundColor: colors.primary, 
                         display: "flex", alignItems: "center", justifyContent: "center", 
                         fontSize: "28px", fontWeight: "bold", color: "white"
                       }}>
-                        {getInitials(displayName)}
+                        {displayName.charAt(0).toUpperCase()}
                       </div>
                     )}
                     
@@ -354,18 +293,14 @@ export default function ExplorePage() {
 
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleFollow(creator.id); }}
-                      disabled={followingLoadingId === creator.id}
                       style={{
                         width: "100%", padding: "8px", 
                         backgroundColor: isFollowing ? colors.border : colors.primary,
                         color: isFollowing ? colors.textMuted : colors.primaryText, 
-                        border: "none", borderRadius: "12px", fontWeight: "bold", fontSize: "12px", 
-                        cursor: followingLoadingId === creator.id ? "wait" : "pointer", 
-                        transition: "background 0.2s",
-                        opacity: followingLoadingId === creator.id ? 0.7 : 1
+                        border: "none", borderRadius: "12px", fontWeight: "bold", fontSize: "12px", cursor: "pointer", transition: "background 0.2s"
                       }}
                     >
-                      {followingLoadingId === creator.id ? "..." : (isFollowing ? "Suivi" : "Suivre")}
+                      {isFollowing ? "Suivi" : "Suivre"}
                     </button>
                   </div>
                 );
@@ -395,10 +330,10 @@ export default function ExplorePage() {
             </div>
           ) : (
             <div className="responsive-posts-grid">
-              {filteredPosts.map((post) => {
+              {filteredPosts.map((post: any) => {
                 const creatorId = post.user_id;
                 const isMyOwnPost = user?.id === creatorId;
-                // ✅ LOGIQUE IS_LOCKED CORRIGÉE : Vérifie is_premium
+                // ✅ CADENAS UNIQUEMENT sur les publications créateurs marquées comme premium
                 const isLocked = post.is_premium === true && !isMyOwnPost && !subscribedCreatorIds.has(creatorId);
                 const username = post.profile?.username || 'inconnu';
                 const displayName = post.profile?.full_name || username;
@@ -416,22 +351,16 @@ export default function ExplorePage() {
                       }
                     }}
                     className="post-card"
-                    style={{ position: "relative" }} // Nécessaire pour next/image fill
                   >
                     {post.media_url ? (
                       <>
                         {isLocked ? (
                           <>
-                            {/* ✅ Utilisation de next/image avec blur */}
-                            <div style={{ position: "absolute", inset: 0, filter: "blur(25px) brightness(0.6)", zIndex: 1 }}>
-                              <Image src={post.media_url} alt="Post" fill style={{ objectFit: "cover", transform: "scale(1.1)" }} />
-                            </div>
-                            <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", zIndex: 2 }} />
+                            <div style={{ filter: "blur(25px) brightness(0.6)", width: "100%", height: "100%", backgroundImage: `url(${post.media_url})`, backgroundSize: "cover", backgroundPosition: "center", transform: "scale(1.1)" }} />
+                            <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.6)" }} />
                           </>
                         ) : (
-                          <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
-                            <Image src={post.media_url} alt="Post" fill style={{ objectFit: "cover" }} />
-                          </div>
+                          <div style={{ width: "100%", height: "100%", backgroundImage: `url(${post.media_url})`, backgroundSize: "cover", backgroundPosition: "center" }} />
                         )}
                       </>
                     ) : (
@@ -453,12 +382,12 @@ export default function ExplorePage() {
                     )}
 
                     {post.media_type === 'video' && !isLocked && (
-                      <div style={{ position: "absolute", top: "12px", right: "12px", width: "40px", height: "40px", borderRadius: "50%", backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 5 }}>
+                      <div style={{ position: "absolute", top: "12px", right: "12px", width: "40px", height: "40px", borderRadius: "50%", backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <PlayIcon />
                       </div>
                     )}
 
-                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "16px", background: "linear-gradient(transparent, rgba(0,0,0,0.9))", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 5 }}>
+                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "16px", background: "linear-gradient(transparent, rgba(0,0,0,0.9))", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ color: "white", fontWeight: "bold", fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }}>
                         @{username}
                       </div>
@@ -516,13 +445,21 @@ export default function ExplorePage() {
         }
 
         @media (min-width: 1200px) {
-          .responsive-posts-grid { grid-template-columns: repeat(4, 1fr); }
+          .responsive-posts-grid {
+            grid-template-columns: repeat(4, 1fr);
+          }
         }
+        
         @media (max-width: 1199px) and (min-width: 768px) {
-          .responsive-posts-grid { grid-template-columns: repeat(3, 1fr); }
+          .responsive-posts-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
         }
+
         @media (max-width: 767px) {
-          .responsive-posts-grid { grid-template-columns: repeat(2, 1fr); }
+          .responsive-posts-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
         }
       `}</style>
     </DashboardLayout>
