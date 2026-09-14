@@ -88,7 +88,7 @@ export default function TextPostScreen() {
 
       // ✅ Redirection propre vers l'Accueil après un court délai pour laisser le temps de voir le message
       setTimeout(() => {
-        router.push("/");
+router.push("/home");
       }, 1000);
       
     } catch (error: any) {
