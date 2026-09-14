@@ -890,18 +890,40 @@ function ReportModal({ isOpen, onClose, postId, isDark }: { isOpen: boolean; onC
   const [selectedReason, setSelectedReason] = useState("");
 
   const handleReport = async () => {
-    if (!selectedReason) return;
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      await supabase.from('reports').insert({ post_id: postId, reporter_id: session.user.id, reason: selectedReason });
+  if (!selectedReason) return;
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    
+    // ✅ CORRECTION : Utiliser target_id et target_type selon ta structure
+    const { error } = await supabase.from('reports').insert({
+      reporter_id: session.user.id,
+      target_id: postId,
+      target_type: 'post', // ✅ Important pour le trigger
+      reason: selectedReason
+    });
+
+    if (error) {
+      // Si l'erreur est "duplicate key", c'est que l'utilisateur a déjà signalé
+      if (error.code === '23505') {
+        toast({ 
+          title: "Déjà signalé", 
+          description: "Vous avez déjà signalé ce post.", 
+          status: "warning", 
+          duration: 3000 
+        });
+      } else {
+        throw error;
+      }
+    } else {
       toast({ title: "✅ Signalement envoyé", status: "success", duration: 3000 });
-      onClose();
-    } catch (error) {
-      console.error("Erreur signalement:", error);
-      toast({ title: "Erreur lors du signalement", status: "error" });
     }
-  };
+    onClose();
+  } catch (error) {
+    console.error("Erreur signalement:", error);
+    toast({ title: "Erreur lors du signalement", status: "error", duration: 3000 });
+  }
+};
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} isCentered>
