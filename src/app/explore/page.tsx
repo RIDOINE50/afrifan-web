@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useAppTheme } from "@/contexts/ThemeContext";
 
-// ✅ VRAIES ICÔNES SVG (Plus aucun émoji/sticker)
+// ✅ VRAIES ICÔNES SVG (Aucun émoji/sticker)
 const SearchIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
 const CloseIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
 const StarIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>;
@@ -94,7 +94,7 @@ export default function ExplorePage() {
   const fetchCreators = async (userId: string) => {
     const { data } = await supabase
       .from('profiles')
-      .select('id, username, full_name, avatar_url, is_verified')
+      .select('id, username, full_name, avatar_url, is_verified, role') // ✅ Ajout de 'role'
       .neq('id', userId)
       .limit(50);
     
@@ -102,11 +102,9 @@ export default function ExplorePage() {
   };
 
   const fetchPosts = async () => {
-    // ✅ CORRECTION : Utilisation de .select('*') exactement comme dans HomePage
-    // Cela évite l'erreur si une colonne spécifique n'existe pas.
     const { data: postsData } = await supabase
       .from('posts')
-      .select('*') 
+      .select('id, user_id, media_url, media_type, caption, title, likes_count, comments_count, created_at')
       .order('created_at', { ascending: false })
       .limit(30);
 
@@ -116,7 +114,7 @@ export default function ExplorePage() {
     
     const { data: profilesData } = await supabase
       .from('profiles')
-      .select('id, username, full_name, avatar_url, premium_price, pro_price')
+      .select('id, username, full_name, avatar_url, role, premium_price, pro_price') // ✅ Ajout de 'role'
       .in('id', userIds);
 
     const profilesMap: Record<string, any> = {};
@@ -124,9 +122,9 @@ export default function ExplorePage() {
 
     const mergedPosts = postsData.map((post: any) => ({
       ...post,
-      profile: profilesMap[post.user_id] || { username: 'inconnu', premium_price: 0, pro_price: 0 },
+      // ✅ Valeur par défaut avec role: 'user' pour éviter les erreurs
+      profile: profilesMap[post.user_id] || { username: 'inconnu', full_name: null, avatar_url: null, role: 'user', premium_price: 0, pro_price: 0 },
       likes_count: post.likes_count ?? 0,
-      // is_premium sera pris tel quel s'il existe, sinon il sera undefined (ce qui est safe)
     }));
 
     setPosts(mergedPosts);
@@ -180,7 +178,7 @@ export default function ExplorePage() {
   const filteredPosts = posts.filter((p) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
-    const caption = (p.caption || p.title || p.content || '').toLowerCase();
+    const caption = (p.caption || p.title || '').toLowerCase();
     const username = (p.profile?.username || '').toLowerCase();
     return caption.includes(query) || username.includes(query);
   });
@@ -334,8 +332,12 @@ export default function ExplorePage() {
               {filteredPosts.map((post: any) => {
                 const creatorId = post.user_id;
                 const isMyOwnPost = user?.id === creatorId;
-                // ✅ CADENAS UNIQUEMENT si is_premium est explicitement true
-                const isLocked = post.is_premium === true && !isMyOwnPost && !subscribedCreatorIds.has(creatorId);
+                
+                // ✅ LOGIQUE EXACTE DU FLUTTER :
+                const creatorRole = post.profile?.role || 'user';
+                const isCreator = creatorRole === 'creator';
+                const isLocked = isCreator && !isMyOwnPost && !subscribedCreatorIds.has(creatorId);
+                
                 const username = post.profile?.username || 'inconnu';
                 const displayName = post.profile?.full_name || username;
                 const likesCount = post.likes_count || 0;
