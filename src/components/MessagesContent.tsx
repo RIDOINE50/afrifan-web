@@ -5,6 +5,37 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppTheme } from "@/contexts/ThemeContext";
 
+// ==========================================
+// ✅ VRAIES ICÔNES SVG PROFESSIONNELLES
+// ==========================================
+const Icon = ({ path, size = 20, className = "" }: { path: React.ReactNode; size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    {path}
+  </svg>
+);
+
+const Icons = {
+  MessageSquare: (props: any) => <Icon {...props} path={<><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></>} />,
+  Search: (props: any) => <Icon {...props} path={<><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></>} />,
+  X: (props: any) => <Icon {...props} path={<><path d="M18 6 6 18" /><path d="m6 6 12 12" /></>} />,
+  Settings: (props: any) => <Icon {...props} path={<><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></>} />,
+  Refresh: (props: any) => <Icon {...props} path={<><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></>} />,
+  User: (props: any) => <Icon {...props} path={<><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>} />,
+  Pin: (props: any) => <Icon {...props} path={<><line x1="12" x2="12" y1="17" y2="22" /><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" /></>} />,
+  BellOff: (props: any) => <Icon {...props} path={<><path d="M13.73 21a2 2 0 0 1-3.46 0" /><path d="M18.63 13A17.89 17.89 0 0 1 18 8" /><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" /><path d="M18 8a6 6 0 0 0-9.33-5" /><line x1="1" x2="23" y1="1" y2="23" /></>} />,
+  Mic: (props: any) => <Icon {...props} path={<><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /></>} />,
+  Send: (props: any) => <Icon {...props} path={<><line x1="22" x2="11" y1="2" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></>} />,
+  ArrowLeft: (props: any) => <Icon {...props} path={<><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></>} />,
+  Phone: (props: any) => <Icon {...props} path={<><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></>} />,
+  Trash: (props: any) => <Icon {...props} path={<><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></>} />,
+  Ban: (props: any) => <Icon {...props} path={<><circle cx="12" cy="12" r="10" /><path d="m4.9 4.9 14.2 14.2" /></>} />,
+  Check: (props: any) => <Icon {...props} path={<><polyline points="20 6 9 17 4 12" /></>} />,
+  CheckCheck: (props: any) => <Icon {...props} path={<><path d="M18 6 7 17l-5-5" /><path d="m22 10-7.5 7.5L13 16" /></>} />,
+  Users: (props: any) => <Icon {...props} path={<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>} />,
+  Circle: (props: any) => <Icon {...props} path={<><circle cx="12" cy="12" r="10" /></>} />,
+  Square: (props: any) => <Icon {...props} path={<><rect width="18" height="18" x="3" y="3" rx="2" /></>} />,
+};
+
 export default function MessagesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -20,7 +51,6 @@ export default function MessagesContent() {
   const [inputText, setInputText] = useState("");
   const [replyTo, setReplyTo] = useState<any>(null);
   const [editingMsg, setEditingMsg] = useState<any>(null);
-  const [showEmoji, setShowEmoji] = useState(false);
   const [isSending, setIsSending] = useState(false);
   
   const [isRecording, setIsRecording] = useState(false);
@@ -30,7 +60,6 @@ export default function MessagesContent() {
   const recordingTimerRef = useRef<any>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
@@ -44,7 +73,6 @@ export default function MessagesContent() {
   const [allowFanRequests, setAllowFanRequests] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // ✅ Couleurs dynamiques selon le thème
   const colors = {
     bg: theme.bg,
     card: theme.card,
@@ -53,9 +81,8 @@ export default function MessagesContent() {
     primaryText: theme.primaryText,
     text: theme.text,
     textMuted: theme.textMuted,
-    hover: theme.hover, // ✅ AJOUT
+    hover: theme.hover,
     green: "#22C55E",
-    orange: "#F59E0B",
     red: "#EF4444",
   };
 
@@ -213,32 +240,6 @@ export default function MessagesContent() {
     }
   };
 
-  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsSending(true);
-    try {
-      const fileName = `img_${Date.now()}.jpg`;
-      const { error: uploadError } = await supabase.storage.from("chat_images").upload(fileName, file);
-      if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage.from("chat_images").getPublicUrl(fileName);
-      await supabase.from("messages").insert({
-        sender_id: user.id,
-        receiver_id: selectedUserId,
-        type: "image",
-        content: publicUrl,
-        is_read: false,
-      });
-      fetchInbox(user.id);
-    } catch (error) {
-      console.error("Erreur image:", error);
-      alert("Échec de l'envoi de l'image");
-    } finally {
-      setIsSending(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -297,7 +298,7 @@ export default function MessagesContent() {
     await supabase.from("messages").update({ is_read: true }).eq("sender_id", otherUserId).eq("receiver_id", user.id).eq("is_read", false);
   };
 
-  const initiateCall = async (callType: "audio" | "video") => {
+  const initiateCall = async (callType: "audio") => {
     try {
       const { data, error } = await supabase
         .from("calls")
@@ -406,45 +407,43 @@ export default function MessagesContent() {
     setRefreshing(false);
   };
 
-  const emojis = ["😀", "😂", "", "🥺", "😎", "👍", "🔥", "❤️", "😭", "🎉", "🤔", "👏"];
-
   return (
     <div className="msg-layout">
       <div className="msg-list-col">
         <div style={{ padding: "16px 20px", borderBottom: `1px solid ${colors.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <h1 style={{ margin: 0, fontSize: "22px", fontWeight: "bold" }}>Messages</h1>
+          <h1 style={{ margin: 0, fontSize: "22px", fontWeight: "bold", color: colors.text }}>Messages</h1>
           <div style={{ display: "flex", gap: "8px" }}>
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              style={{ background: "none", border: "none", color: colors.textMuted, fontSize: "20px", cursor: "pointer", padding: "4px" }}
+              style={{ background: "none", border: "none", color: colors.textMuted, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
               title="Actualiser"
             >
-              {refreshing ? "⏳" : "🔄"}
+              {refreshing ? <Icons.Refresh size={20} className="animate-spin" /> : <Icons.Refresh size={20} />}
             </button>
             <button
               onClick={() => setShowSettings(true)}
-              style={{ background: "none", border: "none", color: colors.textMuted, fontSize: "20px", cursor: "pointer", padding: "4px" }}
+              style={{ background: "none", border: "none", color: colors.textMuted, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
               title="Paramètres"
             >
-              ⚙️
+              <Icons.Settings size={20} />
             </button>
           </div>
         </div>
 
         <div style={{ padding: "12px 16px", borderBottom: `1px solid ${colors.border}` }}>
           <div style={{ display: "flex", alignItems: "center", backgroundColor: colors.card, borderRadius: "12px", border: `1px solid ${colors.border}`, padding: "8px 12px" }}>
-            <span style={{ color: colors.textMuted, marginRight: "8px" }}>🔍</span>
+            <span style={{ color: colors.textMuted, marginRight: "8px", display: "flex" }}><Icons.Search size={18} /></span>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Rechercher des messages..."
+              placeholder="Rechercher..."
               style={{ flex: 1, backgroundColor: "transparent", border: "none", color: colors.text, fontSize: "14px", outline: "none" }}
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery("")} style={{ background: "none", border: "none", color: colors.textMuted, cursor: "pointer", fontSize: "16px" }}>
-                ✕
+              <button onClick={() => setSearchQuery("")} style={{ background: "none", border: "none", color: colors.textMuted, cursor: "pointer", display: "flex", padding: "4px" }}>
+                <Icons.X size={16} />
               </button>
             )}
           </div>
@@ -481,10 +480,10 @@ export default function MessagesContent() {
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          fontSize: "24px",
+                          color: colors.textMuted,
                         }}
                       >
-                        {!getAvatarOf(c) && "👤"}
+                        {!getAvatarOf(c) && <Icons.User size={24} />}
                       </div>
                     </div>
                     {c.unread_count > 0 && (
@@ -522,11 +521,11 @@ export default function MessagesContent() {
 
         {requestsCount > 0 && allowFanRequests && (
           <div style={{ margin: "12px 16px", padding: "14px", backgroundColor: colors.card, borderRadius: "12px", border: `1px solid ${colors.border}`, display: "flex", alignItems: "center", gap: "12px" }}>
-            <div style={{ width: "44px", height: "44px", borderRadius: "12px", backgroundColor: colors.hover, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px" }}>
-              👥
+            <div style={{ width: "44px", height: "44px", borderRadius: "12px", backgroundColor: colors.hover, display: "flex", alignItems: "center", justifyContent: "center", color: colors.primary }}>
+              <Icons.Users size={22} />
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: "bold", fontSize: "14px" }}>Demandes de messages</div>
+              <div style={{ fontWeight: "bold", fontSize: "14px", color: colors.text }}>Demandes de messages</div>
               <div style={{ fontSize: "12px", color: colors.textMuted }}>{requestsCount} nouvelle(s) demande(s)</div>
             </div>
             <button
@@ -544,8 +543,10 @@ export default function MessagesContent() {
           </div>
           {sortedConversations.length === 0 ? (
             <div style={{ textAlign: "center", padding: "40px 20px", color: colors.textMuted }}>
-              <div style={{ fontSize: "48px", marginBottom: "12px" }}>💬</div>
-              <div style={{ fontWeight: "bold", marginBottom: "8px" }}>Aucune conversation</div>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px", color: colors.textMuted }}>
+                <Icons.MessageSquare size={48} strokeWidth={1.5} />
+              </div>
+              <div style={{ fontWeight: "bold", marginBottom: "8px", color: colors.text }}>Aucune conversation</div>
               <div style={{ fontSize: "13px" }}>Suivez un créateur pour commencer à discuter</div>
             </div>
           ) : (
@@ -586,27 +587,28 @@ export default function MessagesContent() {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: "20px",
+                        color: colors.textMuted,
                       }}
                     >
-                      {!getAvatarOf(c) && "👤"}
+                      {!getAvatarOf(c) && <Icons.User size={20} />}
                     </div>
                     {isPinned && (
-                      <div style={{ position: "absolute", top: "-4px", left: "-4px", backgroundColor: colors.primary, borderRadius: "50%", width: "18px", height: "18px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px" }}>
-                        📌
+                      <div style={{ position: "absolute", top: "-4px", left: "-4px", backgroundColor: colors.primary, borderRadius: "50%", width: "18px", height: "18px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Icons.Pin size={10} color="white" />
                       </div>
                     )}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      <span style={{ fontWeight: "bold", fontSize: "15px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span style={{ fontWeight: "bold", fontSize: "15px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: colors.text }}>
                         {getNameOf(c)}
                       </span>
-                      {isPinned && <span style={{ fontSize: "12px" }}>📌</span>}
-                      {isMuted && <span style={{ fontSize: "12px" }}>🔕</span>}
+                      {isPinned && <Icons.Pin size={12} color={colors.textMuted} />}
+                      {isMuted && <Icons.BellOff size={12} color={colors.textMuted} />}
                     </div>
-                    <div style={{ fontSize: "13px", color: colors.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {c.last_message_type === "voice" ? "🎤 Message vocal" : c.last_message_type === "image" ? " Image" : c.last_message}
+                    <div style={{ fontSize: "13px", color: colors.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "flex", alignItems: "center", gap: "4px" }}>
+                      {c.last_message_type === "voice" && <Icons.Mic size={12} />}
+                      {c.last_message_type === "voice" ? "Message vocal" : c.last_message}
                     </div>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px", flexShrink: 0 }}>
@@ -632,19 +634,25 @@ export default function MessagesContent() {
                 <button
                   className="mobile-back-btn"
                   onClick={() => setSelectedUserId(null)}
-                  style={{ background: "none", border: "none", color: colors.text, fontSize: "24px", cursor: "pointer", padding: "0 8px 0 0" }}
+                  style={{ background: "none", border: "none", color: colors.text, cursor: "pointer", padding: "0 8px 0 0", display: "flex" }}
                 >
-                  ←
+                  <Icons.ArrowLeft size={24} />
                 </button>
-                <div style={{ width: "40px", height: "40px", borderRadius: "50%", backgroundColor: colors.card, backgroundImage: selectedUser.avatar_url ? `url(${selectedUser.avatar_url})` : undefined, backgroundSize: "cover", backgroundPosition: "center" }} />
+                <div style={{ width: "40px", height: "40px", borderRadius: "50%", backgroundColor: colors.card, backgroundImage: selectedUser.avatar_url ? `url(${selectedUser.avatar_url})` : undefined, backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", justifyContent: "center", color: colors.textMuted }}>
+                  {!selectedUser.avatar_url && <Icons.User size={20} />}
+                </div>
                 <div>
-                  <div style={{ fontWeight: "bold", fontSize: "16px" }}>{selectedUser.full_name || selectedUser.username}</div>
-                  <div style={{ fontSize: "12px", color: colors.green }}>En ligne</div>
+                  <div style={{ fontWeight: "bold", fontSize: "16px", color: colors.text }}>{selectedUser.full_name || selectedUser.username}</div>
+                  <div style={{ fontSize: "12px", color: colors.green, display: "flex", alignItems: "center", gap: "4px" }}>
+                    <div style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: colors.green }} />
+                    En ligne
+                  </div>
                 </div>
               </div>
               <div style={{ display: "flex", gap: "16px" }}>
-                <button onClick={() => initiateCall("audio")} style={{ background: "none", border: "none", color: colors.primary, fontSize: "24px", cursor: "pointer" }}>📞</button>
-                <button onClick={() => initiateCall("video")} style={{ background: "none", border: "none", color: colors.primary, fontSize: "24px", cursor: "pointer" }}>📹</button>
+                <button onClick={() => initiateCall("audio")} style={{ background: "none", border: "none", color: colors.primary, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} title="Appel audio">
+                  <Icons.Phone size={22} />
+                </button>
               </div>
             </div>
 
@@ -654,8 +662,8 @@ export default function MessagesContent() {
                 return (
                   <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: isMine ? "flex-end" : "flex-start", maxWidth: "85%" }}>
                     {msg.reply_to_content && (
-                      <div style={{ backgroundColor: colors.hover, padding: "8px 12px", borderRadius: "12px 12px 0 0", fontSize: "12px", color: colors.textMuted, borderLeft: `3px solid ${colors.primary}`, marginBottom: "-8px", zIndex: 1, width: "100%" }}>
-                        <div style={{ fontWeight: "bold", color: colors.primary }}>{msg.reply_to_name}</div>
+                      <div style={{ backgroundColor: isMine ? "rgba(255,255,255,0.1)" : colors.hover, padding: "8px 12px", borderRadius: "12px 12px 0 0", fontSize: "12px", color: colors.textMuted, borderLeft: `3px solid ${colors.primary}`, marginBottom: "-8px", zIndex: 1, width: "100%" }}>
+                        <div style={{ fontWeight: "bold", color: colors.primary, fontSize: "11px", marginBottom: "2px" }}>{msg.reply_to_name}</div>
                         <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{msg.reply_to_content}</div>
                       </div>
                     )}
@@ -664,27 +672,39 @@ export default function MessagesContent() {
                       style={{
                         backgroundColor: isMine ? colors.primary : colors.card,
                         color: isMine ? colors.primaryText : colors.text,
-                        padding: "12px 16px", borderRadius: "18px",
+                        padding: "10px 14px", 
+                        borderRadius: "18px",
                         borderBottomRightRadius: isMine ? "4px" : "18px",
                         borderBottomLeftRadius: isMine ? "18px" : "4px",
                         wordBreak: "break-word",
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
                       }}
                     >
-                      {msg.type === "image" ? (
-                        <img src={msg.content} alt="Image" style={{ maxWidth: "250px", borderRadius: "12px", cursor: "pointer", display: "block" }} onClick={() => window.open(msg.content, "_blank")} />
-                      ) : msg.type === "voice" ? (
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: "150px" }}>
-                          <span>🎤</span>
-                          <audio controls src={msg.content} style={{ height: "30px", maxWidth: "150px" }} />
-                          <span style={{ fontSize: "12px" }}>{formatDuration(msg.duration)}</span>
+                      {msg.type === "voice" ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: "180px" }}>
+                          <div style={{ width: "32px", height: "32px", borderRadius: "50%", backgroundColor: isMine ? "rgba(255,255,255,0.2)" : colors.primary, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <Icons.Mic size={16} color="white" />
+                          </div>
+                          <audio controls src={msg.content} style={{ height: "32px", maxWidth: "120px", outline: "none" }} />
+                          <span style={{ fontSize: "12px", opacity: 0.8, flexShrink: 0 }}>{formatDuration(msg.duration)}</span>
                         </div>
                       ) : (
-                        <span>{msg.content} {msg.is_edited && <span style={{ fontSize: "10px", opacity: 0.7 }}>(modifié)</span>}</span>
+                        <span style={{ fontSize: "15px", lineHeight: "1.4" }}>
+                          {msg.content} 
+                          {msg.is_edited && <span style={{ fontSize: "10px", opacity: 0.7, marginLeft: "4px" }}>(modifié)</span>}
+                        </span>
                       )}
                     </div>
-                    <span style={{ fontSize: "11px", color: colors.textMuted, marginTop: "4px", marginRight: "4px" }}>
-                      {new Date(msg.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} {isMine && (msg.is_read ? "✓✓" : "✓")}
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "4px", marginRight: isMine ? 0 : "4px", marginLeft: isMine ? "4px" : 0 }}>
+                      <span style={{ fontSize: "11px", color: colors.textMuted }}>
+                        {new Date(msg.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                      {isMine && (
+                        <span style={{ color: msg.is_read ? colors.primary : colors.textMuted, display: "flex" }}>
+                          {msg.is_read ? <Icons.CheckCheck size={14} /> : <Icons.Check size={14} />}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -694,35 +714,28 @@ export default function MessagesContent() {
             <div style={{ padding: "16px", borderTop: `1px solid ${colors.border}`, backgroundColor: colors.bg, position: "relative" }}>
               {replyTo && (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: colors.card, padding: "8px 12px", borderRadius: "8px", marginBottom: "8px", borderLeft: `3px solid ${colors.primary}` }}>
-                  <div style={{ fontSize: "13px", overflow: "hidden" }}>
-                    <span style={{ fontWeight: "bold", color: colors.primary }}>Réponse à {replyTo.name} : </span>
-                    <span style={{ color: colors.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{replyTo.content}</span>
+                  <div style={{ fontSize: "13px", overflow: "hidden", flex: 1, marginRight: "8px" }}>
+                    <span style={{ fontWeight: "bold", color: colors.primary, fontSize: "12px" }}>Réponse à {replyTo.name}</span>
+                    <div style={{ color: colors.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: "13px" }}>{replyTo.content}</div>
                   </div>
-                  <button onClick={() => setReplyTo(null)} style={{ background: "none", border: "none", color: colors.textMuted, cursor: "pointer", padding: "4px" }}>✕</button>
+                  <button onClick={() => setReplyTo(null)} style={{ background: "none", border: "none", color: colors.textMuted, cursor: "pointer", padding: "4px", display: "flex" }}>
+                    <Icons.X size={16} />
+                  </button>
                 </div>
               )}
-              {showEmoji && (
-                <div style={{ position: "absolute", bottom: "80px", left: "16px", backgroundColor: colors.card, border: `1px solid ${colors.border}`, borderRadius: "12px", padding: "12px", display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.5)", zIndex: 10 }}>
-                  {emojis.map((emoji) => (
-                    <button key={emoji} onClick={() => { setInputText((prev) => prev + emoji); setShowEmoji(false); }} style={{ background: "none", border: "none", fontSize: "24px", cursor: "pointer" }}>
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              )}
+              
               {isRecording ? (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px", backgroundColor: "rgba(239, 68, 68, 0.1)", borderRadius: "12px", border: "1px solid rgba(239, 68, 68, 0.3)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", backgroundColor: "rgba(239, 68, 68, 0.1)", borderRadius: "12px", border: "1px solid rgba(239, 68, 68, 0.3)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <div style={{ width: "12px", height: "12px", backgroundColor: colors.red, borderRadius: "50%", animation: "pulse 1s infinite" }} />
-                    <span style={{ fontWeight: "bold", color: colors.red }}>{formatDuration(recordingTime)}</span>
+                    <div style={{ width: "10px", height: "10px", backgroundColor: colors.red, borderRadius: "50%", animation: "pulse 1s infinite" }} />
+                    <span style={{ fontWeight: "bold", color: colors.red, fontFamily: "monospace", fontSize: "16px" }}>{formatDuration(recordingTime)}</span>
                   </div>
-                  <button onClick={stopRecording} style={{ backgroundColor: colors.red, color: "white", border: "none", borderRadius: "50%", width: "40px", height: "40px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>⏹</button>
+                  <button onClick={stopRecording} style={{ backgroundColor: colors.red, color: "white", border: "none", borderRadius: "50%", width: "40px", height: "40px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Icons.Square size={18} fill="white" />
+                  </button>
                 </div>
               ) : (
                 <div style={{ display: "flex", alignItems: "flex-end", gap: "12px" }}>
-                  <input type="file" ref={fileInputRef} accept="image/*" style={{ display: "none" }} onChange={handleImageSelect} />
-                  <button onClick={() => fileInputRef.current?.click()} style={{ background: "none", border: "none", color: colors.textMuted, fontSize: "24px", cursor: "pointer", padding: "8px" }}>📎</button>
-                  <button onClick={() => setShowEmoji(!showEmoji)} style={{ background: "none", border: "none", color: showEmoji ? colors.primary : colors.textMuted, fontSize: "24px", cursor: "pointer", padding: "8px" }}>😊</button>
                   <div style={{ flex: 1, backgroundColor: colors.card, borderRadius: "24px", border: `1px solid ${colors.border}`, display: "flex", alignItems: "center", padding: "4px 16px" }}>
                     <textarea
                       value={inputText}
@@ -734,12 +747,12 @@ export default function MessagesContent() {
                     />
                   </div>
                   {inputText.trim() ? (
-                    <button onClick={handleSend} disabled={isSending} style={{ backgroundColor: colors.primary, color: colors.primaryText, border: "none", borderRadius: "50%", width: "48px", height: "48px", fontSize: "20px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      {isSending ? "..." : "➤"}
+                    <button onClick={handleSend} disabled={isSending} style={{ backgroundColor: colors.primary, color: colors.primaryText, border: "none", borderRadius: "50%", width: "48px", height: "48px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "transform 0.1s" }}>
+                      {isSending ? <Icons.Refresh size={20} className="animate-spin" /> : <Icons.Send size={20} />}
                     </button>
                   ) : (
-                    <button onClick={startRecording} style={{ backgroundColor: colors.primary, color: colors.primaryText, border: "none", borderRadius: "50%", width: "48px", height: "48px", fontSize: "24px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      🎤
+                    <button onClick={startRecording} style={{ backgroundColor: colors.primary, color: colors.primaryText, border: "none", borderRadius: "50%", width: "48px", height: "48px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "transform 0.1s" }}>
+                      <Icons.Mic size={22} />
                     </button>
                   )}
                 </div>
@@ -747,11 +760,13 @@ export default function MessagesContent() {
             </div>
           </>
         ) : (
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: colors.textMuted }}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: "64px", marginBottom: "16px" }}>💬</div>
-              <h2 style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "8px" }}>Vos messages</h2>
-              <p>Sélectionnez une conversation pour commencer à discuter</p>
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: colors.textMuted, backgroundColor: colors.bg }}>
+            <div style={{ textAlign: "center", padding: "20px" }}>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px", color: colors.textMuted, opacity: 0.5 }}>
+                <Icons.MessageSquare size={64} strokeWidth={1.5} />
+              </div>
+              <h2 style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "8px", color: colors.text }}>Vos messages</h2>
+              <p style={{ fontSize: "14px", maxWidth: "300px", margin: "0 auto" }}>Sélectionnez une conversation dans la liste pour commencer à discuter.</p>
             </div>
           </div>
         )}
@@ -773,75 +788,48 @@ export default function MessagesContent() {
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div
-            onClick={() => { selectConversation(contextMenu.conv.other_user_id); setContextMenu(null); }}
-            style={{ padding: "10px 16px", cursor: "pointer", color: colors.text, fontSize: "14px", display: "flex", alignItems: "center", gap: "10px" }}
-          >
-            <span></span> Voir le profil
+          <div onClick={() => { selectConversation(contextMenu.conv.other_user_id); setContextMenu(null); }} style={{ padding: "10px 16px", cursor: "pointer", color: colors.text, fontSize: "14px", display: "flex", alignItems: "center", gap: "12px" }}>
+            <Icons.User size={16} /> Voir le profil
           </div>
-          <div
-            onClick={() => togglePin(contextMenu.conv.other_user_id)}
-            style={{ padding: "10px 16px", cursor: "pointer", color: colors.text, fontSize: "14px", display: "flex", alignItems: "center", gap: "10px" }}
-          >
-            <span>{pinnedIds.has(contextMenu.conv.other_user_id) ? "📌" : "📍"}</span>
+          <div onClick={() => togglePin(contextMenu.conv.other_user_id)} style={{ padding: "10px 16px", cursor: "pointer", color: colors.text, fontSize: "14px", display: "flex", alignItems: "center", gap: "12px" }}>
+            {pinnedIds.has(contextMenu.conv.other_user_id) ? <Icons.Pin size={16} /> : <Icons.Pin size={16} />}
             {pinnedIds.has(contextMenu.conv.other_user_id) ? "Désépingler" : "Épingler"}
           </div>
-          <div
-            onClick={() => toggleMute(contextMenu.conv.other_user_id)}
-            style={{ padding: "10px 16px", cursor: "pointer", color: colors.text, fontSize: "14px", display: "flex", alignItems: "center", gap: "10px" }}
-          >
-            <span>{mutedIds.has(contextMenu.conv.other_user_id) ? "🔔" : "🔕"}</span>
-            {mutedIds.has(contextMenu.conv.other_user_id) ? "Réactiver les notifications" : "Mettre en sourdine"}
+          <div onClick={() => toggleMute(contextMenu.conv.other_user_id)} style={{ padding: "10px 16px", cursor: "pointer", color: colors.text, fontSize: "14px", display: "flex", alignItems: "center", gap: "12px" }}>
+            {mutedIds.has(contextMenu.conv.other_user_id) ? <Icons.BellOff size={16} /> : <Icons.BellOff size={16} />}
+            {mutedIds.has(contextMenu.conv.other_user_id) ? "Réactiver" : "Mettre en sourdine"}
           </div>
-          <div
-            onClick={() => blockUser(contextMenu.conv.other_user_id)}
-            style={{ padding: "10px 16px", cursor: "pointer", color: colors.red, fontSize: "14px", display: "flex", alignItems: "center", gap: "10px" }}
-          >
-            <span>🚫</span> Bloquer
+          <div onClick={() => blockUser(contextMenu.conv.other_user_id)} style={{ padding: "10px 16px", cursor: "pointer", color: colors.red, fontSize: "14px", display: "flex", alignItems: "center", gap: "12px" }}>
+            <Icons.Ban size={16} /> Bloquer
           </div>
-          <div
-            onClick={() => { alert("Signalement envoyé"); setContextMenu(null); }}
-            style={{ padding: "10px 16px", cursor: "pointer", color: colors.red, fontSize: "14px", display: "flex", alignItems: "center", gap: "10px" }}
-          >
-            <span></span> Signaler
+          <div onClick={() => { alert("Signalement envoyé"); setContextMenu(null); }} style={{ padding: "10px 16px", cursor: "pointer", color: colors.red, fontSize: "14px", display: "flex", alignItems: "center", gap: "12px" }}>
+            <Icons.Ban size={16} /> Signaler
           </div>
           <div style={{ height: "1px", backgroundColor: colors.border, margin: "4px 0" }} />
-          <div
-            onClick={() => deleteConversation(contextMenu.conv)}
-            style={{ padding: "10px 16px", cursor: "pointer", color: colors.red, fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "10px" }}
-          >
-            <span>🗑️</span> Supprimer la conversation
+          <div onClick={() => deleteConversation(contextMenu.conv)} style={{ padding: "10px 16px", cursor: "pointer", color: colors.red, fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "12px" }}>
+            <Icons.Trash size={16} /> Supprimer la conversation
           </div>
         </div>
       )}
 
       {showSettings && (
-        <div
-          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.7)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 1000 }}
-          onClick={() => setShowSettings(false)}
-        >
-          <div
-            style={{ backgroundColor: colors.card, borderTopLeftRadius: "20px", borderTopRightRadius: "20px", width: "100%", maxWidth: "500px", maxHeight: "80vh", overflowY: "auto", padding: "20px" }}
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.7)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 1000 }} onClick={() => setShowSettings(false)}>
+          <div style={{ backgroundColor: colors.card, borderTopLeftRadius: "20px", borderTopRightRadius: "20px", width: "100%", maxWidth: "500px", maxHeight: "80vh", overflowY: "auto", padding: "20px" }} onClick={(e) => e.stopPropagation()}>
             <div style={{ width: "40px", height: "4px", backgroundColor: colors.border, borderRadius: "2px", margin: "0 auto 20px" }} />
-            <h3 style={{ margin: "0 0 20px", fontSize: "18px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}>
-              <span>⚙️</span> Paramètres de messagerie
+            <h3 style={{ margin: "0 0 20px", fontSize: "18px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", color: colors.text }}>
+              <Icons.Settings size={20} /> Paramètres de messagerie
             </h3>
 
             {[
-              { icon: "🔔", title: "Notifications", subtitle: "Recevoir une notification à chaque message", value: notifEnabled, onChange: setNotifEnabled },
-              { icon: "✓✓", title: "Accusés de lecture", subtitle: "Les autres voient quand tu as lu leurs messages", value: readReceipts, onChange: setReadReceipts },
-              { icon: "🟢", title: "Statut en ligne", subtitle: "Afficher ton statut et celui des autres", value: showOnlineStatus, onChange: setShowOnlineStatus },
-              { icon: "👥", title: "Demandes des fans", subtitle: "Autoriser les messages des non-abonnés", value: allowFanRequests, onChange: setAllowFanRequests },
+              { icon: <Icons.BellOff size={20} />, title: "Notifications", subtitle: "Recevoir une notification à chaque message", value: notifEnabled, onChange: setNotifEnabled },
+              { icon: <Icons.CheckCheck size={20} />, title: "Accusés de lecture", subtitle: "Les autres voient quand tu as lu leurs messages", value: readReceipts, onChange: setReadReceipts },
+              { icon: <Icons.Circle size={20} />, title: "Statut en ligne", subtitle: "Afficher ton statut et celui des autres", value: showOnlineStatus, onChange: setShowOnlineStatus },
+              { icon: <Icons.Users size={20} />, title: "Demandes des fans", subtitle: "Autoriser les messages des non-abonnés", value: allowFanRequests, onChange: setAllowFanRequests },
             ].map((item, i) => (
-              <div
-                key={i}
-                style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 0", borderBottom: `1px solid ${colors.border}` }}
-              >
-                <span style={{ fontSize: "22px" }}>{item.icon}</span>
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 0", borderBottom: `1px solid ${colors.border}` }}>
+                <span style={{ color: colors.textMuted, display: "flex" }}>{item.icon}</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: "bold", fontSize: "14px" }}>{item.title}</div>
+                  <div style={{ fontWeight: "bold", fontSize: "14px", color: colors.text }}>{item.title}</div>
                   <div style={{ fontSize: "12px", color: colors.textMuted }}>{item.subtitle}</div>
                 </div>
                 <button
@@ -857,18 +845,7 @@ export default function MessagesContent() {
                     transition: "background-color 0.2s",
                   }}
                 >
-                  <div
-                    style={{
-                      width: "20px",
-                      height: "20px",
-                      borderRadius: "50%",
-                      backgroundColor: "white",
-                      position: "absolute",
-                      top: "2px",
-                      left: item.value ? "22px" : "2px",
-                      transition: "left 0.2s",
-                    }}
-                  />
+                  <div style={{ width: "20px", height: "20px", borderRadius: "50%", backgroundColor: "white", position: "absolute", top: "2px", left: item.value ? "22px" : "2px", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
                 </button>
               </div>
             ))}
@@ -878,6 +855,8 @@ export default function MessagesContent() {
 
       <style>{`
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .animate-spin { animation: spin 1s linear infinite; }
         
         .msg-layout {
           height: 100%;
@@ -906,6 +885,14 @@ export default function MessagesContent() {
           display: none !important;
         }
 
+        /* Style minimaliste pour le lecteur audio natif */
+        audio::-webkit-media-controls-panel {
+          background-color: ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)"};
+        }
+        audio::-webkit-media-controls-play-button {
+          filter: ${isDark ? "invert(1)" : "none"};
+        }
+
         @media (max-width: 768px) {
           .msg-list-col {
             width: 100% !important;
@@ -917,7 +904,7 @@ export default function MessagesContent() {
             width: 100% !important;
           }
           .mobile-back-btn {
-            display: block !important;
+            display: flex !important;
           }
         }
       `}</style>
