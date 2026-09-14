@@ -210,38 +210,54 @@ function CreateContent() {
       </div>
 
       {/* ONGLETS */}
-      <div style={{ display: "flex", borderBottom: `1px solid ${colors.border}`, padding: "0 24px" }}>
+      <div style={{ display: "flex", gap: "12px", padding: "16px 24px" }}>
         <button
-          onClick={() => router.push("/create/ia")}
+          onClick={() => router.push("/create/ai")}
           style={{
             flex: 1,
-            padding: "14px 0",
-            background: "none",
-            border: "none",
-            borderBottom: `2px solid transparent`,
-            color: colors.textMuted,
+            padding: "18px 12px",
+            background: colors.card,
+            border: `1.5px solid ${colors.border}`,
+            borderRadius: "16px",
+            color: colors.text,
             fontWeight: "bold",
-            fontSize: "14px",
+            fontSize: "15px",
             cursor: "pointer",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "6px",
+            transition: "transform 0.1s",
           }}
+          onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.97)")}
+          onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
         >
-          🤖 Créer avec l'IA
+          <span style={{ fontSize: "26px" }}>🤖</span>
+          <span>Image IA</span>
         </button>
         <button
           onClick={() => router.push("/create/text")}
           style={{
             flex: 1,
-            padding: "14px 0",
-            background: "none",
-            border: "none",
-            borderBottom: `2px solid transparent`,
-            color: colors.textMuted,
+            padding: "18px 12px",
+            background: colors.card,
+            border: `1.5px solid ${colors.border}`,
+            borderRadius: "16px",
+            color: colors.text,
             fontWeight: "bold",
-            fontSize: "14px",
+            fontSize: "15px",
             cursor: "pointer",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "6px",
+            transition: "transform 0.1s",
           }}
+          onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.97)")}
+          onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
         >
-          ✍️ Créer un texte
+          <span style={{ fontSize: "26px" }}>✍️</span>
+          <span>Texte</span>
         </button>
       </div>
 
