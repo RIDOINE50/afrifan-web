@@ -5,6 +5,59 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppTheme } from "@/contexts/ThemeContext";
 
+// ─── VRAIES ICÔNES SVG ─────────────────────────────────────
+const Icon = ({ path, size = 22, strokeWidth = 2 }: { path: React.ReactNode; size?: number; strokeWidth?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+    {path}
+  </svg>
+);
+
+const Icons = {
+  Ai: (props: any) => <Icon {...props} path={<>
+    <rect x="3" y="3" width="18" height="18" rx="3" />
+    <circle cx="9" cy="9" r="1.2" fill="currentColor" />
+    <circle cx="15" cy="9" r="1.2" fill="currentColor" />
+    <path d="M8 15c1 1 2.5 1.5 4 1.5s3-.5 4-1.5" />
+    <path d="M12 3V1M12 23v-2M3 12H1M23 12h-2" />
+  </>} />,
+  Text: (props: any) => <Icon {...props} path={<>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+  </>} />,
+  Upload: (props: any) => <Icon {...props} path={<>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" y1="3" x2="12" y2="15" />
+  </>} />,
+  Music: (props: any) => <Icon {...props} path={<>
+    <path d="M9 18V5l12-2v13" />
+    <circle cx="6" cy="18" r="3" />
+    <circle cx="18" cy="16" r="3" />
+  </>} />,
+  X: (props: any) => <Icon {...props} path={<>
+    <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+  </>} />,
+  ArrowLeft: (props: any) => <Icon {...props} path={<>
+    <path d="m12 19-7-7 7-7" /><path d="M19 12H5" />
+  </>} />,
+  Close: (props: any) => <Icon {...props} path={<>
+    <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+  </>} />,
+  Story: (props: any) => <Icon {...props} path={<>
+    <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z" />
+  </>} />,
+  Feed: (props: any) => <Icon {...props} path={<>
+    <rect x="5" y="2" width="14" height="20" rx="2" />
+    <path d="M12 18h.01" />
+  </>} />,
+  Check: (props: any) => <Icon {...props} path={<>
+    <polyline points="20 6 9 17 4 12" />
+  </>} />,
+  Sparkles: (props: any) => <Icon {...props} path={<>
+    <path d="m12 3-1.9 5.8L4 10.7l5.8 1.9L12 18.4l2.1-5.8L20 10.7l-6.1-1.9Z" />
+  </>} />,
+};
+
 // ─── COMPOSANT CONTENU (utilise useSearchParams) ──────────
 function CreateContent() {
   const router = useRouter();
@@ -28,7 +81,8 @@ function CreateContent() {
   const [feedTitle, setFeedTitle] = useState("");
   const [feedCaption, setFeedCaption] = useState("");
 
-  // ✅ Couleurs dynamiques
+  const [hoveredTab, setHoveredTab] = useState<string | null>(null);
+
   const colors = {
     bg: theme.bg,
     card: theme.card,
@@ -200,8 +254,8 @@ function CreateContent() {
     <div style={{ minHeight: "100vh", backgroundColor: colors.bg, color: colors.text, display: "flex", flexDirection: "column" }}>
       {/* HEADER */}
       <div style={{ padding: "16px 24px", borderBottom: `1px solid ${colors.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <button onClick={() => step === "review" && !searchParams.get('ai_url') ? setStep("upload") : router.back()} style={{ background: "none", border: "none", color: colors.text, fontSize: "24px", cursor: "pointer" }}>
-          {step === "review" && !searchParams.get('ai_url') ? "←" : "✕"}
+        <button onClick={() => step === "review" && !searchParams.get('ai_url') ? setStep("upload") : router.back()} style={{ background: "none", border: "none", color: colors.text, cursor: "pointer", display: "flex", alignItems: "center" }}>
+          {step === "review" && !searchParams.get('ai_url') ? <Icons.ArrowLeft size={24} /> : <Icons.Close size={24} />}
         </button>
         <h1 style={{ margin: 0, fontSize: "18px", fontWeight: "bold" }}>
           {step === "upload" ? "Nouvelle publication" : "Dernières vérifications"}
@@ -209,54 +263,69 @@ function CreateContent() {
         <div style={{ width: "24px" }} />
       </div>
 
-      {/* ONGLETS */}
+      {/* ONGLETS DYNAMIQUES */}
       <div style={{ display: "flex", gap: "12px", padding: "16px 24px" }}>
         <button
           onClick={() => router.push("/create/ai")}
+          onMouseEnter={() => setHoveredTab("ai")}
+          onMouseLeave={() => setHoveredTab(null)}
+          onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.96)")}
+          onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
           style={{
             flex: 1,
-            padding: "18px 12px",
-            background: colors.card,
-            border: `1.5px solid ${colors.border}`,
+            padding: "20px 12px",
+            background: hoveredTab === "ai"
+              ? `linear-gradient(135deg, ${colors.primary}26, ${colors.pink}26)`
+              : colors.card,
+            border: `1.5px solid ${hoveredTab === "ai" ? colors.primary : colors.border}`,
             borderRadius: "16px",
             color: colors.text,
             fontWeight: "bold",
-            fontSize: "15px",
+            fontSize: "14px",
             cursor: "pointer",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: "6px",
-            transition: "transform 0.1s",
+            gap: "8px",
+            transition: "all 0.25s ease",
+            boxShadow: hoveredTab === "ai" ? `0 8px 24px ${colors.primary}33` : "none",
           }}
-          onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.97)")}
-          onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
         >
-          <span style={{ fontSize: "26px" }}>🤖</span>
+          <span style={{ color: hoveredTab === "ai" ? colors.primary : colors.textMuted, transition: "color 0.25s" }}>
+            <Icons.Ai size={28} />
+          </span>
           <span>Image IA</span>
         </button>
+
         <button
           onClick={() => router.push("/create/text")}
+          onMouseEnter={() => setHoveredTab("text")}
+          onMouseLeave={() => setHoveredTab(null)}
+          onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.96)")}
+          onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
           style={{
             flex: 1,
-            padding: "18px 12px",
-            background: colors.card,
-            border: `1.5px solid ${colors.border}`,
+            padding: "20px 12px",
+            background: hoveredTab === "text"
+              ? `linear-gradient(135deg, ${colors.primary}26, ${colors.pink}26)`
+              : colors.card,
+            border: `1.5px solid ${hoveredTab === "text" ? colors.primary : colors.border}`,
             borderRadius: "16px",
             color: colors.text,
             fontWeight: "bold",
-            fontSize: "15px",
+            fontSize: "14px",
             cursor: "pointer",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: "6px",
-            transition: "transform 0.1s",
+            gap: "8px",
+            transition: "all 0.25s ease",
+            boxShadow: hoveredTab === "text" ? `0 8px 24px ${colors.primary}33` : "none",
           }}
-          onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.97)")}
-          onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
         >
-          <span style={{ fontSize: "26px" }}>✍️</span>
+          <span style={{ color: hoveredTab === "text" ? colors.primary : colors.textMuted, transition: "color 0.25s" }}>
+            <Icons.Text size={28} />
+          </span>
           <span>Texte</span>
         </button>
       </div>
@@ -286,8 +355,10 @@ function CreateContent() {
               <img src={previewUrl} alt="Aperçu" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             )
           ) : (
-            <div onClick={() => fileInputRef.current?.click()} style={{ textAlign: "center", padding: "20px", cursor: "pointer" }}>
-              <div style={{ fontSize: "48px", marginBottom: "16px", color: colors.primary }}>📁</div>
+            <div onClick={() => fileInputRef.current?.click()} style={{ textAlign: "center", padding: "20px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div style={{ color: colors.primary, marginBottom: "16px" }}>
+                <Icons.Upload size={56} strokeWidth={1.5} />
+              </div>
               <h3 style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "8px" }}>Importer un média</h3>
               <p style={{ fontSize: "14px", color: colors.textMuted, marginBottom: "20px" }}>Cliquez pour choisir une photo ou une vidéo</p>
               <button style={{ padding: "10px 24px", backgroundColor: colors.primary, color: colors.primaryText, border: "none", borderRadius: "20px", fontWeight: "bold", cursor: "pointer" }}>
@@ -302,19 +373,25 @@ function CreateContent() {
           <>
             <div style={{ backgroundColor: colors.card, borderRadius: "16px", padding: "16px", border: `1px solid ${colors.border}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "bold" }}>🎵 Son</h3>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Icons.Music size={18} /> Son
+                </h3>
                 <button onClick={() => setShowSoundModal(true)} style={{ background: "none", border: "none", color: colors.primary, fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>
                   {selectedSound ? "Changer" : "Ajouter un son"}
                 </button>
               </div>
               {selectedSound ? (
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <div style={{ width: "40px", height: "40px", borderRadius: "8px", backgroundColor: colors.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>🎶</div>
+                  <div style={{ width: "40px", height: "40px", borderRadius: "8px", backgroundColor: colors.bg, display: "flex", alignItems: "center", justifyContent: "center", color: colors.primary }}>
+                    <Icons.Music size={20} />
+                  </div>
                   <div style={{ flex: 1, overflow: "hidden" }}>
                     <div style={{ fontWeight: "bold", fontSize: "14px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{selectedSound.title}</div>
                     <div style={{ fontSize: "12px", color: colors.textMuted }}>{selectedSound.artist}</div>
                   </div>
-                  <button onClick={() => { setSelectedSound(null); if(audioRef.current) audioRef.current.pause(); }} style={{ background: "none", border: "none", color: colors.textMuted, fontSize: "20px", cursor: "pointer" }}>✕</button>
+                  <button onClick={() => { setSelectedSound(null); if(audioRef.current) audioRef.current.pause(); }} style={{ background: "none", border: "none", color: colors.textMuted, cursor: "pointer", display: "flex" }}>
+                    <Icons.X size={18} />
+                  </button>
                 </div>
               ) : (
                 <div style={{ textAlign: "center", padding: "12px", color: colors.textMuted, fontSize: "14px", border: `1px dashed ${colors.border}`, borderRadius: "8px" }}>Aucun son sélectionné</div>
@@ -331,7 +408,7 @@ function CreateContent() {
           <>
             {selectedSound && (
               <div style={{ padding: "12px", backgroundColor: colors.hover, borderRadius: "12px", display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                <span style={{ fontSize: "20px" }}>🎵</span>
+                <span style={{ color: colors.primary, display: "flex" }}><Icons.Music size={20} /></span>
                 <div style={{ flex: 1, overflow: "hidden" }}>
                   <div style={{ fontWeight: "bold", fontSize: "14px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{selectedSound.title}</div>
                   <div style={{ fontSize: "12px", color: colors.textMuted }}>{selectedSound.artist}</div>
@@ -340,8 +417,8 @@ function CreateContent() {
             )}
 
             <h2 style={{ fontSize: "22px", fontWeight: "bold", margin: "0 0 20px 0" }}>Où voulez-vous publier ?</h2>
-            <PublishCard icon="⚡" title="Ma Story" subtitle="Disparaît après 24h" color={colors.primary} textColor={colors.primaryText} textMuted={colors.textMuted} onClick={() => handlePublish("story")} />
-            <PublishCard icon="📱" title="Mon Feed" subtitle="Reste sur votre profil" color={colors.pink} textColor="#FFFFFF" textMuted={colors.textMuted} onClick={() => setShowFeedModal(true)} />
+            <PublishCard icon={<Icons.Story size={24} />} title="Ma Story" subtitle="Disparaît après 24h" color={colors.primary} textColor={colors.primaryText} textMuted={colors.textMuted} onClick={() => handlePublish("story")} />
+            <PublishCard icon={<Icons.Feed size={24} />} title="Mon Feed" subtitle="Reste sur votre profil" color={colors.pink} textColor="#FFFFFF" textMuted={colors.textMuted} onClick={() => setShowFeedModal(true)} />
           </>
         )}
       </div>
@@ -351,19 +428,19 @@ function CreateContent() {
         <div style={{ position: "fixed", inset: 0, backgroundColor: colors.overlay, zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => setShowSoundModal(false)}>
           <div style={{ backgroundColor: colors.card, width: "100%", maxWidth: "500px", borderTopLeftRadius: "24px", borderTopRightRadius: "24px", padding: "24px", maxHeight: "60vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <div style={{ width: "40px", height: "4px", backgroundColor: colors.border, borderRadius: "2px", margin: "0 auto 20px" }} />
-            <h3 style={{ margin: "0 0 20px", textAlign: "center" }}>🎵 Choisir un son</h3>
+            <h3 style={{ margin: "0 0 20px", textAlign: "center" }}>Choisir un son</h3>
             {sounds.length === 0 ? (
               <p style={{ textAlign: "center", color: colors.textMuted }}>Chargement des sons...</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {sounds.map((sound: any) => (
                   <div key={sound.id} onClick={() => playSound(sound)} style={{ padding: "12px", borderBottom: `1px solid ${colors.border}`, cursor: "pointer", display: "flex", alignItems: "center", gap: "12px", borderRadius: "8px", backgroundColor: selectedSound?.id === sound.id ? colors.hover : "transparent" }}>
-                    <span style={{ fontSize: "24px" }}>🎵</span>
+                    <span style={{ color: colors.primary, display: "flex" }}><Icons.Music size={22} /></span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: "bold", fontSize: "14px" }}>{sound.title}</div>
                       <div style={{ fontSize: "12px", color: colors.textMuted }}>{sound.artist}</div>
                     </div>
-                    {selectedSound?.id === sound.id && <span style={{ color: colors.primary, fontWeight: "bold" }}>✓</span>}
+                    {selectedSound?.id === sound.id && <span style={{ color: colors.primary, display: "flex" }}><Icons.Check size={18} /></span>}
                   </div>
                 ))}
               </div>
@@ -394,7 +471,7 @@ function CreateContent() {
 function PublishCard({ 
   icon, title, subtitle, color, textColor, textMuted, onClick 
 }: { 
-  icon: string; title: string; subtitle: string; color: string; 
+  icon: React.ReactNode; title: string; subtitle: string; color: string; 
   textColor: string; textMuted: string; onClick: () => void 
 }) {
   return (
@@ -402,7 +479,7 @@ function PublishCard({
       onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.98)")}
       onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
     >
-      <div style={{ width: "48px", height: "48px", borderRadius: "12px", backgroundColor: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", color: textColor }}>{icon}</div>
+      <div style={{ width: "48px", height: "48px", borderRadius: "12px", backgroundColor: color, display: "flex", alignItems: "center", justifyContent: "center", color: textColor }}>{icon}</div>
       <div style={{ flex: 1 }}>
         <div style={{ color: textColor, fontSize: "16px", fontWeight: "bold", marginBottom: "4px" }}>{title}</div>
         <div style={{ color: textMuted, fontSize: "13px" }}>{subtitle}</div>
