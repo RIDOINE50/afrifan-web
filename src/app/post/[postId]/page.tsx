@@ -3,8 +3,10 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { downloadForOffline } from "@/lib/offlineManager";
 import TipDialog from "@/components/TipDialog";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { useToast, Box, Button, Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody, ModalFooter, VStack } from "@chakra-ui/react";
 
 function formatCount(count: number): string {
   if (count >= 1000000) return (count / 1000000).toFixed(1) + "M";
@@ -12,9 +14,110 @@ function formatCount(count: number): string {
   return count.toString();
 }
 
+// ==========================================
+// ✅ VRAIES ICÔNES SVG PROFESSIONNELLES
+// ==========================================
+const HeartIcon = ({ filled = false }: { filled?: boolean }) => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill={filled ? "#EF4444" : "none"} stroke={filled ? "#EF4444" : "white"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+  </svg>
+);
+
+const CommentIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+  </svg>
+);
+
+const ShareIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+    <polyline points="16 6 12 2 8 6" />
+    <line x1="12" y1="2" x2="12" y2="15" />
+  </svg>
+);
+
+const MoneyIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="6" width="20" height="12" rx="2" />
+    <circle cx="12" cy="12" r="2" />
+    <path d="M6 12h.01M18 12h.01" />
+  </svg>
+);
+
+const MoreIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="5" r="1.5" fill="white" />
+    <circle cx="12" cy="12" r="1.5" fill="white" />
+    <circle cx="12" cy="19" r="1.5" fill="white" />
+  </svg>
+);
+
+const FlagIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+    <line x1="4" y1="22" x2="4" y2="15" />
+  </svg>
+);
+
+const DownloadIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
+
+const VolumeOffIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+    <line x1="23" y1="9" x2="17" y2="15" />
+    <line x1="17" y1="9" x2="23" y2="15" />
+  </svg>
+);
+
+const VolumeOnIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+  </svg>
+);
+
+const UserIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+const XIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+const EditIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+);
+
+const TrashIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+  </svg>
+);
+
+// ==========================================
+// COMPOSANT PRINCIPAL
+// ==========================================
 export default function PostDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const toast = useToast();
   const { isDark, theme } = useAppTheme();
   
   const postId = params.postId as string;
@@ -34,11 +137,15 @@ export default function PostDetailPage() {
   const [isMuted, setIsMuted] = useState(true);
   
   const [showTipModal, setShowTipModal] = useState(false);
+  const [currentTipPost, setCurrentTipPost] = useState<any>(null);
+  
+  const [showMoreMenu, setShowMoreMenu] = useState<string | null>(null);
+  const [reportPostId, setReportPostId] = useState<string>("");
+  const [isReportOpen, setIsReportOpen] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
 
-  // ✅ Couleurs dynamiques
   const colors = {
     bg: isDark ? "#000000" : "#F3F4F6",
     card: theme.card,
@@ -120,6 +227,7 @@ export default function PostDetailPage() {
   }, [postId, user?.id]);
 
   const loadUserInteractions = async (creatorId: string, postIds: string[]) => {
+    if (!user) return;
     const { data: followData } = await supabase
       .from('follows')
       .select('id')
@@ -196,18 +304,43 @@ export default function PostDetailPage() {
     }
   };
 
-  const handleShare = async () => {
+  const handleShare = async (post: any) => {
     const url = typeof window !== 'undefined' ? window.location.href : '';
-    const currentPost = posts[currentIndex];
-    const text = `Regarde ce post de ${creatorInfo.name} : ${currentPost?.caption || ''}`;
+    const text = `Regarde ce post de ${creatorInfo.name} : ${post?.caption || ''}`;
     
     if (navigator.share) {
       try { await navigator.share({ title: 'Post', text, url }); } catch (err) {}
     } else {
       try {
         await navigator.clipboard.writeText(`${url}\n\n${text}`);
-        alert("Lien copié !");
+        toast({ title: "Lien copié !", status: "success", duration: 2000 });
       } catch (err) {}
+    }
+  };
+
+  const handleDownload = async (post: any) => {
+    if (!post.media_url) return;
+    try {
+      const success = await downloadForOffline(post.id, post.media_url, post);
+      toast({ title: success ? "✅ Sauvegardé !" : "Échec", status: success ? "success" : "error", duration: 3000 });
+    } catch (error) { 
+      toast({ title: "❌ Erreur", status: "error", duration: 3000 }); 
+    }
+  };
+
+  const handleEdit = (postId: string) => {
+    toast({ title: "Modification bientôt disponible", description: "Redirection vers l'éditeur...", status: "info", duration: 3000 });
+    // router.push(`/edit-post/${postId}`); // À activer quand la page existera
+  };
+
+  const handleDelete = async (postId: string) => {
+    if (!confirm("Voulez-vous vraiment supprimer ce post ? Cette action est irréversible.")) return;
+    try {
+      await supabase.from('posts').delete().eq('id', postId);
+      toast({ title: "Post supprimé avec succès", status: "success", duration: 3000 });
+      router.push("/"); 
+    } catch (error) {
+      toast({ title: "Erreur lors de la suppression", status: "error", duration: 3000 });
     }
   };
 
@@ -247,7 +380,7 @@ export default function PostDetailPage() {
       setNewComment("");
       await fetchComments(currentPost.id);
     } catch (error) {
-      console.error("❌ Erreur commentaire:", error);
+      console.error(" Erreur commentaire:", error);
     }
   };
 
@@ -287,6 +420,7 @@ export default function PostDetailPage() {
   const currentPost = posts[currentIndex];
   const isLiked = likedPostIds.has(currentPost.id);
   const dateStr = currentPost.created_at ? new Date(currentPost.created_at).toLocaleDateString('fr-FR') : '';
+  const isMyPost = user?.id === creatorInfo.id;
 
   return (
     <div className="page-wrapper">
@@ -295,7 +429,6 @@ export default function PostDetailPage() {
         className="snap-container"
         onScroll={handleScroll}
       >
-        {/* Flèche HAUT */}
         {currentIndex > 0 && (
           <button 
             className="nav-btn"
@@ -306,7 +439,6 @@ export default function PostDetailPage() {
           </button>
         )}
 
-        {/* Flèche BAS */}
         {currentIndex < posts.length - 1 && (
           <button 
             className="nav-btn"
@@ -340,27 +472,85 @@ export default function PostDetailPage() {
 
               <button 
                 onClick={() => router.push(`/createur?id=${creatorInfo.id}`)}
-                style={{ position: "absolute", top: "20px", left: "16px", backgroundColor: "rgba(0,0,0,0.5)", border: "none", borderRadius: "50%", width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "white", fontSize: "20px", zIndex: 20 }}
+                style={{ position: "absolute", top: "20px", left: "16px", backgroundColor: "rgba(0,0,0,0.5)", border: "none", borderRadius: "50%", width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "white", zIndex: 20 }}
               >
-                ←
+                <XIcon />
               </button>
 
               {post.media_type === 'video' && (
                 <button 
                   onClick={() => setIsMuted(!isMuted)}
-                  style={{ position: "absolute", top: "20px", right: "16px", backgroundColor: "rgba(0,0,0,0.5)", border: "none", borderRadius: "50%", width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "white", fontSize: "18px", zIndex: 20 }}
+                  style={{ position: "absolute", top: "20px", right: "16px", backgroundColor: "rgba(0,0,0,0.5)", border: "none", borderRadius: "50%", width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "white", zIndex: 20 }}
                 >
-                  {isMuted ? "🔇" : "🔊"}
+                  {isMuted ? <VolumeOffIcon /> : <VolumeOnIcon />}
                 </button>
               )}
 
               <div style={{ position: "absolute", right: "12px", bottom: "120px", display: "flex", flexDirection: "column", alignItems: "center", gap: "20px", zIndex: 20 }}>
-                <ActionButton icon={postIsLiked ? "❤️" : "🤍"} label={formatCount(post.likes_count)} color={postIsLiked ? "#EF4444" : "white"} onClick={(e) => handleLike(post, e)} />
-                <ActionButton icon="💬" label={formatCount(post.comments_count)} onClick={toggleCommentsPanel} />
+                <ActionButton 
+                  icon={<HeartIcon filled={postIsLiked} />} 
+                  label={formatCount(post.likes_count)} 
+                  color={postIsLiked ? "#EF4444" : "white"} 
+                  onClick={(e) => handleLike(post, e)} 
+                />
+                <ActionButton 
+                  icon={<CommentIcon />} 
+                  label={formatCount(post.comments_count)} 
+                  onClick={toggleCommentsPanel} 
+                />
                 
-                <ActionButton icon="☕" label="Tip" color="#F97316" onClick={() => setShowTipModal(true)} />
-                
-                <ActionButton icon="↗️" label="Partager" onClick={handleShare} />
+                {isMyPost ? (
+                  <div style={{ position: "relative" }}>
+                    <ActionButton 
+                      icon={<MoreIcon />} 
+                      label="" 
+                      onClick={() => setShowMoreMenu(showMoreMenu === post.id ? null : post.id)} 
+                    />
+                    {showMoreMenu === post.id && (
+                      <div style={{
+                        position: "absolute", right: "50px", bottom: "0",
+                        backgroundColor: isDark ? "#1A1A1A" : "#FFFFFF",
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: "8px",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                        zIndex: 30,
+                        overflow: "hidden",
+                        minWidth: "140px"
+                      }}>
+                        <button onClick={() => { setShowMoreMenu(null); handleEdit(post.id); }} style={{ width: "100%", padding: "12px 16px", display: "flex", alignItems: "center", gap: "8px", backgroundColor: "transparent", border: "none", borderBottom: `1px solid ${colors.border}`, color: colors.text, cursor: "pointer", fontSize: "14px" }}>
+                          <EditIcon /> Modifier
+                        </button>
+                        <button onClick={() => { setShowMoreMenu(null); handleDelete(post.id); }} style={{ width: "100%", padding: "12px 16px", display: "flex", alignItems: "center", gap: "8px", backgroundColor: "transparent", border: "none", color: "#EF4444", cursor: "pointer", fontSize: "14px" }}>
+                          <TrashIcon /> Supprimer
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <ActionButton 
+                      icon={<MoneyIcon />} 
+                      label="Tip" 
+                      color="#F97316" 
+                      onClick={() => { setCurrentTipPost(post); setShowTipModal(true); }} 
+                    />
+                    <ActionButton 
+                      icon={<ShareIcon />} 
+                      label="Partager" 
+                      onClick={() => handleShare(post)} 
+                    />
+                    <ActionButton 
+                      icon={<FlagIcon />} 
+                      label="Signaler" 
+                      onClick={() => { setReportPostId(post.id); setIsReportOpen(true); }} 
+                    />
+                    <ActionButton 
+                      icon={<DownloadIcon />} 
+                      label="Télécharger" 
+                      onClick={() => handleDownload(post)} 
+                    />
+                  </>
+                )}
               </div>
 
               <div style={{ position: "absolute", left: "16px", right: "80px", bottom: "40px", zIndex: 20 }}>
@@ -379,10 +569,10 @@ export default function PostDetailPage() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: "20px"
+                      color: "white"
                     }}
                   >
-                    {!creatorInfo.avatar && "👤"}
+                    {!creatorInfo.avatar && <UserIcon />}
                   </div>
                   
                   <div style={{ flex: 1 }}>
@@ -393,7 +583,7 @@ export default function PostDetailPage() {
                       >
                         @{creatorInfo.name}
                       </span>
-                      {!isFollowing ? (
+                      {!isFollowing && !isMyPost ? (
                         <button 
                           onClick={handleFollow} 
                           style={{ 
@@ -409,15 +599,15 @@ export default function PostDetailPage() {
                         >
                           Suivre
                         </button>
-                      ) : (
+                      ) : isFollowing ? (
                         <span style={{ color: colors.success, fontSize: "18px" }}>✓</span>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 </div>
                 
                 <p style={{ color: "white", fontSize: "14px", lineHeight: "1.4", marginBottom: "8px", textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}>
-                  {post.caption || post.title || "📝 (Pas de légende)"}
+                  {post.caption || post.title || " (Pas de légende)"}
                 </p>
                 <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px" }}>{dateStr}</p>
               </div>
@@ -426,26 +616,31 @@ export default function PostDetailPage() {
         })}
       </div>
 
-      {/* Panneau de commentaires */}
       {showCommentsPanel && (
         <>
           <div className="comments-overlay" onClick={() => setShowCommentsPanel(false)} />
           <div className="comments-panel" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
             <div style={{ padding: "16px", borderBottom: `1px solid ${colors.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontWeight: "bold", fontSize: "16px", color: colors.text }}>Commentaires ({formatCount(currentPost.comments_count)})</span>
-              <button onClick={() => setShowCommentsPanel(false)} style={{ background: "none", border: "none", color: colors.text, fontSize: "24px", cursor: "pointer" }}>✕</button>
+              <button onClick={() => setShowCommentsPanel(false)} style={{ background: "none", border: "none", color: colors.text, cursor: "pointer", display: "flex" }}>
+                <XIcon />
+              </button>
             </div>
 
             <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
               {comments.length === 0 ? (
                 <div style={{ textAlign: "center", color: colors.textMuted, marginTop: "40px" }}>
-                  <div style={{ fontSize: "40px", marginBottom: "12px" }}>💬</div>
+                  <div style={{ marginBottom: "12px", display: "flex", justifyContent: "center", color: colors.textMuted }}>
+                    <CommentIcon />
+                  </div>
                   <p>Aucun commentaire.</p>
                 </div>
               ) : (
                 comments.map((comment: any, i: number) => (
                   <div key={i} style={{ marginBottom: "16px", display: "flex", gap: "12px" }}>
-                    <div style={{ width: "32px", height: "32px", borderRadius: "50%", backgroundColor: colors.hover, backgroundImage: comment.profiles?.avatar_url ? `url(${comment.profiles.avatar_url})` : undefined, backgroundSize: "cover", flexShrink: 0 }} />
+                    <div style={{ width: "32px", height: "32px", borderRadius: "50%", backgroundColor: colors.hover, backgroundImage: comment.profiles?.avatar_url ? `url(${comment.profiles.avatar_url})` : undefined, backgroundSize: "cover", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: colors.textMuted }}>
+                      {!comment.profiles?.avatar_url && <UserIcon />}
+                    </div>
                     <div>
                       <div style={{ fontWeight: "bold", fontSize: "13px", marginBottom: "4px", color: colors.text }}>{comment.profiles?.full_name || comment.user_name || 'Utilisateur'}</div>
                       <p style={{ fontSize: "14px", lineHeight: "1.4", margin: 0, color: colors.text }}>{comment.content}</p>
@@ -496,16 +691,18 @@ export default function PostDetailPage() {
         </>
       )}
 
-      {showTipModal && (
+      {showTipModal && currentTipPost && (
         <TipDialog 
           creatorId={creatorInfo.id} 
           creatorName={creatorInfo.name} 
-          onClose={() => setShowTipModal(false)} 
+          onClose={() => { setShowTipModal(false); setCurrentTipPost(null); }} 
           onSuccess={() => {
-            console.log("Pourboire envoyé avec succès !");
+            toast({ title: "Pourboire envoyé avec succès !", status: "success", duration: 3000 });
           }} 
         />
       )}
+
+      <ReportModal isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} postId={reportPostId} />
 
       <style>{`
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -608,11 +805,65 @@ export default function PostDetailPage() {
   );
 }
 
-function ActionButton({ icon, label, color = "white", onClick }: { icon: string, label: string, color?: string, onClick?: (e: React.MouseEvent) => void }) {
+function ActionButton({ icon, label, color = "white", onClick }: { icon: React.ReactNode, label: string, color?: string, onClick?: (e: React.MouseEvent) => void }) {
   return (
     <button onClick={onClick} style={{ background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", cursor: "pointer", padding: "4px" }}>
-      <span style={{ fontSize: "32px", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))", color: color }}>{icon}</span>
+      <div style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))", color: color, display: "flex" }}>
+        {icon}
+      </div>
       {label && <span style={{ color: "white", fontSize: "12px", fontWeight: "bold", textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}>{label}</span>}
     </button>
+  );
+}
+
+function ReportModal({ isOpen, onClose, postId }: { isOpen: boolean; onClose: () => void; postId: string }) {
+  const toast = useToast();
+  const [selectedReason, setSelectedReason] = useState("");
+
+  const handleReport = async () => {
+    if (!selectedReason) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      await supabase.from('reports').insert({ post_id: postId, reporter_id: session.user.id, reason: selectedReason });
+      toast({ title: "✅ Signalement envoyé", status: "success", duration: 3000 });
+      onClose();
+    } catch (error) {
+      console.error("Erreur signalement:", error);
+      toast({ title: "Erreur lors du signalement", status: "error" });
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} isCentered>
+      <ModalOverlay bg="blackAlpha.700" />
+      <ModalContent bg="#1A1A1A" color="white" maxW="400px" borderRadius="16px">
+        <ModalHeader>Signaler ce post</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody>
+          <VStack spacing="2" align="stretch">
+            {["Spam", "Violence", "Harcèlement", "Droits d'auteur", "Autre"].map(reason => (
+              <Button
+                key={reason}
+                justifyContent="flex-start"
+                bg={selectedReason === reason ? "#3B82F6" : "#2D3748"}
+                color="white"
+                border="1px solid #4A5568"
+                _hover={{ opacity: 0.9 }}
+                onClick={() => setSelectedReason(reason)}
+              >
+                {reason}
+              </Button>
+            ))}
+          </VStack>
+        </ModalBody>
+        <ModalFooter>
+          <VStack w="100%" spacing="2">
+            <Button w="100%" bg="#3B82F6" color="white" _hover={{ opacity: 0.9 }} onClick={handleReport} isDisabled={!selectedReason}>Envoyer</Button>
+            <Button w="100%" variant="ghost" onClick={onClose}>Annuler</Button>
+          </VStack>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
   );
 }
