@@ -345,16 +345,18 @@ export default function PostDetailPage() {
   };
 
   // ✅ 2. SAUVEGARDER LA MODIFICATION DANS SUPABASE
+    // ✅ 2. SAUVEGARDER LA MODIFICATION (Cible la colonne 'content')
   const saveEdit = async () => {
     if (!postToEdit) return;
     try {
-      await supabase.from('posts').update({
-        caption: editCaption,
-        title: editCaption
+      const { error } = await supabase.from('posts').update({
+        content: editCaption // ✅ C'est 'content' et non 'caption'
       }).eq('id', postToEdit.id);
 
-      // Mise à jour immédiate de l'interface (Optimistic UI)
-      setPosts(prev => prev.map(p => p.id === postToEdit.id ? { ...p, caption: editCaption, title: editCaption } : p));
+      if (error) throw error;
+
+      // Mise à jour immédiate de l'interface
+      setPosts(prev => prev.map(p => p.id === postToEdit.id ? { ...p, content: editCaption } : p));
 
       toast({ title: "✅ Post modifié avec succès", status: "success", duration: 3000 });
       setIsEditModalOpen(false);
@@ -365,20 +367,42 @@ export default function PostDetailPage() {
   };
 
   // ✅ 3. SUPPRESSION DYNAMIQUE
+    // ✅ 3. SUPPRESSION DYNAMIQUE (Avec gestion des erreurs RLS)
   const handleDelete = async (postIdToDelete: string) => {
     if (!confirm("Voulez-vous vraiment supprimer ce post ? Cette action est irréversible.")) return;
+    
     try {
-      await supabase.from('posts').delete().eq('id', postIdToDelete);
-      toast({ title: "🗑️ Post supprimé avec succès", status: "success", duration: 3000 });
-      setShowMoreMenu(null);
+      const { error } = await supabase.from('posts').delete().eq('id', postIdToDelete);
+
+      // ✅ Si Supabase bloque (à cause de la RLS), on le dit clairement
+      if (error) {
+        console.error("Erreur Supabase:", error);
+        toast({ 
+          title: "Suppression refusée", 
+          description: "Vous n'avez pas les droits pour supprimer ce post.", 
+          status: "error", 
+          duration: 4000 
+        });
+        return;
+      }
+
+      // ✅ Retirer le post de l'écran instantanément (sans recharger la page)
+      setPosts(prev => prev.filter(p => p.id !== postIdToDelete));
+
+      // Si on supprime le post qu'on est en train de regarder, on redirige
+      if (postIdToDelete === postId) {
+        toast({ title: "🗑️ Post supprimé", status: "success", duration: 3000 });
+        setTimeout(() => {
+          router.push(`/createur?id=${creatorInfo.id}`);
+        }, 1000);
+      } else {
+        toast({ title: "️ Post supprimé avec succès", status: "success", duration: 3000 });
+      }
       
-      // Redirection vers le profil du créateur ou l'accueil
-      setTimeout(() => {
-        router.push(`/createur?id=${creatorInfo.id}`);
-      }, 1000);
+      setShowMoreMenu(null);
     } catch (error) {
       console.error("Erreur suppression:", error);
-      toast({ title: "Erreur lors de la suppression", status: "error", duration: 3000 });
+      toast({ title: "Erreur système", status: "error", duration: 3000 });
     }
   };
 
