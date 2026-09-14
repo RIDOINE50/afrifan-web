@@ -50,6 +50,7 @@ interface CreatorProfile {
   followers_count?: number;
   premium_price?: number;
   pro_price?: number;
+  role?: string; // ✅ Ajouté pour la logique du cadenas
 }
 
 interface Post {
@@ -280,7 +281,6 @@ export default function HomePage() {
     }));
   };
 
-  // ✅ NOUVEAU : Gérer l'expansion et remonter légèrement le post sur mobile pour lire le texte
   const handleExpandAndScroll = (postId: string) => {
     setExpandedPosts(prev => {
       const next = new Set(prev);
@@ -292,7 +292,6 @@ export default function HomePage() {
       return next;
     });
 
-    // Scroll smooth sur mobile uniquement
     setTimeout(() => {
       if (window.innerWidth < 768) {
         const postElement = document.getElementById(`post-${postId}`);
@@ -403,7 +402,8 @@ export default function HomePage() {
       const [profilesData, likesData] = await Promise.all([
         supabase
           .from('profiles')
-          .select('id, username, full_name, avatar_url, is_verified, premium_price, pro_price')
+          // ✅ AJOUT DE 'role' ICI
+          .select('id, username, full_name, avatar_url, is_verified, role, premium_price, pro_price')
           .in('id', userIds),
         supabase
           .from('post_likes')
@@ -417,7 +417,8 @@ export default function HomePage() {
       setLikedPostIds(new Set(likesData?.data?.map((l: any) => l.post_id) || []));
 
       const mergedPosts = postsData.map(post => {
-        const profile = profilesMap[post.user_id] || { id: post.user_id, username: 'User', full_name: 'User', avatar_url: null, is_verified: false, premium_price: 0, pro_price: 0 };
+        // ✅ AJOUT DE 'role: user' PAR DÉFAUT
+        const profile = profilesMap[post.user_id] || { id: post.user_id, username: 'User', full_name: 'User', avatar_url: null, is_verified: false, role: 'user', premium_price: 0, pro_price: 0 };
         return { ...post, profiles: profile };
       });
       
@@ -599,7 +600,14 @@ export default function HomePage() {
             const creator = post.profiles;
             const isLiked = likedPostIds.has(post.id);
             const isFollowed = followedCreatorIds.has(post.user_id);
-            const isLocked = post.is_premium === true && user.id !== post.user_id && !subscribedCreatorIds.has(post.user_id);
+            
+            // ✅ LOGIQUE EXACTE DU FLUTTER POUR LE CADENAS :
+            const creatorId = post.user_id;
+            const isMyOwnPost = user?.id === creatorId;
+            const creatorRole = creator?.role || 'user';
+            const isCreator = creatorRole === 'creator';
+            const isLocked = isCreator && !isMyOwnPost && !subscribedCreatorIds.has(creatorId);
+            
             const showHeart = heartAnimation === post.id;
             const videoState = videoStates[post.id] || { isPlaying: false, currentTime: 0, duration: 0 };
 
@@ -658,7 +666,6 @@ export default function HomePage() {
                     </Text>
                   </Box>
                 ) : post.media_type === 'video' ? (
-                  // ✅ pb="110px" réserve l'espace pour ~5 lignes de description sans chevauchement
                   <Box flex="1" position="relative" display="flex" alignItems="center" justifyContent="center" bg="black" h="100%" pb="110px">
                     <video
                       ref={el => { if (el) videoRefs.current[post.id] = el; }}
@@ -746,7 +753,6 @@ export default function HomePage() {
                     )}
                   </Box>
                 ) : (
-                  // ✅ pb="110px" réserve l'espace pour ~5 lignes de description sans chevauchement
                   <Box flex="1" position="relative" display="flex" alignItems="center" justifyContent="center" bg="black" h="100%" pb="110px">
                     <Image
                       src={post.media_url}
@@ -826,7 +832,6 @@ export default function HomePage() {
                   </Menu>
                 </VStack>
 
-                {/* ✅ DESCRIPTION : Position absolute mais dans l'espace réservé (pb="110px") du média */}
                 {post.media_type !== 'text' && post.content && (
                   <Box position="absolute" bottom="0" left="0" right="0" p="4" bgGradient="linear(to-t, blackAlpha.900, transparent)" zIndex="10" onClick={(e) => e.stopPropagation()}>
                     <Text 
@@ -933,7 +938,6 @@ export default function HomePage() {
 
       <Modal isOpen={showComments} onClose={() => setShowComments(false)} size={{ base: "full", md: "md" }}>
         <ModalOverlay bg="blackAlpha.700" />
-        {/* ✅ MODAL CONTENT : Pleine hauteur sur mobile, flex column pour gérer le sticky footer */}
         <ModalContent 
           bg={theme.card} 
           color={theme.text} 
@@ -949,10 +953,8 @@ export default function HomePage() {
             <ModalCloseButton position="static" />
           </ModalHeader>
           
-          {/* ✅ MODAL BODY : flex=1 pour prendre tout l'espace restant, pb=24 pour que le dernier commentaire ne soit pas caché derrière le footer */}
-<ModalBody overflowY="auto" flex="1" pb="24" mb="60px">
-  
-              {comments.length === 0 ? (
+          <ModalBody overflowY="auto" flex="1" pb="24" mb="60px">
+            {comments.length === 0 ? (
               <Center h="100px" color={theme.textMuted}>Aucun commentaire</Center>
             ) : (
               <VStack align="stretch" spacing="4">
@@ -979,33 +981,32 @@ export default function HomePage() {
             )}
           </ModalBody>
 
-          {/* ✅ MODAL FOOTER : Sticky en bas, toujours visible sur mobile sans scroller, avec padding bas pour la zone sûre du téléphone */}
- <ModalFooter 
-  borderTop={`1px solid ${theme.border}`}
-  position="fixed"
-  bottom="60px"
-  left="0"
-  right="0"
-  bg={theme.card}
-  zIndex="100"
-  px="4"
-  py="2"
->
-  <HStack w="100%">
-    <Input
-      value={newComment}
-      onChange={(e) => setNewComment(e.target.value)}
-      placeholder="Ajouter un commentaire..."
-      bg={theme.bg}
-      border={`1px solid ${theme.border}`}
-      color={theme.text}
-      _placeholder={{ color: theme.textMuted }}
-      maxLength={500}
-      onKeyDown={(e) => e.key === 'Enter' && submitComment()}
-    />
-    <Button bg={theme.primary} color={theme.primaryText} _hover={{ opacity: 0.9 }} onClick={submitComment} isDisabled={!newComment.trim()}>↑</Button>
-  </HStack>
-</ModalFooter>
+          <ModalFooter 
+            borderTop={`1px solid ${theme.border}`}
+            position="fixed"
+            bottom="60px"
+            left="0"
+            right="0"
+            bg={theme.card}
+            zIndex="100"
+            px="4"
+            py="2"
+          >
+            <HStack w="100%">
+              <Input
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Ajouter un commentaire..."
+                bg={theme.bg}
+                border={`1px solid ${theme.border}`}
+                color={theme.text}
+                _placeholder={{ color: theme.textMuted }}
+                maxLength={500}
+                onKeyDown={(e) => e.key === 'Enter' && submitComment()}
+              />
+              <Button bg={theme.primary} color={theme.primaryText} _hover={{ opacity: 0.9 }} onClick={submitComment} isDisabled={!newComment.trim()}>↑</Button>
+            </HStack>
+          </ModalFooter>
         </ModalContent>
       </Modal>
 
