@@ -69,6 +69,7 @@ function CreateContent() {
   const [step, setStep] = useState<"upload" | "review">("upload");
   const [isPublishing, setIsPublishing] = useState(false);
   const [showFeedModal, setShowFeedModal] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -95,6 +96,7 @@ function CreateContent() {
     overlay: isDark ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.5)",
     pink: "#EC4899",
     mediaBg: "#000000",
+    green: "#22C55E",
   };
 
   useEffect(() => {
@@ -222,20 +224,25 @@ function CreateContent() {
         if (dbError) throw dbError;
       }
 
-      alert(`✅ Publié avec succès dans ${target === "story" ? "vos Stories" : "votre Feed"} !`);
-      
-      router.replace("/create"); 
+      // ✅ Afficher le beau message de succès
       setSelectedFile(null);
       setPreviewUrl(null);
       setFeedCaption("");
       setFeedTitle("");
       setStep("upload");
-      router.push("/"); 
+      setShowFeedModal(false);
+      setIsPublishing(false);
+      
+      setShowSuccess(true);
+
+      // ✅ Redirection après 2 secondes vers /home
+      setTimeout(() => {
+        router.push("/home");
+      }, 2000);
       
     } catch (error: any) {
       console.error("❌ Erreur de publication:", error);
       alert(`Erreur : ${error.message || "Une erreur est survenue."}`);
-    } finally {
       setIsPublishing(false);
       setShowFeedModal(false);
     }
@@ -246,6 +253,87 @@ function CreateContent() {
       <div style={{ minHeight: "100vh", backgroundColor: colors.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px" }}>
         <div style={{ width: "40px", height: "40px", border: `4px solid ${colors.border}`, borderTop: `4px solid ${colors.primary}`, borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
         <p style={{ color: colors.text, fontSize: "16px" }}>Publication en cours...</p>
+      </div>
+    );
+  }
+
+  // ✅ ÉCRAN DE SUCCÈS
+  if (showSuccess) {
+    return (
+      <div style={{ 
+        minHeight: "100vh", 
+        backgroundColor: colors.bg, 
+        display: "flex", 
+        flexDirection: "column", 
+        alignItems: "center", 
+        justifyContent: "center",
+        padding: "24px",
+        animation: "fadeIn 0.3s ease"
+      }}>
+        <div style={{
+          position: "relative",
+          width: "120px",
+          height: "120px",
+          borderRadius: "50%",
+          background: `linear-gradient(135deg, ${colors.primary}26, ${colors.pink}26)`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: "32px",
+          animation: "pop 0.5s ease",
+        }}>
+          <div style={{
+            width: "90px",
+            height: "90px",
+            borderRadius: "50%",
+            backgroundColor: colors.green,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: `0 10px 40px ${colors.green}66`,
+          }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+        </div>
+
+        <h1 style={{ 
+          fontSize: "26px", 
+          fontWeight: "bold", 
+          color: colors.text, 
+          margin: "0 0 12px 0",
+          textAlign: "center"
+        }}>
+          Publié avec succès !
+        </h1>
+
+        <p style={{ 
+          fontSize: "15px", 
+          color: colors.textMuted, 
+          margin: 0, 
+          textAlign: "center",
+          maxWidth: "300px",
+          lineHeight: 1.5
+        }}>
+          Ta publication est maintenant en ligne. Redirection en cours...
+        </p>
+
+        <div style={{
+          marginTop: "32px",
+          display: "flex",
+          gap: "8px",
+        }}>
+          <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: colors.primary, animation: "bounce 1.4s infinite ease-in-out both", animationDelay: "0s" }} />
+          <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: colors.primary, animation: "bounce 1.4s infinite ease-in-out both", animationDelay: "0.2s" }} />
+          <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: colors.primary, animation: "bounce 1.4s infinite ease-in-out both", animationDelay: "0.4s" }} />
+        </div>
+
+        <style>{`
+          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes pop { 0% { transform: scale(0.5); opacity: 0; } 70% { transform: scale(1.05); } 100% { transform: scale(1); opacity: 1; } }
+          @keyframes bounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; } 40% { transform: scale(1); opacity: 1; } }
+        `}</style>
       </div>
     );
   }
