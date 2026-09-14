@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { downloadForOffline } from "@/lib/offlineManager";
@@ -253,6 +253,9 @@ export default function HomePage() {
   const [heartAnimation, setHeartAnimation] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"foryou" | "following">("foryou");
 
+  // ✅ NOUVEAU : État pour gérer l'expansion des textes longs (Voir plus / Voir moins)
+  const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
+
   const { isOpen: isTipOpen, onOpen: onTipOpen, onClose: onTipClose } = useDisclosure();
   const [tipCreator, setTipCreator] = useState({ id: "", name: "" });
 
@@ -276,6 +279,19 @@ export default function HomePage() {
       ...prev,
       [postId]: { ...prev[postId], ...updates }
     }));
+  };
+
+  // ✅ NOUVEAU : Fonction pour basculer l'affichage du texte long
+  const toggleExpandText = (postId: string) => {
+    setExpandedPosts(prev => {
+      const next = new Set(prev);
+      if (next.has(postId)) {
+        next.delete(postId);
+      } else {
+        next.add(postId);
+      }
+      return next;
+    });
   };
 
   // Intercepter les flèches du clavier
@@ -635,6 +651,7 @@ export default function HomePage() {
                       fontWeight="bold"
                       textAlign="center"
                       lineHeight="1.4"
+                      wordBreak="break-word"
                       filter={isLocked ? "blur(25px)" : "none"}
                     >
                       {post.content || "..."}
@@ -809,9 +826,30 @@ export default function HomePage() {
                   </Menu>
                 </VStack>
 
-                {post.media_type !== 'text' && (
-                  <Box position="absolute" bottom="0" left="0" right="0" p="4" bgGradient="linear(to-t, blackAlpha.800, transparent)" zIndex="10" onClick={(e) => e.stopPropagation()}>
-                    <Text fontSize="sm" lineHeight="1.4" mb="2" wordBreak="break-word">{post.content || "(Pas de légende)"}</Text>
+                {/* ✅ CORRECTION 11 : Gestion des textes longs avec "Voir plus" / "Voir moins" */}
+                {post.media_type !== 'text' && post.content && (
+                  <Box position="absolute" bottom="0" left="0" right="0" p="4" bgGradient="linear(to-t, blackAlpha.900, transparent)" zIndex="10" onClick={(e) => e.stopPropagation()}>
+                    <Text 
+                      fontSize="sm" 
+                      lineHeight="1.4" 
+                      mb="1" 
+                      wordBreak="break-word" 
+                      noOfLines={expandedPosts.has(post.id) ? undefined : 3}
+                    >
+                      {post.content}
+                    </Text>
+                    {post.content.length > 120 && (
+                      <Text 
+                        fontSize="xs" 
+                        color="gray.300" 
+                        fontWeight="semibold" 
+                        cursor="pointer"
+                        onClick={(e) => { e.stopPropagation(); toggleExpandText(post.id); }}
+                        mt={1}
+                      >
+                        {expandedPosts.has(post.id) ? "Voir moins" : "Voir plus"}
+                      </Text>
+                    )}
                   </Box>
                 )}
               </Box>
