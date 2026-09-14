@@ -407,6 +407,13 @@ export default function MessagesContent() {
     setRefreshing(false);
   };
 
+  // ✅ NOUVELLE FONCTION : Redirection vers le profil de l'utilisateur
+  const goToUserProfile = () => {
+    if (selectedUserId) {
+      router.push(`/createur?id=${selectedUserId}`);
+    }
+  };
+
   return (
     <div className="msg-layout">
       <div className="msg-list-col">
@@ -629,7 +636,18 @@ export default function MessagesContent() {
       <div className="msg-chat-col">
         {selectedUserId && selectedUser ? (
           <>
-            <div style={{ padding: "16px 24px", borderBottom: `1px solid ${colors.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            {/* ✅ HEADER STICKY - Reste en haut même en scrollant */}
+            <div style={{ 
+              padding: "16px 24px", 
+              borderBottom: `1px solid ${colors.border}`, 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "space-between",
+              position: "sticky",
+              top: 0,
+              backgroundColor: colors.bg,
+              zIndex: 10,
+            }}>
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                 <button
                   className="mobile-back-btn"
@@ -638,10 +656,28 @@ export default function MessagesContent() {
                 >
                   <Icons.ArrowLeft size={24} />
                 </button>
-                <div style={{ width: "40px", height: "40px", borderRadius: "50%", backgroundColor: colors.card, backgroundImage: selectedUser.avatar_url ? `url(${selectedUser.avatar_url})` : undefined, backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", justifyContent: "center", color: colors.textMuted }}>
+                {/* ✅ CLIQUABLE : Redirection vers le profil */}
+                <div 
+                  onClick={goToUserProfile}
+                  style={{ 
+                    width: "40px", 
+                    height: "40px", 
+                    borderRadius: "50%", 
+                    backgroundColor: colors.card, 
+                    backgroundImage: selectedUser.avatar_url ? `url(${selectedUser.avatar_url})` : undefined, 
+                    backgroundSize: "cover", 
+                    backgroundPosition: "center", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center", 
+                    color: colors.textMuted,
+                    cursor: "pointer",
+                  }}
+                  title="Voir le profil"
+                >
                   {!selectedUser.avatar_url && <Icons.User size={20} />}
                 </div>
-                <div>
+                <div onClick={goToUserProfile} style={{ cursor: "pointer" }}>
                   <div style={{ fontWeight: "bold", fontSize: "16px", color: colors.text }}>{selectedUser.full_name || selectedUser.username}</div>
                   <div style={{ fontSize: "12px", color: colors.green, display: "flex", alignItems: "center", gap: "4px" }}>
                     <div style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: colors.green }} />
@@ -656,6 +692,7 @@ export default function MessagesContent() {
               </div>
             </div>
 
+            {/* Zone de messages scrollable */}
             <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
               {messages.map((msg: any) => {
                 const isMine = msg.sender_id === user.id;
@@ -711,7 +748,15 @@ export default function MessagesContent() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div style={{ padding: "16px", borderTop: `1px solid ${colors.border}`, backgroundColor: colors.bg, position: "relative" }}>
+            {/* ✅ ZONE DE SAISIE STICKY - Reste en bas même en scrollant */}
+            <div style={{ 
+              padding: "16px", 
+              borderTop: `1px solid ${colors.border}`, 
+              backgroundColor: colors.bg, 
+              position: "sticky",
+              bottom: 0,
+              zIndex: 10,
+            }}>
               {replyTo && (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: colors.card, padding: "8px 12px", borderRadius: "8px", marginBottom: "8px", borderLeft: `3px solid ${colors.primary}` }}>
                   <div style={{ fontSize: "13px", overflow: "hidden", flex: 1, marginRight: "8px" }}>
