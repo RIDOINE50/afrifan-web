@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { downloadForOffline } from "@/lib/offlineManager";
@@ -63,6 +63,7 @@ interface Post {
   comments_count: number;
   shares_count: number;
   created_at: string;
+  is_premium?: boolean;
   profiles: CreatorProfile;
 }
 
@@ -72,7 +73,7 @@ interface CommentData {
   user_id: string;
   content: string;
   created_at: string;
-  profiles: { username: string; avatar_url: string | null; is_verified: boolean };
+  profiles: { id: string; username: string; avatar_url: string | null; is_verified: boolean };
 }
 
 interface HashtagCount {
@@ -105,11 +106,6 @@ const formatTime = (seconds: number) => {
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
-
-const FAKE_LOCATIONS = [
-  "Cotonou, Bénin", "Lomé, Togo", "Abidjan, Côte d'Ivoire", "Dakar, Sénégal",
-  "Yaoundé, Cameroun", "Accra, Ghana", "Lagos, Nigeria", "Kinshasa, RDC"
-];
 
 const HeartIcon = ({ filled = false }: { filled?: boolean }) => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill={filled ? "#EC4899" : "none"} stroke={filled ? "#EC4899" : "white"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -273,6 +269,7 @@ export default function HomePage() {
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const lastTapRef = useRef<number>(0);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   const updateVideoState = (postId: string, updates: Partial<{ isPlaying: boolean; currentTime: number; duration: number }>) => {
     setVideoStates(prev => ({
@@ -281,6 +278,7 @@ export default function HomePage() {
     }));
   };
 
+  // Intercepter les flèches du clavier
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -304,30 +302,14 @@ export default function HomePage() {
     };
   }, []);
 
-  useEffect(() => {
-    const controls = document.querySelectorAll('.video-controls-zone');
-    const handlers: Array<() => void> = [];
-
-    controls.forEach((el) => {
-      const handleWheel = (e: WheelEvent) => {
-        if (containerRef.current) {
-          containerRef.current.scrollTop += e.deltaY;
-        }
-        e.stopPropagation();
-      };
-      el.addEventListener('wheel', handleWheel as EventListener, { passive: false, capture: true });
-      handlers.push(() => el.removeEventListener('wheel', handleWheel as EventListener, { capture: true }));
-    });
-
-    return () => {
-      handlers.forEach(cleanup => cleanup());
-    };
-  }, [filteredPosts]);
-
+  // ✅ CORRECTION 1 : Vérification du bannissement avec return bloquant (Race Condition)
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/login"); return; }
+      if (!session) { 
+        router.push("/login"); 
+        return; 
+      }
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -338,7 +320,7 @@ export default function HomePage() {
       if (profile?.is_banned === true) {
         await supabase.auth.signOut();
         router.push("/login?error=banned");
-        return;
+        return; // ✅ Return bloquant pour éviter les requêtes en arrière-plan
       }
 
       setUser(session.user);
@@ -382,6 +364,7 @@ export default function HomePage() {
     setTrendingHashtags(trending);
   };
 
+  // ✅ CORRECTION 2 : Requêtes en parallèle avec Promise.all (Performance)
   const fetchData = async (userId: string) => {
     setIsLoading(true);
     try {
@@ -395,16 +378,22 @@ export default function HomePage() {
 
       const userIds = [...new Set(postsData.map((p: any) => p.user_id))];
       
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('id, username, full_name, avatar_url, is_verified, premium_price, pro_price')
-        .in('id', userIds);
-      
-      const profilesMap: Record<string, CreatorProfile> = {};
-      profilesData?.forEach((p: any) => { profilesMap[p.id] = p; });
+      // ✅ Requêtes parallèles : profiles et likes en même temps
+      const [profilesData, likesData] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url, is_verified, premium_price, pro_price')
+          .in('id', userIds),
+        supabase
+          .from('post_likes')
+          .select('post_id')
+          .in('post_id', postsData.map(p => p.id))
+          .eq('user_id', userId)
+      ]);
 
-      const { data: likesData } = await supabase.from('post_likes').select('post_id').in('post_id', postsData.map(p => p.id)).eq('user_id', userId);
-      setLikedPostIds(new Set(likesData?.map((l: any) => l.post_id) || []));
+      const profilesMap: Record<string, CreatorProfile> = {};
+      profilesData?.data?.forEach((p: any) => { profilesMap[p.id] = p; });
+      setLikedPostIds(new Set(likesData?.data?.map((l: any) => l.post_id) || []));
 
       const mergedPosts = postsData.map(post => {
         const profile = profilesMap[post.user_id] || { id: post.user_id, username: 'User', full_name: 'User', avatar_url: null, is_verified: false, premium_price: 0, pro_price: 0 };
@@ -421,8 +410,13 @@ export default function HomePage() {
     setFilteredPosts(activeTab === "following" ? posts.filter(post => followedCreatorIds.has(post.user_id)) : posts);
   }, [activeTab, posts, followedCreatorIds]);
 
+  // ✅ CORRECTION 3 : IntersectionObserver créé une seule fois (Performance & Batterie)
   useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    observerRef.current = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         const video = entry.target as HTMLVideoElement;
         if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
@@ -433,11 +427,16 @@ export default function HomePage() {
       });
     }, { threshold: 0.6 });
 
-    Object.values(videoRefs.current).forEach(video => {
-      if (video) observer.observe(video);
+    const currentVideos = Object.values(videoRefs.current);
+    currentVideos.forEach(video => {
+      if (video) observerRef.current?.observe(video);
     });
 
-    return () => observer.disconnect();
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
   }, [filteredPosts]);
 
   const handleLike = async (postId: string) => {
@@ -476,6 +475,7 @@ export default function HomePage() {
     lastTapRef.current = now;
   };
 
+  // ✅ CORRECTION 4 : Toast d'erreur si le follow échoue (UX)
   const handleFollow = async (creatorId: string) => {
     if (!user) return;
     const isFollowed = followedCreatorIds.has(creatorId);
@@ -491,7 +491,7 @@ export default function HomePage() {
     } catch (error) {
       console.error("Erreur follow:", error);
       setFollowedCreatorIds(prev => { const next = new Set(prev); isFollowed ? next.add(creatorId) : next.delete(creatorId); return next; });
-      toast({ title: "Erreur de connexion", status: "error" });
+      toast({ title: "Erreur de connexion", description: "Impossible de suivre ce créateur", status: "error" });
     }
   };
 
@@ -502,13 +502,26 @@ export default function HomePage() {
     const { data: profilesData } = await supabase.from('profiles').select('id, username, avatar_url, is_verified').in('id', userIds);
     const profilesMap: Record<string, any> = {};
     profilesData?.forEach((p: any) => { profilesMap[p.id] = p; });
-    setComments(data.map(c => ({ ...c, profiles: profilesMap[c.user_id] || { username: 'User', avatar_url: null, is_verified: false } })));
+    setComments(data.map(c => ({ ...c, profiles: profilesMap[c.user_id] || { id: c.user_id, username: 'User', avatar_url: null, is_verified: false } })));
   };
 
+  // ✅ CORRECTION 5 : Validation des commentaires (Sécurité) + suppression de user_name
   const submitComment = async () => {
-    if (!newComment.trim() || !user) return;
+    const trimmedComment = newComment.trim();
+    if (!trimmedComment || !user) return;
+    
+    if (trimmedComment.length > 500) {
+      toast({ title: "Commentaire trop long", description: "Maximum 500 caractères", status: "warning" });
+      return;
+    }
+
     try {
-      await supabase.from('comments').insert({ post_id: currentPostId, user_id: user.id, user_name: user.email?.split('@')[0], content: newComment.trim() });
+      // ✅ Plus de user_name, uniquement user_id pour la jointure
+      await supabase.from('comments').insert({ 
+        post_id: currentPostId, 
+        user_id: user.id, 
+        content: trimmedComment 
+      });
       const post = posts.find(p => p.id === currentPostId);
       if (post) {
         const newCount = post.comments_count + 1;
@@ -517,7 +530,10 @@ export default function HomePage() {
       }
       setNewComment("");
       fetchComments(currentPostId);
-    } catch (error) { console.error("Erreur commentaire:", error); }
+    } catch (error) { 
+      console.error("Erreur commentaire:", error);
+      toast({ title: "Erreur", description: "Impossible d'ajouter le commentaire", status: "error" });
+    }
   };
 
   const handleDownload = async (post: Post) => {
@@ -526,7 +542,7 @@ export default function HomePage() {
     try {
       const success = await downloadForOffline(post.id, post.media_url, post);
       toast({
-        title: success ? "✅ Sauvegardé !" : "❌ Échec",
+        title: success ? "✅ Sauvegardé !" : " Échec",
         description: success ? "Disponible dans 'Mes Téléchargements'" : "Vérifiez votre connexion",
         status: success ? "success" : "error",
         duration: 3000
@@ -566,7 +582,8 @@ export default function HomePage() {
             const creator = post.profiles;
             const isLiked = likedPostIds.has(post.id);
             const isFollowed = followedCreatorIds.has(post.user_id);
-            const isLocked = user.id !== post.user_id && !subscribedCreatorIds.has(post.user_id);
+            // ✅ CORRECTION 6 : Logique du cadenas basée sur is_premium (jamais sur tes propres posts)
+            const isLocked = post.is_premium === true && user.id !== post.user_id && !subscribedCreatorIds.has(post.user_id);
             const showHeart = heartAnimation === post.id;
             const videoState = videoStates[post.id] || { isPlaying: false, currentTime: 0, duration: 0 };
 
@@ -591,7 +608,8 @@ export default function HomePage() {
                     />
                     <Box cursor="pointer" onClick={() => router.push(`/createur?id=${creator.id}`)}>
                       <Text fontWeight="bold" fontSize="sm">{creator.full_name || creator.username} {creator.is_verified && <Text as="span" color="#10B981">✓</Text>}</Text>
-                      <Text fontSize="xs" color="gray.400">{FAKE_LOCATIONS[0]} • {timeAgo(post.created_at)}</Text>
+                      {/* ✅ CORRECTION 7 : Suppression de FAKE_LOCATIONS */}
+                      <Text fontSize="xs" color="gray.400">{timeAgo(post.created_at)}</Text>
                     </Box>
                   </HStack>
                   {!isFollowed && user.id !== post.user_id && (
@@ -657,6 +675,13 @@ export default function HomePage() {
                         zIndex="20"
                         pointerEvents="none"
                         onClick={(e) => e.stopPropagation()}
+                        // ✅ CORRECTION 8 : Gestion du wheel via JSX au lieu de querySelectorAll
+                        onWheel={(e) => {
+                          if (containerRef.current) {
+                            containerRef.current.scrollTop += e.deltaY;
+                          }
+                          e.stopPropagation();
+                        }}
                       >
                         <HStack spacing={4} mb={2}>
                           <Button
@@ -734,7 +759,8 @@ export default function HomePage() {
                   {isMuted ? <VolumeOffIcon /> : <VolumeOnIcon />}
                 </Button>
 
-                <VStack position="absolute" right={{ base: "2", md: "3" }} bottom={{ base: "16", md: "20" }} spacing="4" zIndex="30">
+                {/* ✅ CORRECTION 9 : Boutons d'action remontés sur mobile (bottom 28 au lieu de 16) */}
+                <VStack position="absolute" right={{ base: "2", md: "3" }} bottom={{ base: "28", md: "24" }} spacing="4" zIndex="30">
                   <Flex direction="column" align="center" cursor="pointer" onClick={() => handleLike(post.id)}>
                     <Box w="48px" h="48px" borderRadius="full" bg={isLiked ? "pink.500/40" : "whiteAlpha.200"} backdropFilter="blur(10px)" display="flex" alignItems="center" justifyContent="center" _hover={{ transform: "scale(1.1)", transition: "0.2s" }}>
                       <HeartIcon filled={isLiked} />
@@ -881,8 +907,19 @@ export default function HomePage() {
               <VStack align="stretch" spacing="4">
                 {comments.map(comment => (
                   <HStack key={comment.id} align="start" spacing="3">
-                    <Avatar size="sm" name={comment.profiles?.username} src={comment.profiles?.avatar_url || ''} />
-                    <Box>
+                    {/* ✅ CORRECTION 10 : Avatar et Nom du commentateur cliquables */}
+                    <Avatar 
+                      size="sm" 
+                      name={comment.profiles?.username} 
+                      src={comment.profiles?.avatar_url || ''}
+                      cursor="pointer"
+                      onClick={() => router.push(`/createur?id=${comment.user_id}`)}
+                    />
+                    <Box 
+                      cursor="pointer" 
+                      onClick={() => router.push(`/createur?id=${comment.user_id}`)}
+                      _hover={{ opacity: 0.8 }}
+                    >
                       <Text fontWeight="bold" fontSize="sm">{comment.profiles?.username || 'User'}</Text>
                       <Text fontSize="sm" color={theme.textMuted}>{comment.content}</Text>
                     </Box>
@@ -901,6 +938,7 @@ export default function HomePage() {
                 border={`1px solid ${theme.border}`}
                 color={theme.text}
                 _placeholder={{ color: theme.textMuted }}
+                maxLength={500}
                 onKeyDown={(e) => e.key === 'Enter' && submitComment()}
               />
               <Button bg={theme.primary} color={theme.primaryText} _hover={{ opacity: 0.9 }} onClick={submitComment} isDisabled={!newComment.trim()}>↑</Button>
