@@ -102,10 +102,11 @@ export default function ExplorePage() {
   };
 
   const fetchPosts = async () => {
+    // ✅ CORRECTION : Utilisation de .select('*') exactement comme dans HomePage
+    // Cela évite l'erreur si une colonne spécifique n'existe pas.
     const { data: postsData } = await supabase
       .from('posts')
-      // ✅ Ajout de is_premium pour cibler uniquement les contenus créateurs payants
-      .select('id, user_id, media_url, media_type, caption, title, likes_count, comments_count, created_at, is_premium')
+      .select('*') 
       .order('created_at', { ascending: false })
       .limit(30);
 
@@ -125,7 +126,7 @@ export default function ExplorePage() {
       ...post,
       profile: profilesMap[post.user_id] || { username: 'inconnu', premium_price: 0, pro_price: 0 },
       likes_count: post.likes_count ?? 0,
-      is_premium: post.is_premium ?? false, // ✅ Récupération du statut premium
+      // is_premium sera pris tel quel s'il existe, sinon il sera undefined (ce qui est safe)
     }));
 
     setPosts(mergedPosts);
@@ -179,7 +180,7 @@ export default function ExplorePage() {
   const filteredPosts = posts.filter((p) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
-    const caption = (p.caption || p.title || '').toLowerCase();
+    const caption = (p.caption || p.title || p.content || '').toLowerCase();
     const username = (p.profile?.username || '').toLowerCase();
     return caption.includes(query) || username.includes(query);
   });
@@ -333,7 +334,7 @@ export default function ExplorePage() {
               {filteredPosts.map((post: any) => {
                 const creatorId = post.user_id;
                 const isMyOwnPost = user?.id === creatorId;
-                // ✅ CADENAS UNIQUEMENT sur les publications créateurs marquées comme premium
+                // ✅ CADENAS UNIQUEMENT si is_premium est explicitement true
                 const isLocked = post.is_premium === true && !isMyOwnPost && !subscribedCreatorIds.has(creatorId);
                 const username = post.profile?.username || 'inconnu';
                 const displayName = post.profile?.full_name || username;
