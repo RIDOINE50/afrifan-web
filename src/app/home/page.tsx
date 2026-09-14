@@ -253,7 +253,6 @@ export default function HomePage() {
   const [heartAnimation, setHeartAnimation] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"foryou" | "following">("foryou");
 
-  // ✅ NOUVEAU : État pour gérer l'expansion des textes longs (Voir plus / Voir moins)
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
 
   const { isOpen: isTipOpen, onOpen: onTipOpen, onClose: onTipClose } = useDisclosure();
@@ -281,8 +280,8 @@ export default function HomePage() {
     }));
   };
 
-  // ✅ NOUVEAU : Fonction pour basculer l'affichage du texte long
-  const toggleExpandText = (postId: string) => {
+  // ✅ NOUVEAU : Gérer l'expansion et remonter légèrement le post sur mobile pour lire le texte
+  const handleExpandAndScroll = (postId: string) => {
     setExpandedPosts(prev => {
       const next = new Set(prev);
       if (next.has(postId)) {
@@ -292,9 +291,18 @@ export default function HomePage() {
       }
       return next;
     });
+
+    // Scroll smooth sur mobile uniquement
+    setTimeout(() => {
+      if (window.innerWidth < 768) {
+        const postElement = document.getElementById(`post-${postId}`);
+        if (postElement) {
+          postElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    }, 100);
   };
 
-  // Intercepter les flèches du clavier
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -318,7 +326,6 @@ export default function HomePage() {
     };
   }, []);
 
-  // ✅ CORRECTION 1 : Vérification du bannissement avec return bloquant (Race Condition)
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -336,7 +343,7 @@ export default function HomePage() {
       if (profile?.is_banned === true) {
         await supabase.auth.signOut();
         router.push("/login?error=banned");
-        return; // ✅ Return bloquant pour éviter les requêtes en arrière-plan
+        return;
       }
 
       setUser(session.user);
@@ -380,7 +387,6 @@ export default function HomePage() {
     setTrendingHashtags(trending);
   };
 
-  // ✅ CORRECTION 2 : Requêtes en parallèle avec Promise.all (Performance)
   const fetchData = async (userId: string) => {
     setIsLoading(true);
     try {
@@ -394,7 +400,6 @@ export default function HomePage() {
 
       const userIds = [...new Set(postsData.map((p: any) => p.user_id))];
       
-      // ✅ Requêtes parallèles : profiles et likes en même temps
       const [profilesData, likesData] = await Promise.all([
         supabase
           .from('profiles')
@@ -426,7 +431,6 @@ export default function HomePage() {
     setFilteredPosts(activeTab === "following" ? posts.filter(post => followedCreatorIds.has(post.user_id)) : posts);
   }, [activeTab, posts, followedCreatorIds]);
 
-  // ✅ CORRECTION 3 : IntersectionObserver créé une seule fois (Performance & Batterie)
   useEffect(() => {
     if (observerRef.current) {
       observerRef.current.disconnect();
@@ -491,7 +495,6 @@ export default function HomePage() {
     lastTapRef.current = now;
   };
 
-  // ✅ CORRECTION 4 : Toast d'erreur si le follow échoue (UX)
   const handleFollow = async (creatorId: string) => {
     if (!user) return;
     const isFollowed = followedCreatorIds.has(creatorId);
@@ -521,7 +524,6 @@ export default function HomePage() {
     setComments(data.map(c => ({ ...c, profiles: profilesMap[c.user_id] || { id: c.user_id, username: 'User', avatar_url: null, is_verified: false } })));
   };
 
-  // ✅ CORRECTION 5 : Validation des commentaires (Sécurité) + suppression de user_name
   const submitComment = async () => {
     const trimmedComment = newComment.trim();
     if (!trimmedComment || !user) return;
@@ -532,7 +534,6 @@ export default function HomePage() {
     }
 
     try {
-      // ✅ Plus de user_name, uniquement user_id pour la jointure
       await supabase.from('comments').insert({ 
         post_id: currentPostId, 
         user_id: user.id, 
@@ -598,13 +599,13 @@ export default function HomePage() {
             const creator = post.profiles;
             const isLiked = likedPostIds.has(post.id);
             const isFollowed = followedCreatorIds.has(post.user_id);
-            // ✅ CORRECTION 6 : Logique du cadenas basée sur is_premium (jamais sur tes propres posts)
             const isLocked = post.is_premium === true && user.id !== post.user_id && !subscribedCreatorIds.has(post.user_id);
             const showHeart = heartAnimation === post.id;
             const videoState = videoStates[post.id] || { isPlaying: false, currentTime: 0, duration: 0 };
 
             return (
               <Box
+                id={`post-${post.id}`}
                 key={post.id}
                 h="100dvh"
                 w="100%"
@@ -624,7 +625,6 @@ export default function HomePage() {
                     />
                     <Box cursor="pointer" onClick={() => router.push(`/createur?id=${creator.id}`)}>
                       <Text fontWeight="bold" fontSize="sm">{creator.full_name || creator.username} {creator.is_verified && <Text as="span" color="#10B981">✓</Text>}</Text>
-                      {/* ✅ CORRECTION 7 : Suppression de FAKE_LOCATIONS */}
                       <Text fontSize="xs" color="gray.400">{timeAgo(post.created_at)}</Text>
                     </Box>
                   </HStack>
@@ -658,7 +658,9 @@ export default function HomePage() {
                     </Text>
                   </Box>
                 ) : post.media_type === 'video' ? (
-<Box flex="1" position="relative" display="flex" alignItems="center" justifyContent="center" bg="black" h="100%" pb="24">                    <video
+                  // ✅ pb="110px" réserve l'espace pour ~5 lignes de description sans chevauchement
+                  <Box flex="1" position="relative" display="flex" alignItems="center" justifyContent="center" bg="black" h="100%" pb="110px">
+                    <video
                       ref={el => { if (el) videoRefs.current[post.id] = el; }}
                       src={post.media_url}
                       loop
@@ -691,7 +693,6 @@ export default function HomePage() {
                         zIndex="20"
                         pointerEvents="none"
                         onClick={(e) => e.stopPropagation()}
-                        // ✅ CORRECTION 8 : Gestion du wheel via JSX au lieu de querySelectorAll
                         onWheel={(e) => {
                           if (containerRef.current) {
                             containerRef.current.scrollTop += e.deltaY;
@@ -745,7 +746,9 @@ export default function HomePage() {
                     )}
                   </Box>
                 ) : (
-<Box flex="1" position="relative" display="flex" alignItems="center" justifyContent="center" bg="black" h="100%" pb="24">                    <Image
+                  // ✅ pb="110px" réserve l'espace pour ~5 lignes de description sans chevauchement
+                  <Box flex="1" position="relative" display="flex" alignItems="center" justifyContent="center" bg="black" h="100%" pb="110px">
+                    <Image
                       src={post.media_url}
                       alt="Post"
                       maxW="100%"
@@ -774,7 +777,6 @@ export default function HomePage() {
                   {isMuted ? <VolumeOffIcon /> : <VolumeOnIcon />}
                 </Button>
 
-                {/* ✅ CORRECTION 9 : Boutons d'action remontés sur mobile (bottom 28 au lieu de 16) */}
                 <VStack position="absolute" right={{ base: "2", md: "3" }} bottom={{ base: "28", md: "24" }} spacing="4" zIndex="30">
                   <Flex direction="column" align="center" cursor="pointer" onClick={() => handleLike(post.id)}>
                     <Box w="48px" h="48px" borderRadius="full" bg={isLiked ? "pink.500/40" : "whiteAlpha.200"} backdropFilter="blur(10px)" display="flex" alignItems="center" justifyContent="center" _hover={{ transform: "scale(1.1)", transition: "0.2s" }}>
@@ -824,7 +826,7 @@ export default function HomePage() {
                   </Menu>
                 </VStack>
 
-                {/* ✅ CORRECTION 11 : Gestion des textes longs avec "Voir plus" / "Voir moins" */}
+                {/* ✅ DESCRIPTION : Position absolute mais dans l'espace réservé (pb="110px") du média */}
                 {post.media_type !== 'text' && post.content && (
                   <Box position="absolute" bottom="0" left="0" right="0" p="4" bgGradient="linear(to-t, blackAlpha.900, transparent)" zIndex="10" onClick={(e) => e.stopPropagation()}>
                     <Text 
@@ -842,7 +844,7 @@ export default function HomePage() {
                         color="gray.300" 
                         fontWeight="semibold" 
                         cursor="pointer"
-                        onClick={(e) => { e.stopPropagation(); toggleExpandText(post.id); }}
+                        onClick={(e) => { e.stopPropagation(); handleExpandAndScroll(post.id); }}
                         mt={1}
                       >
                         {expandedPosts.has(post.id) ? "Voir moins" : "Voir plus"}
@@ -931,19 +933,30 @@ export default function HomePage() {
 
       <Modal isOpen={showComments} onClose={() => setShowComments(false)} size={{ base: "full", md: "md" }}>
         <ModalOverlay bg="blackAlpha.700" />
-        <ModalContent bg={theme.card} color={theme.text} borderRadius={{ base: "20px 20px 0 0", md: "16px" }} h={{ base: "70vh", md: "auto" }} maxH="70vh" m={{ base: "0", md: "auto" }}>
+        {/* ✅ MODAL CONTENT : Pleine hauteur sur mobile, flex column pour gérer le sticky footer */}
+        <ModalContent 
+          bg={theme.card} 
+          color={theme.text} 
+          borderRadius={{ base: "20px 20px 0 0", md: "16px" }} 
+          h={{ base: "100dvh", md: "70vh" }} 
+          maxH={{ base: "100dvh", md: "70vh" }} 
+          m={{ base: "0", md: "auto" }}
+          display="flex"
+          flexDirection="column"
+        >
           <ModalHeader display="flex" justifyContent="space-between" alignItems="center">
             Commentaires ({comments.length})
             <ModalCloseButton position="static" />
           </ModalHeader>
-          <ModalBody overflowY="auto" flex="1">
+          
+          {/* ✅ MODAL BODY : flex=1 pour prendre tout l'espace restant, pb=24 pour que le dernier commentaire ne soit pas caché derrière le footer */}
+          <ModalBody overflowY="auto" flex="1" pb="24">
             {comments.length === 0 ? (
               <Center h="100px" color={theme.textMuted}>Aucun commentaire</Center>
             ) : (
               <VStack align="stretch" spacing="4">
                 {comments.map(comment => (
                   <HStack key={comment.id} align="start" spacing="3">
-                    {/* ✅ CORRECTION 10 : Avatar et Nom du commentateur cliquables */}
                     <Avatar 
                       size="sm" 
                       name={comment.profiles?.username} 
@@ -964,14 +977,18 @@ export default function HomePage() {
               </VStack>
             )}
           </ModalBody>
-<ModalFooter 
-  borderTop={`1px solid ${theme.border}`}
-  position="sticky"
-  bottom="0"
-  bg={theme.card}
-  zIndex="10"
-  pb={{ base: "4", md: "0" }}
->            <HStack w="100%">
+
+          {/* ✅ MODAL FOOTER : Sticky en bas, toujours visible sur mobile sans scroller, avec padding bas pour la zone sûre du téléphone */}
+          <ModalFooter 
+            borderTop={`1px solid ${theme.border}`}
+            position="sticky"
+            bottom="0"
+            bg={theme.card}
+            zIndex="20"
+            pb={{ base: "8", md: "4" }}
+            pt="2"
+          >
+            <HStack w="100%">
               <Input
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
