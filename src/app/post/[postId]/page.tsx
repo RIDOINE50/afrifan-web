@@ -772,8 +772,7 @@ export default function PostDetailPage() {
       )}
 
       {/* ✅ MODALE DE SIGNALEMENT (Déjà dynamique via Supabase) */}
-      <ReportModal isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} postId={reportPostId} />
-
+<ReportModal isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} postId={reportPostId} isDark={isDark} />
       <style>{`
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
@@ -886,7 +885,7 @@ function ActionButton({ icon, label, color = "white", onClick }: { icon: React.R
   );
 }
 
-function ReportModal({ isOpen, onClose, postId }: { isOpen: boolean; onClose: () => void; postId: string }) {
+function ReportModal({ isOpen, onClose, postId, isDark }: { isOpen: boolean; onClose: () => void; postId: string; isDark: boolean }) {
   const toast = useToast();
   const [selectedReason, setSelectedReason] = useState("");
 
@@ -895,7 +894,6 @@ function ReportModal({ isOpen, onClose, postId }: { isOpen: boolean; onClose: ()
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      // ✅ DYNAMIQUE : Enregistre dans la table 'reports' de Supabase
       await supabase.from('reports').insert({ post_id: postId, reporter_id: session.user.id, reason: selectedReason });
       toast({ title: "✅ Signalement envoyé", status: "success", duration: 3000 });
       onClose();
