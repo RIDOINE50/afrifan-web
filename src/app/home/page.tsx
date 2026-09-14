@@ -658,8 +658,7 @@ export default function HomePage() {
                     </Text>
                   </Box>
                 ) : post.media_type === 'video' ? (
-                  <Box flex="1" position="relative" display="flex" alignItems="center" justifyContent="center" bg="black" h="100%">
-                    <video
+<Box flex="1" position="relative" display="flex" alignItems="center" justifyContent="center" bg="black" h="100%" pb="24">                    <video
                       ref={el => { if (el) videoRefs.current[post.id] = el; }}
                       src={post.media_url}
                       loop
@@ -746,8 +745,7 @@ export default function HomePage() {
                     )}
                   </Box>
                 ) : (
-                  <Box flex="1" position="relative" display="flex" alignItems="center" justifyContent="center" bg="black" h="100%">
-                    <Image
+<Box flex="1" position="relative" display="flex" alignItems="center" justifyContent="center" bg="black" h="100%" pb="24">                    <Image
                       src={post.media_url}
                       alt="Post"
                       maxW="100%"
@@ -966,8 +964,14 @@ export default function HomePage() {
               </VStack>
             )}
           </ModalBody>
-          <ModalFooter borderTop={`1px solid ${theme.border}`}>
-            <HStack w="100%">
+<ModalFooter 
+  borderTop={`1px solid ${theme.border}`}
+  position="sticky"
+  bottom="0"
+  bg={theme.card}
+  zIndex="10"
+  pb={{ base: "4", md: "0" }}
+>            <HStack w="100%">
               <Input
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
