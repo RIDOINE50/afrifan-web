@@ -407,7 +407,6 @@ export default function MessagesContent() {
     setRefreshing(false);
   };
 
-  // ✅ NOUVELLE FONCTION : Redirection vers le profil de l'utilisateur
   const goToUserProfile = () => {
     if (selectedUserId) {
       router.push(`/createur?id=${selectedUserId}`);
@@ -416,8 +415,12 @@ export default function MessagesContent() {
 
   return (
     <div className="msg-layout">
+      {/* ========================================== */}
+      {/* COLONNE GAUCHE : LISTE DES CONVERSATIONS   */}
+      {/* ========================================== */}
       <div className="msg-list-col">
-        <div style={{ padding: "16px 20px", borderBottom: `1px solid ${colors.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        {/* 1. Header fixe */}
+        <div className="chat-header" style={{ padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
           <h1 style={{ margin: 0, fontSize: "22px", fontWeight: "bold", color: colors.text }}>Messages</h1>
           <div style={{ display: "flex", gap: "8px" }}>
             <button
@@ -438,7 +441,8 @@ export default function MessagesContent() {
           </div>
         </div>
 
-        <div style={{ padding: "12px 16px", borderBottom: `1px solid ${colors.border}` }}>
+        {/* 2. Search fixe */}
+        <div style={{ padding: "12px 16px", borderBottom: `1px solid ${colors.border}`, flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", backgroundColor: colors.card, borderRadius: "12px", border: `1px solid ${colors.border}`, padding: "8px 12px" }}>
             <span style={{ color: colors.textMuted, marginRight: "8px", display: "flex" }}><Icons.Search size={18} /></span>
             <input
@@ -456,8 +460,9 @@ export default function MessagesContent() {
           </div>
         </div>
 
+        {/* 3. Top Recents fixe */}
         {topRecents.length > 0 && (
-          <div style={{ padding: "12px 0", borderBottom: `1px solid ${colors.border}` }}>
+          <div style={{ padding: "12px 0", borderBottom: `1px solid ${colors.border}`, flexShrink: 0 }}>
             <div style={{ display: "flex", gap: "16px", overflowX: "auto", padding: "0 16px", scrollbarWidth: "none" }}>
               {topRecents.map((c) => (
                 <div
@@ -466,53 +471,13 @@ export default function MessagesContent() {
                   style={{ minWidth: "70px", display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", cursor: "pointer" }}
                 >
                   <div style={{ position: "relative" }}>
-                    <div
-                      style={{
-                        width: "60px",
-                        height: "60px",
-                        borderRadius: "50%",
-                        padding: c.unread_count > 0 ? "2px" : "0",
-                        background: c.unread_count > 0 ? colors.primary : "transparent",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          borderRadius: "50%",
-                          backgroundColor: colors.card,
-                          backgroundImage: getAvatarOf(c) ? `url(${getAvatarOf(c)})` : undefined,
-                          backgroundSize: "cover",
-                          backgroundPosition: "center",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: colors.textMuted,
-                        }}
-                      >
+                    <div style={{ width: "60px", height: "60px", borderRadius: "50%", padding: c.unread_count > 0 ? "2px" : "0", background: c.unread_count > 0 ? colors.primary : "transparent" }}>
+                      <div style={{ width: "100%", height: "100%", borderRadius: "50%", backgroundColor: colors.card, backgroundImage: getAvatarOf(c) ? `url(${getAvatarOf(c)})` : undefined, backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", justifyContent: "center", color: colors.textMuted }}>
                         {!getAvatarOf(c) && <Icons.User size={24} />}
                       </div>
                     </div>
                     {c.unread_count > 0 && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: "-2px",
-                          right: "-2px",
-                          backgroundColor: colors.primary,
-                          color: colors.primaryText,
-                          borderRadius: "50%",
-                          minWidth: "20px",
-                          height: "20px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "10px",
-                          fontWeight: "bold",
-                          padding: "0 4px",
-                          border: `2px solid ${colors.bg}`,
-                        }}
-                      >
+                      <div style={{ position: "absolute", top: "-2px", right: "-2px", backgroundColor: colors.primary, color: colors.primaryText, borderRadius: "50%", minWidth: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "bold", padding: "0 4px", border: `2px solid ${colors.bg}` }}>
                         {c.unread_count > 99 ? "99+" : c.unread_count}
                       </div>
                     )}
@@ -526,8 +491,9 @@ export default function MessagesContent() {
           </div>
         )}
 
+        {/* 4. Requests fixe */}
         {requestsCount > 0 && allowFanRequests && (
-          <div style={{ margin: "12px 16px", padding: "14px", backgroundColor: colors.card, borderRadius: "12px", border: `1px solid ${colors.border}`, display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ margin: "12px 16px", padding: "14px", backgroundColor: colors.card, borderRadius: "12px", border: `1px solid ${colors.border}`, display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
             <div style={{ width: "44px", height: "44px", borderRadius: "12px", backgroundColor: colors.hover, display: "flex", alignItems: "center", justifyContent: "center", color: colors.primary }}>
               <Icons.Users size={22} />
             </div>
@@ -535,16 +501,14 @@ export default function MessagesContent() {
               <div style={{ fontWeight: "bold", fontSize: "14px", color: colors.text }}>Demandes de messages</div>
               <div style={{ fontSize: "12px", color: colors.textMuted }}>{requestsCount} nouvelle(s) demande(s)</div>
             </div>
-            <button
-              style={{ padding: "8px 16px", backgroundColor: colors.primary, border: "none", borderRadius: "20px", color: colors.primaryText, fontWeight: "bold", fontSize: "13px", cursor: "pointer" }}
-              onClick={() => alert("Écran des demandes à implémenter")}
-            >
+            <button style={{ padding: "8px 16px", backgroundColor: colors.primary, border: "none", borderRadius: "20px", color: colors.primaryText, fontWeight: "bold", fontSize: "13px", cursor: "pointer" }} onClick={() => alert("Écran des demandes à implémenter")}>
               Voir
             </button>
           </div>
         )}
 
-        <div style={{ flex: 1, overflowY: "auto" }}>
+        {/* 5. ✅ ZONE SCROLLABLE DES CONVERSATIONS */}
+        <div className="conversations-scroll-area">
           <div style={{ padding: "12px 16px 8px", fontSize: "12px", fontWeight: "bold", color: colors.textMuted, letterSpacing: "1px" }}>
             TOUTES LES CONVERSATIONS
           </div>
@@ -582,21 +546,7 @@ export default function MessagesContent() {
                   onMouseLeave={(e) => { if (selectedUserId !== c.other_user_id) e.currentTarget.style.backgroundColor = "transparent"; }}
                 >
                   <div style={{ position: "relative", flexShrink: 0 }}>
-                    <div
-                      style={{
-                        width: "48px",
-                        height: "48px",
-                        borderRadius: "50%",
-                        backgroundColor: colors.card,
-                        backgroundImage: getAvatarOf(c) ? `url(${getAvatarOf(c)})` : undefined,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: colors.textMuted,
-                      }}
-                    >
+                    <div style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: colors.card, backgroundImage: getAvatarOf(c) ? `url(${getAvatarOf(c)})` : undefined, backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", justifyContent: "center", color: colors.textMuted }}>
                       {!getAvatarOf(c) && <Icons.User size={20} />}
                     </div>
                     {isPinned && (
@@ -633,46 +583,21 @@ export default function MessagesContent() {
         </div>
       </div>
 
+      {/* ========================================== */}
+      {/* COLONNE DROITE : ZONE DE CHAT              */}
+      {/* ========================================== */}
       <div className="msg-chat-col">
         {selectedUserId && selectedUser ? (
           <>
-            {/* ✅ HEADER STICKY - Reste en haut même en scrollant */}
-            <div style={{ 
-              padding: "16px 24px", 
-              borderBottom: `1px solid ${colors.border}`, 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "space-between",
-              position: "sticky",
-              top: 0,
-              backgroundColor: colors.bg,
-              zIndex: 10,
-            }}>
+            {/* 1. ✅ HEADER FIXE (Reste en haut) */}
+            <div className="chat-header" style={{ padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <button
-                  className="mobile-back-btn"
-                  onClick={() => setSelectedUserId(null)}
-                  style={{ background: "none", border: "none", color: colors.text, cursor: "pointer", padding: "0 8px 0 0", display: "flex" }}
-                >
+                <button className="mobile-back-btn" onClick={() => setSelectedUserId(null)} style={{ background: "none", border: "none", color: colors.text, cursor: "pointer", padding: "0 8px 0 0", display: "flex" }}>
                   <Icons.ArrowLeft size={24} />
                 </button>
-                {/* ✅ CLIQUABLE : Redirection vers le profil */}
                 <div 
                   onClick={goToUserProfile}
-                  style={{ 
-                    width: "40px", 
-                    height: "40px", 
-                    borderRadius: "50%", 
-                    backgroundColor: colors.card, 
-                    backgroundImage: selectedUser.avatar_url ? `url(${selectedUser.avatar_url})` : undefined, 
-                    backgroundSize: "cover", 
-                    backgroundPosition: "center", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center", 
-                    color: colors.textMuted,
-                    cursor: "pointer",
-                  }}
+                  style={{ width: "40px", height: "40px", borderRadius: "50%", backgroundColor: colors.card, backgroundImage: selectedUser.avatar_url ? `url(${selectedUser.avatar_url})` : undefined, backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", justifyContent: "center", color: colors.textMuted, cursor: "pointer" }}
                   title="Voir le profil"
                 >
                   {!selectedUser.avatar_url && <Icons.User size={20} />}
@@ -692,8 +617,8 @@ export default function MessagesContent() {
               </div>
             </div>
 
-            {/* Zone de messages scrollable */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+            {/* 2. ✅ ZONE SCROLLABLE DES MESSAGES (Seule cette partie bouge) */}
+            <div className="messages-scroll-area">
               {messages.map((msg: any) => {
                 const isMine = msg.sender_id === user.id;
                 return (
@@ -748,15 +673,8 @@ export default function MessagesContent() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* ✅ ZONE DE SAISIE STICKY - Reste en bas même en scrollant */}
-            <div style={{ 
-              padding: "16px", 
-              borderTop: `1px solid ${colors.border}`, 
-              backgroundColor: colors.bg, 
-              position: "sticky",
-              bottom: 0,
-              zIndex: 10,
-            }}>
+            {/* 3. ✅ FOOTER FIXE (Reste en bas) */}
+            <div className="chat-footer" style={{ padding: "16px", flexShrink: 0 }}>
               {replyTo && (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: colors.card, padding: "8px 12px", borderRadius: "8px", marginBottom: "8px", borderLeft: `3px solid ${colors.primary}` }}>
                   <div style={{ fontSize: "13px", overflow: "hidden", flex: 1, marginRight: "8px" }}>
@@ -817,32 +735,19 @@ export default function MessagesContent() {
         )}
       </div>
 
+      {/* ========================================== */}
+      {/* MODALES (Context Menu & Settings)          */}
+      {/* ========================================== */}
       {contextMenu && (
-        <div
-          style={{
-            position: "fixed",
-            top: contextMenu.y,
-            left: contextMenu.x,
-            backgroundColor: colors.card,
-            border: `1px solid ${colors.border}`,
-            borderRadius: "12px",
-            padding: "8px 0",
-            minWidth: "220px",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-            zIndex: 1000,
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div style={{ position: "fixed", top: contextMenu.y, left: contextMenu.x, backgroundColor: colors.card, border: `1px solid ${colors.border}`, borderRadius: "12px", padding: "8px 0", minWidth: "220px", boxShadow: "0 8px 24px rgba(0,0,0,0.5)", zIndex: 1000 }} onClick={(e) => e.stopPropagation()}>
           <div onClick={() => { selectConversation(contextMenu.conv.other_user_id); setContextMenu(null); }} style={{ padding: "10px 16px", cursor: "pointer", color: colors.text, fontSize: "14px", display: "flex", alignItems: "center", gap: "12px" }}>
             <Icons.User size={16} /> Voir le profil
           </div>
           <div onClick={() => togglePin(contextMenu.conv.other_user_id)} style={{ padding: "10px 16px", cursor: "pointer", color: colors.text, fontSize: "14px", display: "flex", alignItems: "center", gap: "12px" }}>
-            {pinnedIds.has(contextMenu.conv.other_user_id) ? <Icons.Pin size={16} /> : <Icons.Pin size={16} />}
-            {pinnedIds.has(contextMenu.conv.other_user_id) ? "Désépingler" : "Épingler"}
+            <Icons.Pin size={16} /> {pinnedIds.has(contextMenu.conv.other_user_id) ? "Désépingler" : "Épingler"}
           </div>
           <div onClick={() => toggleMute(contextMenu.conv.other_user_id)} style={{ padding: "10px 16px", cursor: "pointer", color: colors.text, fontSize: "14px", display: "flex", alignItems: "center", gap: "12px" }}>
-            {mutedIds.has(contextMenu.conv.other_user_id) ? <Icons.BellOff size={16} /> : <Icons.BellOff size={16} />}
-            {mutedIds.has(contextMenu.conv.other_user_id) ? "Réactiver" : "Mettre en sourdine"}
+            <Icons.BellOff size={16} /> {mutedIds.has(contextMenu.conv.other_user_id) ? "Réactiver" : "Mettre en sourdine"}
           </div>
           <div onClick={() => blockUser(contextMenu.conv.other_user_id)} style={{ padding: "10px 16px", cursor: "pointer", color: colors.red, fontSize: "14px", display: "flex", alignItems: "center", gap: "12px" }}>
             <Icons.Ban size={16} /> Bloquer
@@ -877,19 +782,7 @@ export default function MessagesContent() {
                   <div style={{ fontWeight: "bold", fontSize: "14px", color: colors.text }}>{item.title}</div>
                   <div style={{ fontSize: "12px", color: colors.textMuted }}>{item.subtitle}</div>
                 </div>
-                <button
-                  onClick={() => item.onChange(!item.value)}
-                  style={{
-                    width: "44px",
-                    height: "24px",
-                    borderRadius: "12px",
-                    border: "none",
-                    backgroundColor: item.value ? colors.primary : colors.border,
-                    position: "relative",
-                    cursor: "pointer",
-                    transition: "background-color 0.2s",
-                  }}
-                >
+                <button onClick={() => item.onChange(!item.value)} style={{ width: "44px", height: "24px", borderRadius: "12px", border: "none", backgroundColor: item.value ? colors.primary : colors.border, position: "relative", cursor: "pointer", transition: "background-color 0.2s" }}>
                   <div style={{ width: "20px", height: "20px", borderRadius: "50%", backgroundColor: "white", position: "absolute", top: "2px", left: item.value ? "22px" : "2px", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
                 </button>
               </div>
@@ -898,14 +791,16 @@ export default function MessagesContent() {
         </div>
       )}
 
+      {/* ========================================== */}
+      {/* ✅ CSS FINAL ET ROBUSTE                    */}
+      {/* ========================================== */}
       <style>{`
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .animate-spin { animation: spin 1s linear infinite; }
         
         .msg-layout {
-          height: 100%;
-          min-height: 100%;
+          height: 100dvh; /* dvh gère mieux les barres d'outils mobiles */
           background-color: ${colors.bg};
           color: ${colors.text};
           display: flex;
@@ -917,6 +812,7 @@ export default function MessagesContent() {
           border-right: 1px solid ${colors.border};
           display: flex;
           flex-direction: column;
+          height: 100%;
         }
         
         .msg-chat-col {
@@ -924,13 +820,44 @@ export default function MessagesContent() {
           display: flex;
           flex-direction: column;
           background-color: ${colors.bg};
+          height: 100%;
+          position: relative;
+        }
+
+        /* Zones qui SCROLLENT uniquement */
+        .messages-scroll-area {
+          flex: 1;
+          overflow-y: auto;
+          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .conversations-scroll-area {
+          flex: 1;
+          overflow-y: auto;
+        }
+
+        /* Éléments FIXES (ne bougent jamais) */
+        .chat-header {
+          position: sticky;
+          top: 0;
+          z-index: 10;
+          background-color: ${colors.bg};
+        }
+
+        .chat-footer {
+          position: sticky;
+          bottom: 0;
+          z-index: 10;
+          background-color: ${colors.bg};
         }
 
         .mobile-back-btn {
           display: none !important;
         }
 
-        /* Style minimaliste pour le lecteur audio natif */
         audio::-webkit-media-controls-panel {
           background-color: ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)"};
         }
