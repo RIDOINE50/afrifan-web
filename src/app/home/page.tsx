@@ -950,7 +950,9 @@ export default function HomePage() {
           </ModalHeader>
           
           {/* ✅ MODAL BODY : flex=1 pour prendre tout l'espace restant, pb=24 pour que le dernier commentaire ne soit pas caché derrière le footer */}
-<ModalBody overflowY="auto" flex="1" pb={{ base: "32", md: "24" }}>            {comments.length === 0 ? (
+<ModalBody overflowY="auto" flex="1" pb="24" mb="60px">
+  
+              {comments.length === 0 ? (
               <Center h="100px" color={theme.textMuted}>Aucun commentaire</Center>
             ) : (
               <VStack align="stretch" spacing="4">
@@ -978,17 +980,16 @@ export default function HomePage() {
           </ModalBody>
 
           {/* ✅ MODAL FOOTER : Sticky en bas, toujours visible sur mobile sans scroller, avec padding bas pour la zone sûre du téléphone */}
-      <ModalFooter 
+ <ModalFooter 
   borderTop={`1px solid ${theme.border}`}
-  position="sticky"
-  bottom="0"
+  position="fixed"
+  bottom="60px"
+  left="0"
+  right="0"
   bg={theme.card}
-  zIndex="20"
-  pb={{ base: "12", md: "4" }}
-  pt="2"
-  css={{
-    paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)'
-  }}
+  zIndex="100"
+  px="4"
+  py="2"
 >
   <HStack w="100%">
     <Input
