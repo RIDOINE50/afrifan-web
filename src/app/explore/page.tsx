@@ -2,9 +2,62 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image"; // ✅ Import du composant Image optimisé
 import { supabase } from "@/lib/supabaseClient";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { useToast } from "@chakra-ui/react";
+
+// ✅ INTERFACES TYPES STRICTES (Plus de 'any')
+interface Creator {
+  id: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  is_verified: boolean;
+}
+
+interface PostProfile {
+  id: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  premium_price: number;
+  pro_price: number;
+}
+
+interface Post {
+  id: string;
+  user_id: string;
+  media_url: string | null;
+  media_type: string;
+  caption: string | null;
+  title: string | null;
+  likes_count: number;
+  comments_count: number;
+  created_at: string;
+  is_premium: boolean; // ✅ Ajouté pour la logique de verrouillage
+  profile: PostProfile;
+}
+
+// ✅ VRAIES ICÔNES SVG (Pas d'émojis/stickers)
+const SearchIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
+const CloseIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
+const StarIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>;
+const FireIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>;
+const LockIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
+const PlayIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>;
+const HeartIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="#EF4444" stroke="none"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>;
+const RefreshIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>;
+
+// ✅ Fonction utilitaire pour obtenir la première lettre et une couleur cohérente
+const getInitials = (name: string) => (name ? name.charAt(0).toUpperCase() : "?");
+const getAvatarColor = (name: string) => {
+  const colors = ["#A855F7", "#F97316", "#EF4444", "#3B82F6", "#10B981", "#EC4899"];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+};
 
 function formatCount(count: number): string {
   if (count >= 1000000) return (count / 1000000).toFixed(1) + "M";
@@ -14,17 +67,19 @@ function formatCount(count: number): string {
 
 export default function ExplorePage() {
   const router = useRouter();
+  const toast = useToast(); // ✅ Initialisation du toast
   const { isDark, theme } = useAppTheme();
+  
   const [user, setUser] = useState<any>(null);
-  const [creators, setCreators] = useState<any[]>([]);
-  const [posts, setPosts] = useState<any[]>([]);
+  const [creators, setCreators] = useState<Creator[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
   const [subscribedCreatorIds, setSubscribedCreatorIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [followingLoadingId, setFollowingLoadingId] = useState<string | null>(null); // Pour le loader du bouton suivre
 
-  // ✅ Couleurs dynamiques selon le thème
   const colors = {
     bg: theme.bg,
     card: theme.card,
@@ -60,7 +115,7 @@ export default function ExplorePage() {
       await Promise.all([
         fetchFollowedIds(userId),
         fetchSubscriptions(userId),
-        fetchCreators(userId),
+        fetchCreators(), // ✅ Pas d'ordre, récupère 50 au hasard comme demandé
         fetchPosts(),
       ]);
       setHasLoadedOnce(true);
@@ -72,29 +127,20 @@ export default function ExplorePage() {
   };
 
   const fetchFollowedIds = async (userId: string) => {
-    const { data } = await supabase
-      .from('follows')
-      .select('following_id')
-      .eq('follower_id', userId);
-    
+    const { data } = await supabase.from('follows').select('following_id').eq('follower_id', userId);
     setFollowedIds(new Set(data?.map((f: any) => f.following_id) || []));
   };
 
   const fetchSubscriptions = async (userId: string) => {
-    const { data } = await supabase
-      .from('subscriptions')
-      .select('creator_id')
-      .eq('fan_id', userId)
-      .eq('status', 'active');
-    
+    const { data } = await supabase.from('subscriptions').select('creator_id').eq('fan_id', userId).eq('status', 'active');
     setSubscribedCreatorIds(new Set(data?.map((s: any) => s.creator_id) || []));
   };
 
-  const fetchCreators = async (userId: string) => {
+  const fetchCreators = async () => {
+    // ✅ Gardé sans .order() pour avoir un échantillon aléatoire comme demandé
     const { data } = await supabase
       .from('profiles')
       .select('id, username, full_name, avatar_url, is_verified')
-      .neq('id', userId)
       .limit(50);
     
     setCreators(data || []);
@@ -103,7 +149,8 @@ export default function ExplorePage() {
   const fetchPosts = async () => {
     const { data: postsData } = await supabase
       .from('posts')
-      .select('id, user_id, media_url, media_type, caption, title, likes_count, comments_count, created_at')
+      // ✅ Ajout de is_premium pour la logique de verrouillage
+      .select('id, user_id, media_url, media_type, caption, title, likes_count, comments_count, created_at, is_premium')
       .order('created_at', { ascending: false })
       .limit(30);
 
@@ -116,13 +163,23 @@ export default function ExplorePage() {
       .select('id, username, full_name, avatar_url, premium_price, pro_price')
       .in('id', userIds);
 
-    const profilesMap: Record<string, any> = {};
-    profilesData?.forEach((p: any) => { profilesMap[p.id] = p; });
+    const profilesMap: Record<string, PostProfile> = {};
+    profilesData?.forEach((p: any) => { 
+      profilesMap[p.id] = { 
+        id: p.id, 
+        username: p.username, 
+        full_name: p.full_name, 
+        avatar_url: p.avatar_url, 
+        premium_price: p.premium_price || 0, 
+        pro_price: p.pro_price || 0 
+      }; 
+    });
 
-    const mergedPosts = postsData.map((post: any) => ({
+    const mergedPosts: Post[] = postsData.map((post: any) => ({
       ...post,
-      profile: profilesMap[post.user_id] || { username: 'inconnu', premium_price: 0, pro_price: 0 },
+      profile: profilesMap[post.user_id] || { id: post.user_id, username: 'inconnu', full_name: null, avatar_url: null, premium_price: 0, pro_price: 0 },
       likes_count: post.likes_count ?? 0,
+      is_premium: post.is_premium ?? false,
     }));
 
     setPosts(mergedPosts);
@@ -133,8 +190,11 @@ export default function ExplorePage() {
       router.push("/login");
       return;
     }
+    
     const isFollowing = followedIds.has(creatorId);
+    setFollowingLoadingId(creatorId);
 
+    // Mise à jour optimiste
     setFollowedIds(prev => {
       const next = new Set(prev);
       if (isFollowing) next.delete(creatorId);
@@ -150,12 +210,22 @@ export default function ExplorePage() {
       }
     } catch (error) {
       console.error("❌ Erreur toggle follow:", error);
+      // Rollback en cas d'erreur
       setFollowedIds(prev => {
         const next = new Set(prev);
         if (isFollowing) next.add(creatorId);
         else next.delete(creatorId);
         return next;
       });
+      // ✅ TOAST D'ERREUR
+      toast({
+        title: "Erreur",
+        description: "Impossible de modifier l'abonnement. Vérifiez votre connexion.",
+        status: "error",
+        duration: 3000,
+      });
+    } finally {
+      setFollowingLoadingId(null);
     }
   };
 
@@ -193,13 +263,8 @@ export default function ExplorePage() {
 
   return (
     <DashboardLayout>
-      <div style={{ 
-        maxWidth: "1400px", 
-        margin: "0 auto", 
-        padding: "20px", 
-        backgroundColor: colors.bg,
-        minHeight: "100vh"
-      }}>
+      <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "20px", backgroundColor: colors.bg, minHeight: "100vh" }}>
+        
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
           <h1 style={{ color: colors.text, fontSize: "28px", fontWeight: "bold", margin: 0 }}>Découvrir</h1>
@@ -212,11 +277,8 @@ export default function ExplorePage() {
         </div>
 
         {/* Barre de recherche */}
-        <div style={{ 
-          display: "flex", alignItems: "center", backgroundColor: colors.card, borderRadius: "999px", 
-          padding: "12px 20px", marginBottom: "32px", border: `1px solid ${colors.border}`
-        }}>
-          <span style={{ color: colors.textMuted, marginRight: "12px", fontSize: "18px" }}>🔍</span>
+        <div style={{ display: "flex", alignItems: "center", backgroundColor: colors.card, borderRadius: "999px", padding: "12px 20px", marginBottom: "32px", border: `1px solid ${colors.border}` }}>
+          <span style={{ color: colors.textMuted, marginRight: "12px", display: "flex" }}><SearchIcon /></span>
           <input
             type="text"
             value={searchQuery}
@@ -225,7 +287,9 @@ export default function ExplorePage() {
             style={{ background: "transparent", border: "none", outline: "none", color: colors.text, width: "100%", fontSize: "15px" }}
           />
           {searchQuery && (
-            <button onClick={() => setSearchQuery("")} style={{ background: "none", border: "none", color: colors.textMuted, cursor: "pointer", fontSize: "18px", padding: "4px" }}>✕</button>
+            <button onClick={() => setSearchQuery("")} style={{ background: "none", border: "none", color: colors.textMuted, cursor: "pointer", display: "flex", padding: "4px" }}>
+              <CloseIcon />
+            </button>
           )}
         </div>
 
@@ -233,7 +297,7 @@ export default function ExplorePage() {
         <div style={{ marginBottom: "40px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "20px" }}>⭐</span>
+              <span style={{ color: colors.orange, display: "flex" }}><StarIcon /></span>
               <h2 style={{ color: colors.text, fontSize: "18px", fontWeight: "bold", margin: 0 }}>Créateurs tendance</h2>
             </div>
             <button 
@@ -248,8 +312,10 @@ export default function ExplorePage() {
             {filteredCreators.length === 0 ? (
               <div style={{ color: colors.textMuted, padding: "20px" }}>Aucun créateur trouvé</div>
             ) : (
-              filteredCreators.map((creator: any) => {
+              filteredCreators.map((creator) => {
                 const isFollowing = followedIds.has(creator.id);
+                const displayName = creator.full_name || creator.username;
+                
                 return (
                   <div
                     key={creator.id}
@@ -262,29 +328,44 @@ export default function ExplorePage() {
                     onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
                     onClick={() => router.push(`/createur?id=${creator.id}`)}
                   >
-                    <div style={{
-                      width: "64px", height: "64px", borderRadius: "50%", backgroundColor: colors.border,
-                      backgroundImage: creator.avatar_url ? `url(${creator.avatar_url})` : undefined,
-                      backgroundSize: "cover", backgroundPosition: "center", display: "flex",
-                      alignItems: "center", justifyContent: "center", fontSize: "28px", color: colors.textMuted,
-                    }}>
-                      {!creator.avatar_url && "👤"}
-                    </div>
+                    {/* ✅ AVATAR AVEC INITIALE (Plus de sticker bonhomme) */}
+                    {creator.avatar_url ? (
+                      <Image 
+                        src={creator.avatar_url} 
+                        alt={displayName} 
+                        width={64} 
+                        height={64} 
+                        style={{ borderRadius: "50%", objectFit: "cover" }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: "64px", height: "64px", borderRadius: "50%", 
+                        backgroundColor: getAvatarColor(displayName),
+                        display: "flex", alignItems: "center", justifyContent: "center", 
+                        fontSize: "28px", fontWeight: "bold", color: "white"
+                      }}>
+                        {getInitials(displayName)}
+                      </div>
+                    )}
                     
                     <div style={{ color: colors.text, fontWeight: "bold", fontSize: "14px", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>
-                      {creator.full_name || creator.username}
+                      {displayName}
                     </div>
 
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleFollow(creator.id); }}
+                      disabled={followingLoadingId === creator.id}
                       style={{
                         width: "100%", padding: "8px", 
                         backgroundColor: isFollowing ? colors.border : colors.primary,
                         color: isFollowing ? colors.textMuted : colors.primaryText, 
-                        border: "none", borderRadius: "12px", fontWeight: "bold", fontSize: "12px", cursor: "pointer", transition: "background 0.2s"
+                        border: "none", borderRadius: "12px", fontWeight: "bold", fontSize: "12px", 
+                        cursor: followingLoadingId === creator.id ? "wait" : "pointer", 
+                        transition: "background 0.2s",
+                        opacity: followingLoadingId === creator.id ? 0.7 : 1
                       }}
                     >
-                      {isFollowing ? "Suivi" : "Suivre"}
+                      {followingLoadingId === creator.id ? "..." : (isFollowing ? "Suivi" : "Suivre")}
                     </button>
                   </div>
                 );
@@ -297,7 +378,7 @@ export default function ExplorePage() {
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "20px" }}>🔥</span>
+              <span style={{ color: colors.red, display: "flex" }}><FireIcon /></span>
               <h2 style={{ color: colors.text, fontSize: "18px", fontWeight: "bold", margin: 0 }}>Pour toi</h2>
             </div>
             <button 
@@ -310,15 +391,15 @@ export default function ExplorePage() {
 
           {filteredPosts.length === 0 ? (
             <div style={{ textAlign: "center", color: colors.textMuted, padding: "60px 20px", backgroundColor: colors.card, borderRadius: "16px" }}>
-              <div style={{ fontSize: "48px", marginBottom: "16px" }}></div>
               <p style={{ fontSize: "16px" }}>Aucun résultat trouvé</p>
             </div>
           ) : (
             <div className="responsive-posts-grid">
-              {filteredPosts.map((post: any) => {
+              {filteredPosts.map((post) => {
                 const creatorId = post.user_id;
                 const isMyOwnPost = user?.id === creatorId;
-                const isLocked = !isMyOwnPost && !subscribedCreatorIds.has(creatorId);
+                // ✅ LOGIQUE IS_LOCKED CORRIGÉE : Vérifie is_premium
+                const isLocked = post.is_premium === true && !isMyOwnPost && !subscribedCreatorIds.has(creatorId);
                 const username = post.profile?.username || 'inconnu';
                 const displayName = post.profile?.full_name || username;
                 const likesCount = post.likes_count || 0;
@@ -335,16 +416,22 @@ export default function ExplorePage() {
                       }
                     }}
                     className="post-card"
+                    style={{ position: "relative" }} // Nécessaire pour next/image fill
                   >
                     {post.media_url ? (
                       <>
                         {isLocked ? (
                           <>
-                            <div style={{ filter: "blur(25px) brightness(0.6)", width: "100%", height: "100%", backgroundImage: `url(${post.media_url})`, backgroundSize: "cover", backgroundPosition: "center", transform: "scale(1.1)" }} />
-                            <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.6)" }} />
+                            {/* ✅ Utilisation de next/image avec blur */}
+                            <div style={{ position: "absolute", inset: 0, filter: "blur(25px) brightness(0.6)", zIndex: 1 }}>
+                              <Image src={post.media_url} alt="Post" fill style={{ objectFit: "cover", transform: "scale(1.1)" }} />
+                            </div>
+                            <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", zIndex: 2 }} />
                           </>
                         ) : (
-                          <div style={{ width: "100%", height: "100%", backgroundImage: `url(${post.media_url})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                          <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
+                            <Image src={post.media_url} alt="Post" fill style={{ objectFit: "cover" }} />
+                          </div>
                         )}
                       </>
                     ) : (
@@ -353,7 +440,9 @@ export default function ExplorePage() {
 
                     {isLocked && (
                       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", zIndex: 10 }}>
-                        <div style={{ width: "56px", height: "56px", borderRadius: "50%", backgroundColor: colors.primary, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px" }}>🔒</div>
+                        <div style={{ width: "56px", height: "56px", borderRadius: "50%", backgroundColor: colors.primary, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <LockIcon />
+                        </div>
                         <span style={{ color: "white", fontWeight: "bold", fontSize: "13px", backgroundColor: "rgba(0,0,0,0.6)", padding: "6px 12px", borderRadius: "20px" }}>Contenu Exclusif</span>
                         {premiumPrice > 0 && (
                           <span style={{ color: "white", fontSize: "11px", backgroundColor: "rgba(0,0,0,0.6)", padding: "4px 10px", borderRadius: "12px" }}>
@@ -364,15 +453,17 @@ export default function ExplorePage() {
                     )}
 
                     {post.media_type === 'video' && !isLocked && (
-                      <div style={{ position: "absolute", top: "12px", right: "12px", width: "40px", height: "40px", borderRadius: "50%", backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", color: "white" }}>▶️</div>
+                      <div style={{ position: "absolute", top: "12px", right: "12px", width: "40px", height: "40px", borderRadius: "50%", backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 5 }}>
+                        <PlayIcon />
+                      </div>
                     )}
 
-                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "16px", background: "linear-gradient(transparent, rgba(0,0,0,0.9))", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "16px", background: "linear-gradient(transparent, rgba(0,0,0,0.9))", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 5 }}>
                       <div style={{ color: "white", fontWeight: "bold", fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }}>
                         @{username}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "white", fontSize: "13px" }}>
-                        <span style={{ color: colors.red }}>❤️</span>
+                        <span style={{ display: "flex" }}><HeartIcon /></span>
                         <span>{formatCount(likesCount)}</span>
                       </div>
                     </div>
@@ -395,7 +486,7 @@ export default function ExplorePage() {
               display: "inline-flex", alignItems: "center", gap: "8px",
             }}
           >
-            🔄 Actualiser
+            <span style={{ display: "flex" }}><RefreshIcon /></span> Actualiser
           </button>
         </div>
       </div>
@@ -425,21 +516,13 @@ export default function ExplorePage() {
         }
 
         @media (min-width: 1200px) {
-          .responsive-posts-grid {
-            grid-template-columns: repeat(4, 1fr);
-          }
+          .responsive-posts-grid { grid-template-columns: repeat(4, 1fr); }
         }
-        
         @media (max-width: 1199px) and (min-width: 768px) {
-          .responsive-posts-grid {
-            grid-template-columns: repeat(3, 1fr);
-          }
+          .responsive-posts-grid { grid-template-columns: repeat(3, 1fr); }
         }
-
         @media (max-width: 767px) {
-          .responsive-posts-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
+          .responsive-posts-grid { grid-template-columns: repeat(2, 1fr); }
         }
       `}</style>
     </DashboardLayout>
