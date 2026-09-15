@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import {
@@ -71,9 +71,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isLoading, setIsLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
 
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
-
   useEffect(() => {
     const checkSize = () => setIsMobile(window.innerWidth < 768);
     checkSize();
@@ -132,33 +129,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     pathname === "/live" || 
     pathname === "/settings" ||
     (pathname?.startsWith("/profile/") ?? false);
-
-  const swipeSequence = ["/home", "/explore", "/messages", "/profile"];
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    const touchEndX = e.changedTouches[0].clientX;
-    const touchEndY = e.changedTouches[0].clientY;
-    const diffX = touchStartX.current - touchEndX;
-    const diffY = touchStartY.current - touchEndY;
-
-    if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
-      const currentIndex = swipeSequence.indexOf(pathname ?? "");
-      if (currentIndex !== -1) {
-        let nextIndex = currentIndex;
-        if (diffX > 0) {
-          nextIndex = (currentIndex + 1) % swipeSequence.length;
-        } else {
-          nextIndex = (currentIndex - 1 + swipeSequence.length) % swipeSequence.length;
-        }
-        router.push(swipeSequence[nextIndex]);
-      }
-    }
-  };
 
   const mainMenuItems: MenuItem[] = [
     { icon: "home", label: "Accueil", path: "/home", active: true },
@@ -432,7 +402,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* ============================================ */}
-      {/* VERSION MOBILE : Header + SWIPE              */}
+      {/* VERSION MOBILE : Header                      */}
       {/* ============================================ */}
       {isMobileDevice && (
         <>
@@ -495,12 +465,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
           </Flex>
 
-          <Box 
-            flex={1} 
-            sx={{ touchAction: "pan-y" }}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-          >
+          <Box flex={1}>
             {children}
           </Box>
 
