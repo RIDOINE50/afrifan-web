@@ -59,6 +59,7 @@ export default function MyProfileScreen() {
   const [applicationStatus, setApplicationStatus] = useState<'none' | 'pending' | 'rejected' | 'accepted'>('none');
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false); // ✅ NOUVEAU : Pour le menu de la photo de profil
   
   const [totalLikes, setTotalLikes] = useState(0);
   const [totalViews, setTotalViews] = useState(0);
@@ -123,7 +124,7 @@ export default function MyProfileScreen() {
 
       const { data: postsData } = await supabase
         .from('posts')
-        .select('id, media_url, title, created_at, likes_count, views_count, media_type')
+        .select('id, media_url, title, content, caption, background_color, created_at, likes_count, views_count, media_type')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -153,8 +154,10 @@ export default function MyProfileScreen() {
     }
   };
 
-  const handleAvatarClick = () => {
-    fileInputRef.current?.click();
+  // ✅ MODIFIÉ : Ouvre le menu au lieu d'ouvrir directement le sélecteur de fichier
+  const handleAvatarClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowAvatarMenu(true);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -172,13 +175,13 @@ export default function MyProfileScreen() {
       if (updateError) throw updateError;
 
       setProfile({ ...profile, avatar_url: publicUrl });
-      alert("Photo mise à jour avec succès !");
+      // Remplacement de l'alerte par une mise à jour silencieuse et propre
     } catch (error) {
       console.error("🚨 ERREUR UPLOAD AVATAR :", error);
-      alert("Échec de la mise à jour de la photo.");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+      setShowAvatarMenu(false);
     }
   };
 
@@ -212,7 +215,7 @@ export default function MyProfileScreen() {
   ];
 
   return (
-    <div className="profile-container">
+    <div className="profile-container" onClick={() => setShowAvatarMenu(false)}>
       <input type="file" ref={fileInputRef} style={{ display: "none" }} accept="image/*" onChange={handleFileChange} />
 
       {isMenuOpen && (
@@ -293,6 +296,8 @@ export default function MyProfileScreen() {
                 {!profile?.avatar_url && <Icons.User size={60} className="" style={{ color: colors.textMuted }} />}
               </div>
             </div>
+            
+            {/* Icône Camera */}
             <div style={{
               position: "absolute", bottom: "5px", right: "5px",
               width: "36px", height: "36px", borderRadius: "50%",
@@ -303,6 +308,39 @@ export default function MyProfileScreen() {
             }}>
               <Icons.Camera size={18} fill="white" stroke="none" />
             </div>
+
+            {/* ✅ NOUVEAU : Menu contextuel pour la photo de profil */}
+            {showAvatarMenu && (
+              <div style={{
+                position: "absolute", top: "140px", right: "0",
+                backgroundColor: colors.card,
+                border: `1px solid ${colors.border}`,
+                borderRadius: "12px",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                zIndex: 100,
+                overflow: "hidden",
+                minWidth: "180px"
+              }} onClick={(e) => e.stopPropagation()}>
+                <button 
+                  onClick={() => { 
+                    if (profile?.avatar_url) window.open(profile.avatar_url, '_blank'); 
+                    setShowAvatarMenu(false); 
+                  }} 
+                  style={{ width: "100%", padding: "14px 16px", display: "flex", alignItems: "center", gap: "10px", backgroundColor: "transparent", border: "none", borderBottom: `1px solid ${colors.border}`, color: colors.text, cursor: "pointer", fontSize: "14px", fontWeight: "500" }}
+                >
+                  <Icons.Eye size={18} /> Voir la photo
+                </button>
+                <button 
+                  onClick={() => { 
+                    fileInputRef.current?.click(); 
+                  }} 
+                  style={{ width: "100%", padding: "14px 16px", display: "flex", alignItems: "center", gap: "10px", backgroundColor: "transparent", border: "none", color: colors.text, cursor: "pointer", fontSize: "14px", fontWeight: "500" }}
+                >
+                  <Icons.Camera size={18} /> Changer la photo
+                </button>
+              </div>
+            )}
+
             {isUploading && (
               <div style={{
                 position: "absolute", inset: 0, borderRadius: "50%",
@@ -431,8 +469,35 @@ export default function MyProfileScreen() {
                   {stories.map((story: any) => (
                     <div key={story.id} onClick={() => router.push(`/stories/view?creatorId=${user.id}&storyId=${story.id}`)} style={{ minWidth: "65px", display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", cursor: "pointer" }}>
                       <div style={{ width: "65px", height: "65px", borderRadius: "50%", padding: "2px", background: `linear-gradient(135deg, ${colors.primary}, ${colors.pink})` }}>
-                        <div style={{ width: "100%", height: "100%", borderRadius: "50%", border: `2px solid ${colors.bg}`, backgroundColor: story.background_color || colors.card, backgroundImage: story.media_url ? `url(${story.media_url})` : undefined, backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          {story.media_type === 'text' && !story.media_url && <Icons.FileText size={28} color={colors.textMuted} />}
+                        <div style={{ width: "100%", height: "100%", borderRadius: "50%", border: `2px solid ${colors.bg}`, overflow: "hidden" }}>
+                          {/* ✅ CORRECTION 1 : Affichage du texte à l'intérieur du cercle de story */}
+                          {story.media_type === 'text' ? (
+                            <div style={{ 
+                              width: "100%", height: "100%", 
+                              backgroundColor: story.background_color || colors.primary,
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              padding: "6px", boxSizing: "border-box"
+                            }}>
+                              <span style={{
+                                color: "#FFFFFF", fontSize: "10px", fontWeight: "bold",
+                                textAlign: "center", lineHeight: "1.2",
+                                overflow: "hidden", textOverflow: "ellipsis", 
+                                display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical"
+                              }}>
+                                {story.text_content || "Texte"}
+                              </span>
+                            </div>
+                          ) : (
+                            <div style={{ 
+                              width: "100%", height: "100%", 
+                              backgroundColor: colors.card, 
+                              backgroundImage: story.media_url ? `url(${story.media_url})` : undefined, 
+                              backgroundSize: "cover", backgroundPosition: "center", 
+                              display: "flex", alignItems: "center", justifyContent: "center" 
+                            }}>
+                              {!story.media_url && <Icons.FileText size={24} color={colors.textMuted} />}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <span style={{ color: colors.text, fontSize: "11px" }}>Story</span>
@@ -456,13 +521,32 @@ export default function MyProfileScreen() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
                 {posts.map((post: any) => (
                   <div key={post.id} onClick={() => router.push(`/post/${post.id}`)} style={{ aspectRatio: "3/4", borderRadius: "8px", overflow: "hidden", position: "relative", cursor: "pointer", backgroundColor: colors.card }}>
-                    {post.media_url ? (
+                    
+                    {/* ✅ CORRECTION 2 : Affichage du texte à l'intérieur de la grille des posts */}
+                    {post.media_type === 'text' ? (
+                      <div style={{ 
+                        width: "100%", height: "100%", 
+                        backgroundColor: post.background_color || (isDark ? "#2D3748" : "#E2E8F0"),
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        padding: "12px", boxSizing: "border-box"
+                      }}>
+                        <span style={{
+                          color: isDark ? "#FFFFFF" : "#000000", fontSize: "13px", fontWeight: "bold",
+                          textAlign: "center", lineHeight: "1.4",
+                          overflow: "hidden", textOverflow: "ellipsis", 
+                          display: "-webkit-box", WebkitLineClamp: 6, WebkitBoxOrient: "vertical"
+                        }}>
+                          {post.content || post.caption || "Texte"}
+                        </span>
+                      </div>
+                    ) : post.media_url ? (
                       <img src={post.media_url} alt="Post" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : (
                       <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: colors.textMuted }}>
                         <Icons.Image size={32} />
                       </div>
                     )}
+
                     <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.2)" }} />
                     {post.media_type === 'video' && (
                       <div style={{ position: "absolute", top: "6px", right: "6px", display: "flex" }}>

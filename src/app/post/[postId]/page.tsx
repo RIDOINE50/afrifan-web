@@ -217,7 +217,7 @@ export default function PostDetailPage() {
 
           if (allPosts) {
             setPosts(allPosts);
-            const index = allPosts.findIndex((p: any) => p.id === postId);
+const index = allPosts.findIndex((p: any) => String(p.id) === String(postId));
             setCurrentIndex(index !== -1 ? index : 0);
 
             if (user) {
