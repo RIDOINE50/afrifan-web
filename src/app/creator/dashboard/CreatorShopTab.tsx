@@ -36,17 +36,19 @@ import {
   FaEdit,
   FaTrash,
   FaExclamationTriangle,
+  FaMusic,
+  FaFile,
 } from "react-icons/fa";
 
-// ✅ Interface mise à jour avec preview_url au lieu de media_url
+// ✅ Interface mise à jour
 interface Product {
   id: string;
   title: string;
   description?: string;
   price: number;
   media_type: string;
-  preview_url?: string;  // ✅ Pour l'affichage (miniature)
-  file_url?: string;     // ✅ Pour le téléchargement (fichier réel)
+  preview_url?: string;
+  file_url?: string;
   status: string;
   created_at: string;
 }
@@ -120,6 +122,8 @@ export default function CreatorShopTab() {
     switch (mediaType) {
       case "video": return FaVideo;
       case "image": return FaImage;
+      case "audio": return FaMusic;
+      case "file": return FaFile;
       default: return FaFileAlt;
     }
   };
@@ -236,15 +240,18 @@ export default function CreatorShopTab() {
               </Box>
             )}
 
+            {/* ✅ ZONE D'APERÇU ADAPTATIVE */}
             <Box
               aspectRatio="4/3"
               bg={colors.hover}
               display="flex"
               alignItems="center"
               justifyContent="center"
+              position="relative"
+              overflow="hidden"
             >
-              {/* ✅ CORRECTION ICI : preview_url au lieu de media_url */}
-              {product.preview_url ? (
+              {/* Cas 1: Image ou Vidéo avec preview_url */}
+              {product.preview_url && (product.media_type === "image" || product.media_type === "video") ? (
                 <Image
                   src={product.preview_url}
                   alt={product.title}
@@ -252,8 +259,74 @@ export default function CreatorShopTab() {
                   w="100%"
                   h="100%"
                 />
-              ) : (
-                <Icon as={getIcon(product.media_type)} color={colors.textMuted} boxSize={10} />
+              ) : 
+              /* Cas 2: Texte ou Description à afficher */
+              product.description ? (
+                <Box
+                  p={4}
+                  w="100%"
+                  h="100%"
+                  display="flex"
+                  flexDirection="column"
+                  justifyContent="center"
+                  alignItems="center"
+                  textAlign="center"
+                >
+                  <Text
+                    color={colors.text}
+                    fontSize="14px"
+                    fontWeight="500"
+                    noOfLines={4}
+                    lineHeight="1.5"
+                  >
+                    {product.description}
+                  </Text>
+                  {/* Badge du type de média en bas */}
+                  <Badge
+                    position="absolute"
+                    bottom={2}
+                    right={2}
+                    px={2}
+                    py={1}
+                    bg={colors.primary}
+                    color={colors.primaryText}
+                    borderRadius="6px"
+                    fontSize="10px"
+                    fontWeight="bold"
+                    textTransform="uppercase"
+                  >
+                    {product.media_type}
+                  </Badge>
+                </Box>
+              ) : 
+              /* Cas 3: Pas de preview ni description → Icône */
+              (
+                <VStack spacing={3}>
+                  <Icon 
+                    as={getIcon(product.media_type)} 
+                    color={colors.textMuted} 
+                    boxSize={12} 
+                  />
+                  <Text fontSize="12px" color={colors.textMuted} fontWeight="500">
+                    {product.media_type === 'file' ? 'Fichier' : 
+                     product.media_type === 'audio' ? 'Audio' : 
+                     product.media_type}
+                  </Text>
+                </VStack>
+              )}
+
+              {/* Badge Vidéo si nécessaire */}
+              {product.media_type === "video" && product.preview_url && (
+                <Box
+                  position="absolute"
+                  top={2}
+                  right={2}
+                  bg="rgba(0,0,0,0.7)"
+                  p={2}
+                  borderRadius="full"
+                >
+                  <Icon as={FaVideo} color="white" boxSize={4} />
+                </Box>
               )}
             </Box>
 
