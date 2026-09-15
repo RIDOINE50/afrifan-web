@@ -52,6 +52,23 @@ const ProfileIcon = ({ active }: { active: boolean }) => (
   </svg>
 );
 
+// ✅ Icône cloche (notification) — hérite de currentColor pour s'adapter au thème
+const BellIcon = ({ active }: { active?: boolean }) => (
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill={active ? "currentColor" : "none"}
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+  </svg>
+);
+
 type MenuItem = {
   icon: string;
   label: string;
@@ -436,19 +453,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {!isProfileSection && (
               <Button 
                 variant="ghost"
-                color={theme.text} 
-                fontSize="24px" 
+                color={theme.text}
                 p={0}
                 w="40px"
                 h="40px"
+                minW="40px"
+                borderRadius="50%"
                 position="relative"
-                onClick={() => router.push("/notifications")} 
+                onClick={() => router.push("/notifications")}
+                _hover={{ bg: theme.hover }}
               >
-                🔔
+                <BellIcon />
                 <Box
                   position="absolute"
-                  top="-2px"
-                  right="-2px"
+                  top="2px"
+                  right="2px"
                   bg="#EF4444"
                   color="white"
                   fontSize="10px"
@@ -457,7 +476,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   py="1px"
                   borderRadius="6px"
                   minW="16px"
-                  textAlign="center"
+                  h="16px"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  border={`2px solid ${theme.bg}`}
+                  lineHeight="1"
                 >
                   3
                 </Box>
