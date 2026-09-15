@@ -17,8 +17,6 @@ import {
   Tabs,
   TabList,
   Tab,
-  ModalHeader,      // ✅ AJOUT
-
   TabPanels,
   TabPanel,
   SimpleGrid,
@@ -26,6 +24,7 @@ import {
   Modal,
   ModalOverlay,
   ModalContent,
+  ModalHeader,
   ModalBody,
   ModalCloseButton,
   Menu,
@@ -33,6 +32,7 @@ import {
   MenuList,
   MenuItem,
   useDisclosure,
+  useToast,
 } from "@chakra-ui/react";
 
 // ==========================================
@@ -53,6 +53,7 @@ const Icons = {
   MoreVertical: (props: any) => <Icon {...props} path={<><circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" /><circle cx="12" cy="19" r="1.5" fill="currentColor" stroke="none" /></>} />,
   X: (props: any) => <Icon {...props} path={<><path d="M18 6 6 18" /><path d="m6 6 12 12" /></>} />,
   ChevronLeft: (props: any) => <Icon {...props} path={<><path d="m15 18-6-6 6-6" /></>} />,
+  CheckCircle: (props: any) => <Icon {...props} path={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></>} />,
 };
 
 function formatCount(count: number): string {
@@ -66,6 +67,7 @@ function CreatorProfileContent() {
   const searchParams = useSearchParams();
   const creatorId = searchParams.get('id');
   const { isDark, theme } = useAppTheme();
+  const toast = useToast();
 
   const [user, setUser] = useState<any>(null);
   const [creator, setCreator] = useState<any>(null);
@@ -87,12 +89,16 @@ function CreatorProfileContent() {
   const [shopProducts, setShopProducts] = useState<any[]>([]);
   const [isLoadingShop, setIsLoadingShop] = useState(true);
 
+  // ✅ Nouveau : état de chargement du signalement
+  const [isReporting, setIsReporting] = useState(false);
+
   // Modals
   const { isOpen: isAvatarOpen, onOpen: onAvatarOpen, onClose: onAvatarClose } = useDisclosure();
   const { isOpen: isReportOpen, onOpen: onReportOpen, onClose: onReportClose } = useDisclosure();
   
   const isSubscribed = currentSubscription !== null;
 
+  // ✅ Couleurs explicites selon le mode (garantit la lisibilité en dark mode)
   const colors = {
     bg: theme.bg,
     card: theme.card,
@@ -103,6 +109,13 @@ function CreatorProfileContent() {
     textMuted: theme.textMuted,
     hover: theme.hover,
     success: "#10B981",
+    // Couleurs explicites pour le modal de signalement
+    modalBg: isDark ? "#1A1A1A" : "#FFFFFF",
+    modalText: isDark ? "#FFFFFF" : "#1A1A1A",
+    modalMuted: isDark ? "#A0A0A0" : "#6B7280",
+    modalItemBg: isDark ? "#252525" : "#F7F7F7",
+    modalItemHover: isDark ? "#2F2F2F" : "#EDEDED",
+    modalBorder: isDark ? "#2F2F2F" : "#E5E5E5",
   };
 
   useEffect(() => {
@@ -227,32 +240,80 @@ function CreatorProfileContent() {
         await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', creatorId);
         setIsFollowing(false);
         setFollowersCount(prev => Math.max(0, prev - 1));
+        // ✅ Toast au lieu d'alert
+        toast({
+          title: "Désabonné",
+          description: `Vous ne suivez plus @${creator?.username}`,
+          status: "info",
+          duration: 2000,
+          isClosable: true,
+          position: "top",
+        });
       } else {
         await supabase.from('follows').insert({ follower_id: user.id, following_id: creatorId });
         setIsFollowing(true);
         setFollowersCount(prev => prev + 1);
+        // ✅ Toast au lieu d'alert
+        toast({
+          title: "Abonné !",
+          description: `Vous suivez maintenant @${creator?.username}`,
+          status: "success",
+          duration: 2000,
+          isClosable: true,
+          position: "top",
+        });
       }
     } catch (error) {
       console.error("❌ Erreur follow:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour le suivi.",
+        status: "error",
+        duration: 2500,
+        isClosable: true,
+        position: "top",
+      });
     }
   };
 
-  const handleReportCreator = async () => {
+  // ✅ Nouvelle fonction : envoie le signalement avec la VRAIE raison + toast
+  const handleReportCreator = async (reason: string) => {
     if (!user) {
       router.push("/login");
       return;
     }
+    if (isReporting) return;
+    setIsReporting(true);
     try {
       await supabase.from('reports').insert({
         reporter_id: user.id,
         target_id: creatorId,
         target_type: 'user',
-        reason: 'Comportement inapproprié'
+        reason: reason, // ✅ On enregistre la vraie raison choisie
       });
-      alert("✅ Signalement envoyé avec succès.");
       onReportClose();
+      // ✅ Toast propre au lieu d'alert
+      toast({
+        title: "Signalement envoyé",
+        description: "Merci, notre équipe va examiner ce compte.",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+        position: "top",
+        icon: <Icons.CheckCircle size={20} color={colors.success} />,
+      });
     } catch (error) {
       console.error("Erreur signalement:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'envoyer le signalement. Réessayez.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+        position: "top",
+      });
+    } finally {
+      setIsReporting(false);
     }
   };
 
@@ -296,8 +357,14 @@ function CreatorProfileContent() {
             <MenuButton as={Button} variant="ghost" color={colors.text} p={0} w="40px" h="40px">
               <Icons.MoreVertical size={24} />
             </MenuButton>
-            <MenuList bg={colors.card} borderColor={colors.border} color={colors.text} zIndex={200}>
-              <MenuItem icon={<Icons.Flag size={16} color="#EF4444" />} _hover={{ bg: colors.hover }} onClick={onReportOpen}>
+            <MenuList bg={colors.modalBg} borderColor={colors.modalBorder} color={colors.modalText} zIndex={200}>
+              <MenuItem 
+                icon={<Icons.Flag size={16} color="#EF4444" />} 
+                bg={colors.modalBg}
+                color={colors.modalText}
+                _hover={{ bg: colors.modalItemHover }} 
+                onClick={onReportOpen}
+              >
                 Signaler ce créateur
               </MenuItem>
             </MenuList>
@@ -401,17 +468,24 @@ function CreatorProfileContent() {
                 </Center>
               ) : (
                 <SimpleGrid columns={{ base: 3, md: 4, lg: 5 }} spacing={{ base: 2, md: 3 }}>
-                  {posts.map((post) => (
-                    <PostCard key={post.id} post={post} isSubscribed={isSubscribed} colors={colors} onClick={() => {
-                      if (!isSubscribed && post.media_type !== 'text') { // On autorise la lecture des posts texte même sans abonnement si tu le souhaites, sinon enlève la condition
-                        router.push(`/subscribe/${creatorId}?tier=premium&price=${premiumPrice}&name=${encodeURIComponent(creatorDisplayName)}`);
-                      } else {
-                        router.push(`/post/${post.id}?creatorId=${creatorId}`);
-                      }
-                    }} />
+                  {posts.map((post, index) => (
+                    <PostCard 
+                      key={post.id} 
+                      post={post} 
+                      isSubscribed={isSubscribed} 
+                      colors={colors} 
+                      onClick={() => {
+                        if (!isSubscribed && post.media_type !== 'text') {
+                          router.push(`/subscribe/${creatorId}?tier=premium&price=${premiumPrice}&name=${encodeURIComponent(creatorDisplayName)}`);
+                        } else {
+                          // ✅ On passe l'index du post pour ouvrir CE post précis
+                          router.push(`/post/${post.id}?creatorId=${creatorId}&index=${index}`);
+                        }
+                      }} 
+                    />
                   ))}
                 </SimpleGrid>
-                )}
+              )}
             </TabPanel>
 
             {/* ONGLET 1 : BOUTIQUE */}
@@ -462,19 +536,35 @@ function CreatorProfileContent() {
         </ModalContent>
       </Modal>
 
-      {/* MODAL DE SIGNALEMENT */}
+      {/* ✅ MODAL DE SIGNALEMENT - COULEURS EXPLICITES POUR DARK MODE */}
       <Modal isOpen={isReportOpen} onClose={onReportClose} isCentered>
         <ModalOverlay bg="blackAlpha.700" />
-        <ModalContent bg={colors.card} color={colors.text} maxW="400px" borderRadius="16px">
-          <ModalHeader>Signaler ce créateur</ModalHeader>
-          <ModalCloseButton />
+        <ModalContent 
+          bg={colors.modalBg} 
+          color={colors.modalText} 
+          maxW="400px" 
+          borderRadius="16px"
+          border={`1px solid ${colors.modalBorder}`}
+        >
+          <ModalHeader color={colors.modalText}>Signaler ce créateur</ModalHeader>
+          <ModalCloseButton color={colors.modalText} _hover={{ bg: colors.modalItemHover }} />
           <ModalBody pb={6}>
-            <Text fontSize="14px" color={colors.textMuted} mb={4}>
+            <Text fontSize="14px" color={colors.modalMuted} mb={4}>
               Pourquoi souhaitez-vous signaler ce compte ?
             </Text>
             <VStack spacing="2" align="stretch">
               {["Contenu inapproprié", "Harcèlement", "Arnaque / Fraude", "Faux compte", "Autre"].map(reason => (
-                <Button key={reason} justifyContent="flex-start" bg={colors.bg} border={`1px solid ${colors.border}`} _hover={{ bg: colors.hover }} onClick={() => { handleReportCreator(); }}>
+                <Button 
+                  key={reason} 
+                  justifyContent="flex-start" 
+                  bg={colors.modalItemBg} 
+                  color={colors.modalText}
+                  border={`1px solid ${colors.modalBorder}`} 
+                  _hover={{ bg: colors.modalItemHover, borderColor: colors.primary }} 
+                  isLoading={isReporting}
+                  loadingText="Envoi..."
+                  onClick={() => handleReportCreator(reason)}
+                >
                   {reason}
                 </Button>
               ))}
@@ -497,7 +587,6 @@ function CreatorProfileContent() {
 function ShopProductCard({ product, colors, onClick }: { product: any, colors: any, onClick: () => void }) {
   const title = product.title || "Sans titre";
   const price = (product.price as number) || 0;
-  const mediaType = product.media_type || "file";
 
   return (
     <Box bg={colors.card} borderRadius="12px" border={`1px solid ${colors.border}`} overflow="hidden" cursor="pointer" onClick={onClick} _hover={{ transform: "translateY(-4px)", transition: "transform 0.2s", borderColor: colors.primary }}>
@@ -545,7 +634,6 @@ function PostCard({ post, isSubscribed, colors, onClick }: any) {
   return (
     <Box aspectRatio="3/4" borderRadius="8px" overflow="hidden" bg={colors.card} cursor="pointer" position="relative" onClick={onClick} _hover={{ transform: "scale(1.03)", transition: "transform 0.2s", zIndex: 10 }}>
       
-      {/* ✅ GESTION DES POSTS TEXTE COMME DES IMAGES AVEC APERÇU */}
       {isTextPost ? (
         <Box w="100%" h="100%" bg={post.background_color || (colors.bg === "#000000" ? "#2D3748" : "#E2E8F0")} display="flex" alignItems="center" justifyContent="center" p={3}>
           <Text color={colors.bg === "#000000" ? "#FFFFFF" : "#000000"} fontSize="13px" fontWeight="bold" textAlign="center" lineHeight="1.4" noOfLines={6}>
@@ -558,7 +646,6 @@ function PostCard({ post, isSubscribed, colors, onClick }: any) {
         <Center w="100%" h="100%" color={colors.textMuted}><Icons.FileText size={40} /></Center>
       )}
 
-      {/* OVERLAY POUR CONTENU EXCLUSIF (Non abonné) */}
       {!isSubscribed && !isTextPost && (
         <Center position="absolute" inset={0} flexDirection="column" backdropFilter="blur(2px)">
           <Box p={3} borderRadius="full" bg="rgba(0,0,0,0.6)" mb={2}>
@@ -569,14 +656,12 @@ function PostCard({ post, isSubscribed, colors, onClick }: any) {
         </Center>
       )}
 
-      {/* BADGE VIDÉO */}
       {post.media_type === 'video' && isSubscribed && (
         <Box position="absolute" top={2} right={2} bg="rgba(0,0,0,0.6)" p={1.5} borderRadius="full">
           <Icons.Play size={14} color="white" />
         </Box>
       )}
 
-      {/* INFO BAS DE CARTE */}
       <Box position="absolute" bottom={0} left={0} right={0} p={2} bg="linear-gradient(transparent, rgba(0,0,0,0.8))">
         {post.caption && (
           <Text fontSize="11px" fontWeight="600" mb={1} overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap" color="white">
