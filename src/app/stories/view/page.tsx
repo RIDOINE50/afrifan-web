@@ -67,7 +67,6 @@ function ViewStoryContent() {
       setStories(validStories);
 
       if (validStories.length > 0) {
-        // Trouver l'index de la story demandée, ou 0 par défaut
         const startIndex = initialStoryId 
           ? validStories.findIndex((s: any) => s.id === initialStoryId) 
           : 0;
@@ -94,7 +93,6 @@ function ViewStoryContent() {
       const currentUserId = user?.id;
 
       if (currentUserId) {
-        // ✅ CORRECTION : Récupérer d'abord l'interaction existante pour connaître le has_liked actuel
         const { data: existingInteraction } = await supabase
           .from("story_interactions")
           .select("has_liked")
@@ -102,21 +100,18 @@ function ViewStoryContent() {
           .eq("viewer_id", currentUserId)
           .maybeSingle();
 
-        // Valeur actuelle du like (depuis la DB)
         const currentHasLiked = existingInteraction?.has_liked || false;
         
-        // Mettre à jour le state
         if (isMounted) {
           setHasLiked(currentHasLiked);
         }
 
-        // Enregistrer la vue (Upsert) avec la valeur correcte
         try {
           await supabase.from("story_interactions").upsert(
             { 
               story_id: story.id, 
               viewer_id: currentUserId, 
-              has_liked: currentHasLiked // ✅ Variable locale, pas le state (évite le stale closure)
+              has_liked: currentHasLiked
             },
             { onConflict: "story_id,viewer_id" }
           );
@@ -124,7 +119,6 @@ function ViewStoryContent() {
           console.warn("⚠️ Échec enregistrement vue :", e);
         }
 
-        // Récupérer les données selon le rôle
         if (currentUserId === creatorId) {
           const { data } = await supabase
             .from("story_interactions")
@@ -139,7 +133,7 @@ function ViewStoryContent() {
         }
       }
 
-      startTimer(story.media_type === "video");
+      startTimer(story.media_type === "video" || story.media_url?.match(/\.(mp4|webm|mov)$/i));
     };
 
     loadCurrentStory();
@@ -183,7 +177,7 @@ function ViewStoryContent() {
     if (currentIndex < stories.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
-      router.back(); // Retour à la page précédente
+      router.back();
     }
   };
 
@@ -220,7 +214,7 @@ function ViewStoryContent() {
 
   const handleTouchEnd = () => {
     setIsPaused(false);
-    if (videoRef.current && stories[currentIndex]?.media_type === "video") {
+    if (videoRef.current && (stories[currentIndex]?.media_type === "video" || stories[currentIndex]?.media_url?.match(/\.(mp4|webm|mov)$/i))) {
       videoRef.current.play();
     }
   };
@@ -246,7 +240,7 @@ function ViewStoryContent() {
 
   if (isLoading) {
     return (
-      <div style={{ backgroundColor: "#000000", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ backgroundColor: "#000000", height: "100dvh", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ width: "40px", height: "40px", border: "4px solid #1F2937", borderTop: "4px solid #9333EA", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
       </div>
     );
@@ -254,13 +248,13 @@ function ViewStoryContent() {
 
   if (stories.length === 0) {
     return (
-      <div style={{ backgroundColor: "#000000", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#FFFFFF", padding: "2rem", textAlign: "center" }}>
+      <div style={{ backgroundColor: "#000000", height: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#FFFFFF", padding: "2rem", textAlign: "center" }}>
         <span style={{ fontSize: "3.75rem", marginBottom: "1rem" }}>📷</span>
         <h2 style={{ fontSize: "1.25rem", fontWeight: "bold", marginBottom: "0.5rem" }}>Aucune story active</h2>
         <p style={{ color: "#9CA3AF", marginBottom: "1.5rem" }}>Ce créateur n'a pas publié de story dans les dernières 24h.</p>
         <button 
           onClick={() => router.back()} 
-          style={{ padding: "0.5rem 1.5rem", backgroundColor: "#9333EA", borderRadius: "9999px", fontWeight: "bold", color: "#FFFFFF", border: "none", cursor: "pointer" }}
+          style={{ padding: "0.75rem 1.5rem", backgroundColor: "#9333EA", borderRadius: "9999px", fontWeight: "bold", color: "#FFFFFF", border: "none", cursor: "pointer" }}
         >
           Retour
         </button>
@@ -271,9 +265,12 @@ function ViewStoryContent() {
   const story = stories[currentIndex];
   const creatorName = creator?.full_name || creator?.username || "Utilisateur";
 
+  // ✅ DÉTECTION ROBUSTE DU TYPE DE MÉDIA
+  const isVideo = story.media_type === "video" || story.media_url?.match(/\.(mp4|webm|mov)$/i);
+  const isText = story.media_type === "text" || (!story.media_url && story.text_content);
+
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, backgroundColor: '#000000', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Animation CSS pour le spinner */}
       <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
@@ -283,35 +280,38 @@ function ViewStoryContent() {
       
       {/* 1. CONTENU DE LA STORY */}
       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#000000' }}>
-        {story.media_type === "text" && story.text_content ? (
+        {isText ? (
           <div 
             style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', backgroundColor: story.background_color || "#8B5CF6" }}
           >
-            <p style={{ textAlign: 'center', fontSize: '1.5rem', fontWeight: 'bold', lineHeight: 1.75, color: getTextColorHex(story.background_color) }}>
+            <p style={{ 
+              textAlign: 'center', 
+              fontSize: 'clamp(1.25rem, 5vw, 2rem)', 
+              fontWeight: 'bold', 
+              lineHeight: 1.5, 
+              color: getTextColorHex(story.background_color),
+              wordBreak: 'break-word',
+              maxWidth: '90%'
+            }}>
               {story.text_content}
             </p>
           </div>
-        ) : story.media_type === "video" && story.media_url ? (
+        ) : isVideo && story.media_url ? (
           <video
             ref={videoRef}
             src={story.media_url}
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
             playsInline
             autoPlay
-            onError={(e) => {
-              console.error("❌ Erreur vidéo:", e);
-              console.log("URL:", story.media_url);
-            }}
+            muted
+            onError={(e) => console.error("❌ Erreur vidéo:", e)}
           />
-        ) : story.media_type === "image" && story.media_url ? (
+        ) : story.media_url ? (
           <img 
             src={story.media_url} 
             alt="Story" 
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-            onError={(e) => {
-              console.error("❌ Erreur image:", e);
-              console.log("URL:", story.media_url);
-            }}
+            onError={(e) => console.error("❌ Erreur image:", e)}
           />
         ) : (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#111827' }}>
@@ -320,8 +320,7 @@ function ViewStoryContent() {
               <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>Story non disponible</h3>
               <p style={{ color: '#9CA3AF', fontSize: '0.875rem' }}>
                 Type: {story.media_type || "inconnu"}<br/>
-                URL: {story.media_url ? "Définie" : "Null"}<br/>
-                Texte: {story.text_content || "Null"}
+                URL: {story.media_url ? "Définie" : "Null"}
               </p>
               <button 
                 onClick={() => router.back()}
@@ -338,13 +337,13 @@ function ViewStoryContent() {
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.6) 100%)', zIndex: 10 }} />
 
       {/* 3. HEADER (Barres de progression + Infos) */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '1rem', paddingTop: '1.5rem', zIndex: 20 }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '1rem', paddingTop: 'max(1.5rem, env(safe-area-inset-top))', zIndex: 20 }}>
         <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem' }}>
           {stories.map((_, index) => {
             const isActive = index === currentIndex;
             const isPast = index < currentIndex;
             return (
-              <div key={index} style={{ flex: 1, height: '2px', backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: '9999px', overflow: 'hidden' }}>
+              <div key={index} style={{ flex: 1, height: '3px', backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: '9999px', overflow: 'hidden' }}>
                 <div 
                   style={{ height: '100%', backgroundColor: '#FFFFFF', borderRadius: '9999px', transition: 'width 75ms linear', width: isPast ? '100%' : isActive ? `${progress * 100}%` : '0%' }}
                 />
@@ -374,11 +373,11 @@ function ViewStoryContent() {
       </div>
 
       {/* 4. ZONE D'ACTION EN BAS */}
-      <div style={{ position: 'absolute', bottom: '2rem', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 20, padding: '0 1rem' }}>
+      <div style={{ position: 'absolute', bottom: 'max(2rem, env(safe-area-inset-bottom))', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 20, padding: '0 1rem' }}>
         {isCreator ? (
           <button 
             onClick={() => setShowStats(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem', backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '9999px', color: '#FFFFFF', fontWeight: 'bold', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem', backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '9999px', color: '#FFFFFF', fontWeight: 'bold', cursor: 'pointer' }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -389,7 +388,9 @@ function ViewStoryContent() {
         ) : (
           <button 
             onClick={toggleLike}
-            style={{ padding: '0.75rem', backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', borderRadius: '50%', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ padding: '0.75rem', backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', borderRadius: '50%', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.1s' }}
+            onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(0.9)')}
+            onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
           >
             <svg 
               xmlns="http://www.w3.org/2000/svg" 
@@ -406,13 +407,13 @@ function ViewStoryContent() {
 
       {/* 5. ZONES DE TAP (Gauche / Droite) */}
       <div 
-        style={{ position: 'absolute', left: 0, top: 0, bottom: '6rem', width: '50%', zIndex: 30, cursor: 'pointer' }}
+        style={{ position: 'absolute', left: 0, top: 0, bottom: '5rem', width: '50%', zIndex: 30, cursor: 'pointer' }}
         onMouseDown={handleTouchStart} onMouseUp={handleTouchEnd} onMouseLeave={handleTouchEnd}
         onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}
         onClick={goToPreviousStory}
       />
       <div 
-        style={{ position: 'absolute', right: 0, top: 0, bottom: '6rem', width: '50%', zIndex: 30, cursor: 'pointer' }}
+        style={{ position: 'absolute', right: 0, top: 0, bottom: '5rem', width: '50%', zIndex: 30, cursor: 'pointer' }}
         onMouseDown={handleTouchStart} onMouseUp={handleTouchEnd} onMouseLeave={handleTouchEnd}
         onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}
         onClick={goToNextStory}
@@ -439,7 +440,10 @@ function ViewStoryContent() {
                   const liked = interaction.has_liked;
 
                   return (
-                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem', borderRadius: '0.5rem' }}>
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', borderRadius: '0.5rem', transition: 'background 0.2s' }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
                       <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '50%', backgroundColor: '#1F2937', overflow: 'hidden', flexShrink: 0 }}>
                         {avatar ? (
                           <img src={avatar} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -474,7 +478,7 @@ function ViewStoryContent() {
 export default function ViewStoryPage() {
   return (
     <Suspense fallback={
-      <div style={{ backgroundColor: "#000000", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#FFFFFF" }}>
+      <div style={{ backgroundColor: "#000000", height: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", color: "#FFFFFF" }}>
         <div style={{ width: "40px", height: "40px", border: "4px solid #1F2937", borderTop: "4px solid #9333EA", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
       </div>
     }>

@@ -267,35 +267,44 @@ export default function PostDetailPage() {
     });
   }, [currentIndex]);
 
-  const handleLike = async (post: any, e?: React.MouseEvent) => {
+    const handleLike = async (post: any, e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!user) return router.push("/login");
 
     const isLiked = likedPostIds.has(post.id);
     const newCount = isLiked ? Math.max(0, (post.likes_count || 0) - 1) : (post.likes_count || 0) + 1;
 
+    // 1. Mise à jour immédiate de l'interface (Optimistic UI) - EXACTEMENT COMME DANS HOME
+    setLikedPostIds(prev => { 
+      const next = new Set(prev); 
+      isLiked ? next.delete(post.id) : next.add(post.id); 
+      return next; 
+    });
+    setPosts(prev => prev.map(p => p.id === post.id ? { ...p, likes_count: newCount } : p));
+
     try {
+      // 2. Action dans la base de données
       if (isLiked) {
         await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', user.id);
-        setLikedPostIds(prev => { const next = new Set(prev); next.delete(post.id); return next; });
       } else {
         await supabase.from('post_likes').insert({ post_id: post.id, user_id: user.id });
-        setLikedPostIds(prev => { const next = new Set(prev); next.add(post.id); return next; });
       }
       
-      setPosts(prev => prev.map(p => p.id === post.id ? { ...p, likes_count: newCount } : p));
+      // 3. Mise à jour du compteur
+      await supabase.from('posts').update({ likes_count: newCount }).eq('id', post.id);
       
-      const { data: refreshedPost } = await supabase
-        .from('posts')
-        .select('likes_count')
-        .eq('id', post.id)
-        .single();
-      
-      if (refreshedPost) {
-        setPosts(prev => prev.map(p => p.id === post.id ? { ...p, likes_count: refreshedPost.likes_count } : p));
-      }
     } catch (error) {
       console.error("❌ Erreur like:", error);
+      
+      // 4. Rollback (annulation) en cas d'erreur, EXACTEMENT COMME DANS HOME
+      setLikedPostIds(prev => { 
+        const next = new Set(prev); 
+        isLiked ? next.add(post.id) : next.delete(post.id); 
+        return next; 
+      });
+      setPosts(prev => prev.map(p => p.id === post.id ? { ...p, likes_count: post.likes_count } : p));
+      
+      toast({ title: "Erreur", description: "Impossible de mettre à jour le like", status: "error" });
     }
   };
 
