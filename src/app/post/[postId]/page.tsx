@@ -146,7 +146,6 @@ export default function PostDetailPage() {
   const [reportPostId, setReportPostId] = useState<string>("");
   const [isReportOpen, setIsReportOpen] = useState(false);
 
-  // ✅ NOUVEAUX ÉTATS POUR LA MODIFICATION DYNAMIQUE
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editCaption, setEditCaption] = useState("");
   const [postToEdit, setPostToEdit] = useState<any>(null);
@@ -182,9 +181,10 @@ export default function PostDetailPage() {
     const loadData = async () => {
       setIsLoading(true);
       try {
+        // ✅ CORRECTION 1 : Ajouter 'content' et 'background_color' dans le select
         const { data: postData, error: postError } = await supabase
           .from('posts')
-          .select('id, user_id, media_url, media_type, caption, title, created_at, likes_count, comments_count')
+          .select('id, user_id, media_url, media_type, caption, title, content, background_color, created_at, likes_count, comments_count')
           .eq('id', postId)
           .single();
 
@@ -207,9 +207,10 @@ export default function PostDetailPage() {
             avatar: profileData.avatar_url
           });
 
+          // ✅ CORRECTION 1 (suite) : Ajouter 'content' et 'background_color' ici aussi
           const { data: allPosts } = await supabase
             .from('posts')
-            .select('id, media_url, media_type, caption, title, created_at, likes_count, comments_count')
+            .select('id, media_url, media_type, caption, title, content, background_color, created_at, likes_count, comments_count')
             .eq('user_id', postData.user_id)
             .order('created_at', { ascending: false })
             .limit(30);
@@ -314,7 +315,7 @@ export default function PostDetailPage() {
 
   const handleShare = async (post: any) => {
     const url = typeof window !== 'undefined' ? window.location.href : '';
-    const text = `Regarde ce post de ${creatorInfo.name} : ${post?.caption || ''}`;
+    const text = `Regarde ce post de ${creatorInfo.name} : ${post?.content || post?.caption || ''}`;
     
     if (navigator.share) {
       try { await navigator.share({ title: 'Post', text, url }); } catch (err) {}
@@ -336,27 +337,26 @@ export default function PostDetailPage() {
     }
   };
 
-  // ✅ 1. OUVRIR LA MODALE DE MODIFICATION
   const openEditModal = (post: any) => {
     setPostToEdit(post);
-    setEditCaption(post.caption || post.title || "");
+    // ✅ On prend content en priorité, puis caption ou title
+    setEditCaption(post.content || post.caption || post.title || "");
     setIsEditModalOpen(true);
-    setShowMoreMenu(null); // Fermer le menu 3 points
+    setShowMoreMenu(null);
   };
 
-  // ✅ 2. SAUVEGARDER LA MODIFICATION DANS SUPABASE
-    // ✅ 2. SAUVEGARDER LA MODIFICATION (Cible la colonne 'content')
   const saveEdit = async () => {
     if (!postToEdit) return;
     try {
       const { error } = await supabase.from('posts').update({
-        content: editCaption // ✅ C'est 'content' et non 'caption'
+        content: editCaption,
+        caption: editCaption // ✅ On met à jour les deux pour être sûr que l'affichage le prenne en compte
       }).eq('id', postToEdit.id);
 
       if (error) throw error;
 
-      // Mise à jour immédiate de l'interface
-      setPosts(prev => prev.map(p => p.id === postToEdit.id ? { ...p, content: editCaption } : p));
+      // ✅ Mise à jour immédiate de l'interface locale
+      setPosts(prev => prev.map(p => p.id === postToEdit.id ? { ...p, content: editCaption, caption: editCaption } : p));
 
       toast({ title: "✅ Post modifié avec succès", status: "success", duration: 3000 });
       setIsEditModalOpen(false);
@@ -366,15 +366,12 @@ export default function PostDetailPage() {
     }
   };
 
-  // ✅ 3. SUPPRESSION DYNAMIQUE
-    // ✅ 3. SUPPRESSION DYNAMIQUE (Avec gestion des erreurs RLS)
   const handleDelete = async (postIdToDelete: string) => {
     if (!confirm("Voulez-vous vraiment supprimer ce post ? Cette action est irréversible.")) return;
     
     try {
       const { error } = await supabase.from('posts').delete().eq('id', postIdToDelete);
 
-      // ✅ Si Supabase bloque (à cause de la RLS), on le dit clairement
       if (error) {
         console.error("Erreur Supabase:", error);
         toast({ 
@@ -386,17 +383,15 @@ export default function PostDetailPage() {
         return;
       }
 
-      // ✅ Retirer le post de l'écran instantanément (sans recharger la page)
       setPosts(prev => prev.filter(p => p.id !== postIdToDelete));
 
-      // Si on supprime le post qu'on est en train de regarder, on redirige
       if (postIdToDelete === postId) {
         toast({ title: "🗑️ Post supprimé", status: "success", duration: 3000 });
         setTimeout(() => {
           router.push(`/createur?id=${creatorInfo.id}`);
         }, 1000);
       } else {
-        toast({ title: "️ Post supprimé avec succès", status: "success", duration: 3000 });
+        toast({ title: "Post supprimé avec succès", status: "success", duration: 3000 });
       }
       
       setShowMoreMenu(null);
@@ -516,6 +511,7 @@ export default function PostDetailPage() {
 
           return (
             <div key={post.id} className="snap-item">
+              {/* ✅ CORRECTION 2 : Gestion correcte des posts de type 'text' */}
               {post.media_type === 'video' ? (
                 <video
                   ref={el => { videoRefs.current[index] = el; }}
@@ -526,6 +522,27 @@ export default function PostDetailPage() {
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   onClick={() => setIsMuted(!isMuted)}
                 />
+              ) : post.media_type === 'text' ? (
+                <div style={{ 
+                  width: "100%", 
+                  height: "100%", 
+                  backgroundColor: post.background_color || (isDark ? "#1a1a1a" : "#ffffff"), 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center", 
+                  padding: "40px" 
+                }}>
+                  <p style={{ 
+                    color: "#ffffff", 
+                    fontSize: "clamp(24px, 5vw, 48px)", 
+                    fontWeight: "bold", 
+                    textAlign: "center", 
+                    lineHeight: 1.4,
+                    wordBreak: "break-word"
+                  }}>
+                    {post.content || post.caption || post.title}
+                  </p>
+                </div>
               ) : (
                 <img src={post.media_url} alt="Post" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               )}
@@ -668,8 +685,9 @@ export default function PostDetailPage() {
                   </div>
                 </div>
                 
+                {/* ✅ CORRECTION 3 : Afficher 'content' en priorité pour la légende */}
                 <p style={{ color: "white", fontSize: "14px", lineHeight: "1.4", marginBottom: "8px", textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}>
-                  {post.caption || post.title || " (Pas de légende)"}
+                  {post.content || post.caption || post.title || " (Pas de légende)"}
                 </p>
                 <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px" }}>{dateStr}</p>
               </div>
@@ -753,7 +771,6 @@ export default function PostDetailPage() {
         </>
       )}
 
-      {/* ✅ MODALE DE MODIFICATION DYNAMIQUE */}
       <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} isCentered>
         <ModalOverlay bg="blackAlpha.700" />
         <ModalContent bg={isDark ? "#1A1A1A" : "#FFFFFF"} color={colors.text} maxW="500px" borderRadius="16px">
@@ -795,8 +812,8 @@ export default function PostDetailPage() {
         />
       )}
 
-      {/* ✅ MODALE DE SIGNALEMENT (Déjà dynamique via Supabase) */}
-<ReportModal isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} postId={reportPostId} isDark={isDark} />
+      <ReportModal isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} postId={reportPostId} isDark={isDark} />
+
       <style>{`
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
@@ -856,17 +873,19 @@ export default function PostDetailPage() {
           border-top: none;
         }
 
+        /* ✅ CORRECTION 4 : Agrandir l'espace d'affichage sur Desktop */
         @media (min-width: 768px) {
           .snap-container {
-            width: 450px;
-            height: 85vh;
+            width: 100%;
+            max-width: 600px; /* Agrandi de 450px à 600px pour mieux voir les posts texte */
+            height: 90vh; /* Un peu plus grand en hauteur */
             border-radius: 16px;
             border: 1px solid ${colors.border};
             box-shadow: 0 20px 50px rgba(0,0,0,0.8);
           }
           
           .snap-item {
-            height: 85vh;
+            height: 90vh;
             border-radius: 16px;
             overflow: hidden;
           }
@@ -881,7 +900,7 @@ export default function PostDetailPage() {
 
           .comments-panel {
             position: fixed;
-            right: calc(50% - 225px);
+            right: calc(50% - 300px); /* Centré par rapport au nouveau max-width */
             top: 50%;
             transform: translateY(-50%);
             bottom: auto;
@@ -914,40 +933,33 @@ function ReportModal({ isOpen, onClose, postId, isDark }: { isOpen: boolean; onC
   const [selectedReason, setSelectedReason] = useState("");
 
   const handleReport = async () => {
-  if (!selectedReason) return;
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    
-    // ✅ CORRECTION : Utiliser target_id et target_type selon ta structure
-    const { error } = await supabase.from('reports').insert({
-      reporter_id: session.user.id,
-      target_id: postId,
-      target_type: 'post', // ✅ Important pour le trigger
-      reason: selectedReason
-    });
+    if (!selectedReason) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const { error } = await supabase.from('reports').insert({
+        reporter_id: session.user.id,
+        target_id: postId,
+        target_type: 'post',
+        reason: selectedReason
+      });
 
-    if (error) {
-      // Si l'erreur est "duplicate key", c'est que l'utilisateur a déjà signalé
-      if (error.code === '23505') {
-        toast({ 
-          title: "Déjà signalé", 
-          description: "Vous avez déjà signalé ce post.", 
-          status: "warning", 
-          duration: 3000 
-        });
+      if (error) {
+        if (error.code === '23505') {
+          toast({ title: "Déjà signalé", description: "Vous avez déjà signalé ce post.", status: "warning", duration: 3000 });
+        } else {
+          throw error;
+        }
       } else {
-        throw error;
+        toast({ title: "✅ Signalement envoyé", status: "success", duration: 3000 });
       }
-    } else {
-      toast({ title: "✅ Signalement envoyé", status: "success", duration: 3000 });
+      onClose();
+    } catch (error) {
+      console.error("Erreur signalement:", error);
+      toast({ title: "Erreur lors du signalement", status: "error", duration: 3000 });
     }
-    onClose();
-  } catch (error) {
-    console.error("Erreur signalement:", error);
-    toast({ title: "Erreur lors du signalement", status: "error", duration: 3000 });
-  }
-};
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} isCentered>
