@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-// ✅ Ajout des composants Chakra UI pour le bouton Google (comme dans Register)
-import { Button, Flex, Text, Box } from "@chakra-ui/react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,25 +11,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // ✅ NOUVEAU : Fonction pour la connexion Google
-  const handleGoogleSignIn = async () => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const { error: signInError } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-      if (signInError) throw signInError;
-    } catch (err: any) {
-      setError(err.message || "Impossible de se connecter avec Google.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,23 +34,22 @@ export default function LoginPage() {
 
       // 2. ✅ VÉRIFICATION DU STATUT DE BANNISSEMENT
       if (data.user) {
-        const { data: profile, error: profileError } = await supabase
+        const { data: profile } = await supabase
           .from("profiles")
           .select("is_banned")
           .eq("id", data.user.id)
           .single();
 
-        // Si le profil existe et est marqué comme banni
         if (profile?.is_banned === true) {
           await supabase.auth.signOut();
           setError("🚫 Votre compte a été banni de la plateforme Afrifan. Veuillez contacter le support.");
           setIsLoading(false);
-          return; 
+          return;
         }
       }
 
       // 3. Si tout est bon, on redirige
-      router.push("/home");       
+      router.push("/home");
     } catch (err: any) {
       setError(err.message || "Email ou mot de passe incorrect.");
     } finally {
@@ -79,7 +57,7 @@ export default function LoginPage() {
     }
   };
 
-  // ✅ TES STYLES (inchangés)
+  // ✅ Styles (blanc / noir uniquement)
   const styles: Record<string, React.CSSProperties> = {
     container: {
       minHeight: "100vh",
@@ -142,8 +120,8 @@ export default function LoginPage() {
     },
     button: {
       width: "100%",
-      backgroundColor: "#8B5CF6",
-      color: "#FFFFFF",
+      backgroundColor: "#FFFFFF",
+      color: "#0A0A0A",
       fontWeight: "bold",
       padding: "14px",
       borderRadius: "12px",
@@ -163,7 +141,7 @@ export default function LoginPage() {
       fontSize: "14px",
     },
     link: {
-      color: "#8B5CF6",
+      color: "#FFFFFF",
       fontWeight: "600",
       cursor: "pointer",
       background: "none",
@@ -190,7 +168,7 @@ export default function LoginPage() {
               onChange={(e) => setIdentifier(e.target.value)}
               style={styles.input}
               placeholder="ton@email.com"
-              onFocus={(e) => (e.target.style.borderColor = "#8B5CF6")}
+              onFocus={(e) => (e.target.style.borderColor = "#FFFFFF")}
               onBlur={(e) => (e.target.style.borderColor = "#2A2A2A")}
             />
           </div>
@@ -204,7 +182,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 style={styles.input}
                 placeholder="••••••••"
-                onFocus={(e) => (e.target.style.borderColor = "#8B5CF6")}
+                onFocus={(e) => (e.target.style.borderColor = "#FFFFFF")}
                 onBlur={(e) => (e.target.style.borderColor = "#2A2A2A")}
               />
               <button
@@ -246,37 +224,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* ✅ NOUVEAU : Séparateur et Vrai Bouton Google (Style Chakra UI) */}
-        <Flex align="center" w="100%" my={8}>
-          <Box flex="1" h="1px" bg="#2A2A2A" />
-          <Text px={4} color="#9CA3AF" fontSize="14px">Ou continuer avec</Text>
-          <Box flex="1" h="1px" bg="#2A2A2A" />
-        </Flex>
-
-        <Button
-          w="100%"
-          h="50px"
-          bg="white"
-          color="#1A1A1A"
-          _hover={{ bg: "gray.100" }}
-          fontWeight="medium"
-          onClick={handleGoogleSignIn}
-          isLoading={isLoading}
-          leftIcon={
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24px" height="24px">
-              <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z" />
-              <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z" />
-              <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z" />
-              <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
-            </svg>
-          }
-        >
-          Continuer avec Google
-        </Button>
-
         <div style={styles.footer}>
           Pas encore de compte ?{" "}
-          <button 
+          <button
             type="button"
             style={styles.link}
             onClick={() => router.push("/register")}

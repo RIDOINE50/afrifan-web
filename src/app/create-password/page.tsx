@@ -116,7 +116,7 @@ function CreatePasswordContent() {
               Créez un mot de passe pour vous connecter facilement la prochaine fois.
             </Text>
             {email && (
-              <Text color="#8B5CF6" fontWeight="medium" mt={2} fontSize="sm" bg="rgba(139, 92, 246, 0.1)" display="inline-block" px={3} py={1} borderRadius="full">
+              <Text color="white" fontWeight="medium" mt={2} fontSize="sm" bg="rgba(255, 255, 255, 0.08)" display="inline-block" px={3} py={1} borderRadius="full">
                 {email}
               </Text>
             )}
@@ -136,7 +136,7 @@ function CreatePasswordContent() {
                     onChange={(e) => setPassword(e.target.value)}
                     bg="#1A1A1A"
                     border="1px solid #2A2A2A"
-                    _focus={{ borderColor: "#8B5CF6", boxShadow: "none" }}
+                    _focus={{ borderColor: "white", boxShadow: "none" }}
                     h="50px"
                     color="white"
                     _placeholder={{ color: "gray.500" }}
@@ -149,7 +149,7 @@ function CreatePasswordContent() {
                       size="sm"
                       onClick={() => setShowPassword(!showPassword)}
                       color="gray.400"
-                      _hover={{ color: "white" }}
+                      _hover={{ color: "white", bg: "transparent" }}
                     >
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </Button>
@@ -166,7 +166,7 @@ function CreatePasswordContent() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   bg="#1A1A1A"
                   border="1px solid #2A2A2A"
-                  _focus={{ borderColor: "#8B5CF6", boxShadow: "none" }}
+                  _focus={{ borderColor: "white", boxShadow: "none" }}
                   h="50px"
                   color="white"
                   _placeholder={{ color: "gray.500" }}
@@ -179,8 +179,9 @@ function CreatePasswordContent() {
                 type="submit"
                 w="100%"
                 h="50px"
-                bg="#8B5CF6"
-                _hover={{ bg: "#7C3AED" }}
+                bg="white"
+                color="black"
+                _hover={{ bg: "gray.200" }}
                 isLoading={isLoading}
                 loadingText="Création en cours..."
                 fontWeight="bold"
@@ -202,7 +203,7 @@ export default function CreatePasswordPage() {
   return (
     <Suspense fallback={
       <Flex minH="100vh" bg="#0A0A0A" align="center" justify="center">
-        <Spinner thickness="4px" speed="0.65s" emptyColor="#2A2A2A" color="#8B5CF6" size="xl" />
+        <Spinner thickness="4px" speed="0.65s" emptyColor="#2A2A2A" color="white" size="xl" />
       </Flex>
     }>
       <CreatePasswordContent />

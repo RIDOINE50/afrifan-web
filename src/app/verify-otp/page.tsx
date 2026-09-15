@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
-import { ArrowLeft, Loader2, Mail } from "lucide-react"
+import { ArrowLeft, Mail } from "lucide-react"
 import {
   Box,
   Button,
@@ -22,7 +22,7 @@ function VerifyOtpContent() {
   const toast = useToast()
 
   const email = searchParams.get("email")
-  
+
   const [otp, setOtp] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
@@ -105,12 +105,12 @@ function VerifyOtpContent() {
 
         <VStack spacing={6} align="stretch">
           <Box textAlign="center">
-            <Flex w="16" h="16" bg="rgba(139, 92, 246, 0.1)" borderRadius="full" align="center" justify="center" mx="auto" mb={4}>
-              <Mail color="#8B5CF6" size={32} />
+            <Flex w="16" h="16" bg="rgba(255, 255, 255, 0.08)" borderRadius="full" align="center" justify="center" mx="auto" mb={4}>
+              <Mail color="white" size={32} />
             </Flex>
             <Text fontSize="3xl" fontWeight="bold" mb={2}>Vérification</Text>
             <Text color="gray.400">
-              Nous avons envoyé un code à <Text as="span" color="#8B5CF6" fontWeight="bold">8 chiffres</Text> à :
+              Nous avons envoyé un code à <Text as="span" color="white" fontWeight="bold">8 chiffres</Text> à :
             </Text>
             <Text color="white" fontWeight="bold" fontSize="lg" mt={1}>{email}</Text>
           </Box>
@@ -126,7 +126,7 @@ function VerifyOtpContent() {
                   onChange={handleOtpChange}
                   bg="#1A1A1A"
                   border="1px solid #2A2A2A"
-                  _focus={{ borderColor: "#8B5CF6", boxShadow: "none" }}
+                  _focus={{ borderColor: "white", boxShadow: "none" }}
                   h="60px"
                   fontSize="3xl"
                   fontWeight="bold"
@@ -146,8 +146,9 @@ function VerifyOtpContent() {
                 type="submit"
                 w="100%"
                 h="50px"
-                bg="#8B5CF6"
-                _hover={{ bg: "#7C3AED" }}
+                bg="white"
+                color="black"
+                _hover={{ bg: "gray.200" }}
                 isDisabled={isLoading || otp.length !== 8}
                 isLoading={isLoading}
                 loadingText="Vérification..."
@@ -156,20 +157,6 @@ function VerifyOtpContent() {
                 Vérifier le code
               </Button>
             </VStack>
-          </Box>
-
-          <Box textAlign="center">
-            <Button
-              variant="link"
-              color="gray.400"
-              _hover={{ color: "#8B5CF6" }}
-              fontSize="sm"
-              onClick={() => {
-                toast({ title: "Fonctionnalité à venir", status: "info", duration: 2000 })
-              }}
-            >
-              Vous n'avez pas reçu le code ? Renvoyer
-            </Button>
           </Box>
         </VStack>
       </Box>
@@ -182,7 +169,7 @@ export default function VerifyOtpPage() {
   return (
     <Suspense fallback={
       <Flex minH="100vh" bg="#0A0A0A" align="center" justify="center">
-        <Spinner thickness="4px" speed="0.65s" emptyColor="#2A2A2A" color="#8B5CF6" size="xl" />
+        <Spinner thickness="4px" speed="0.65s" emptyColor="#2A2A2A" color="white" size="xl" />
       </Flex>
     }>
       <VerifyOtpContent />

@@ -91,9 +91,9 @@ export default function InterestsPage() {
           Choisissez vos centres d'intérêt
         </Text>
         <Text color="gray.400" fontSize="sm">
-          Sélectionnez au moins <Text as="span" color="#8B5CF6" fontWeight="bold">3 catégories</Text> qui vous intéressent pour personnaliser votre fil d'actualité.
+          Sélectionnez au moins <Text as="span" color="white" fontWeight="bold">3 catégories</Text> qui vous intéressent pour personnaliser votre fil d'actualité.
         </Text>
-      </Box> {/* ✅ CORRIGÉ : </Box> au lieu de </div> */}
+      </Box>
 
       {/* Grille des catégories */}
       <Box flex="1" overflowY="auto" pr={2} mb={6}>
@@ -110,12 +110,12 @@ export default function InterestsPage() {
                 flexDirection="column"
                 gap={3}
                 borderWidth={isSelected ? "2px" : "1px"}
-                borderColor={isSelected ? "#8B5CF6" : "transparent"}
-                bg={isSelected ? "rgba(139, 92, 246, 0.1)" : "#1A1A1A"}
-                color={isSelected ? "#8B5CF6" : "gray.400"}
+                borderColor={isSelected ? "white" : "transparent"}
+                bg={isSelected ? "rgba(255, 255, 255, 0.08)" : "#1A1A1A"}
+                color={isSelected ? "white" : "gray.400"}
                 _hover={{
-                  bg: isSelected ? "rgba(139, 92, 246, 0.15)" : "#252525",
-                  borderColor: isSelected ? "#8B5CF6" : "rgba(255, 255, 255, 0.1)",
+                  bg: isSelected ? "rgba(255, 255, 255, 0.12)" : "#252525",
+                  borderColor: isSelected ? "white" : "rgba(255, 255, 255, 0.1)",
                 }}
                 _active={{ transform: "scale(0.98)" }}
                 transition="all 0.2s"
@@ -134,12 +134,12 @@ export default function InterestsPage() {
                     right={2}
                     w={5}
                     h={5}
-                    bg="#8B5CF6"
+                    bg="white"
                     borderRadius="full"
                     align="center"
                     justify="center"
                   >
-                    <Check size={12} color="white" strokeWidth={3} />
+                    <Check size={12} color="#0A0A0A" strokeWidth={3} />
                   </Flex>
                 )}
               </Button>
@@ -157,9 +157,9 @@ export default function InterestsPage() {
           loadingText="Configuration..."
           w="100%"
           h="50px"
-          bg={canContinue ? "#8B5CF6" : "#1A1A1A"}
-          color={canContinue ? "white" : "gray.600"}
-          _hover={canContinue ? { bg: "#7C3AED" } : {}}
+          bg={canContinue ? "white" : "#1A1A1A"}
+          color={canContinue ? "black" : "gray.600"}
+          _hover={canContinue ? { bg: "gray.200" } : {}}
           _disabled={{ cursor: "not-allowed", opacity: 0.7 }}
           fontWeight="bold"
           fontSize="base"
