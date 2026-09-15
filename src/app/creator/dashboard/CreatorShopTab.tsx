@@ -241,94 +241,94 @@ export default function CreatorShopTab() {
             )}
 
             {/* ✅ ZONE D'APERÇU ADAPTATIVE */}
-            <Box
-              aspectRatio="4/3"
-              bg={colors.hover}
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-              position="relative"
-              overflow="hidden"
-            >
-              {/* Cas 1: Image ou Vidéo avec preview_url */}
-              {product.preview_url && (product.media_type === "image" || product.media_type === "video") ? (
-                <Image
-                  src={product.preview_url}
-                  alt={product.title}
-                  objectFit="cover"
-                  w="100%"
-                  h="100%"
-                />
-              ) : 
-              /* Cas 2: Texte ou Description à afficher */
-              product.description ? (
-                <Box
-                  p={4}
-                  w="100%"
-                  h="100%"
-                  display="flex"
-                  flexDirection="column"
-                  justifyContent="center"
-                  alignItems="center"
-                  textAlign="center"
-                >
-                  <Text
-                    color={colors.text}
-                    fontSize="14px"
-                    fontWeight="500"
-                    noOfLines={4}
-                    lineHeight="1.5"
-                  >
-                    {product.description}
-                  </Text>
-                  {/* Badge du type de média en bas */}
-                  <Badge
-                    position="absolute"
-                    bottom={2}
-                    right={2}
-                    px={2}
-                    py={1}
-                    bg={colors.primary}
-                    color={colors.primaryText}
-                    borderRadius="6px"
-                    fontSize="10px"
-                    fontWeight="bold"
-                    textTransform="uppercase"
-                  >
-                    {product.media_type}
-                  </Badge>
-                </Box>
-              ) : 
-              /* Cas 3: Pas de preview ni description → Icône */
-              (
-                <VStack spacing={3}>
-                  <Icon 
-                    as={getIcon(product.media_type)} 
-                    color={colors.textMuted} 
-                    boxSize={12} 
-                  />
-                  <Text fontSize="12px" color={colors.textMuted} fontWeight="500">
-                    {product.media_type === 'file' ? 'Fichier' : 
-                     product.media_type === 'audio' ? 'Audio' : 
-                     product.media_type}
-                  </Text>
-                </VStack>
-              )}
+            {/* ✅ ZONE D'APERÇU ADAPTATIVE AVEC GESTION D'ERREUR */}
+<Box
+  aspectRatio="4/3"
+  bg={colors.hover}
+  display="flex"
+  alignItems="center"
+  justifyContent="center"
+  position="relative"
+  overflow="hidden"
+>
+  {product.preview_url && (product.media_type === "image" || product.media_type === "video") ? (
+    <Image
+      src={product.preview_url}
+      alt={product.title}
+      objectFit="cover"
+      w="100%"
+      h="100%"
+      onError={(e) => {
+        // ✅ Si l'image échoue, on cache l'élément img et on affiche l'icône à la place
+        (e.target as HTMLImageElement).style.display = 'none';
+        const parent = (e.target as HTMLImageElement).parentElement;
+        if (parent) {
+          parent.innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; color: ${colors.textMuted}">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+              <span style="font-size: 12px; font-weight: 500;">Aperçu non disponible</span>
+            </div>
+          `;
+        }
+      }}
+    />
+  ) : product.description ? (
+    <Box
+      p={4}
+      w="100%"
+      h="100%"
+      display="flex"
+      flexDirection="column"
+      justifyContent="center"
+      alignItems="center"
+      textAlign="center"
+    >
+      <Text
+        color={colors.text}
+        fontSize="14px"
+        fontWeight="500"
+        noOfLines={4}
+        lineHeight="1.5"
+      >
+        {product.description}
+      </Text>
+      <Badge
+        position="absolute"
+        bottom={2}
+        right={2}
+        px={2}
+        py={1}
+        bg={colors.primary}
+        color={colors.primaryText}
+        borderRadius="6px"
+        fontSize="10px"
+        fontWeight="bold"
+        textTransform="uppercase"
+      >
+        {product.media_type}
+      </Badge>
+    </Box>
+  ) : (
+    <VStack spacing={3}>
+      <Icon as={getIcon(product.media_type)} color={colors.textMuted} boxSize={12} />
+      <Text fontSize="12px" color={colors.textMuted} fontWeight="500">
+        {product.media_type === 'file' ? 'Fichier' : 
+         product.media_type === 'audio' ? 'Audio' : 
+         product.media_type}
+      </Text>
+    </VStack>
+  )}
 
-              {/* Badge Vidéo si nécessaire */}
-              {product.media_type === "video" && product.preview_url && (
-                <Box
-                  position="absolute"
-                  top={2}
-                  right={2}
-                  bg="rgba(0,0,0,0.7)"
-                  p={2}
-                  borderRadius="full"
-                >
-                  <Icon as={FaVideo} color="white" boxSize={4} />
-                </Box>
-              )}
-            </Box>
+  {product.media_type === "video" && product.preview_url && (
+    <Box position="absolute" top={2} right={2} bg="rgba(0,0,0,0.7)" p={2} borderRadius="full">
+      <Icon as={FaVideo} color="white" boxSize={4} />
+    </Box>
+  )}
+</Box>
 
             <Box p={3}>
               <Text color={colors.text} fontWeight="bold" fontSize="14px" noOfLines={2} mb={2}>
