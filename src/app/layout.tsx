@@ -19,9 +19,21 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// ✅ MODIF : Ajout de la config PWA (manifest + appleWebApp + icons)
 export const metadata: Metadata = {
   title: "Afrifan",
   description: "La plateforme des créateurs et de leurs fans",
+  manifest: "/manifest.webmanifest",
+  themeColor: "#8B5CF6",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Afrifan",
+  },
+  icons: {
+    icon: "/icon-192x192.png",
+    apple: "/icon-192x192.png",
+  },
 };
 
 export default function RootLayout({
@@ -36,6 +48,11 @@ export default function RootLayout({
           src="https://cdn.kkiapay.me/k.js" 
           strategy="beforeInteractive"
         />
+        {/* ✅ AJOUT : meta pour iOS (install sur iPhone) */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Afrifan" />
+        <meta name="theme-color" content="#8B5CF6" />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         
