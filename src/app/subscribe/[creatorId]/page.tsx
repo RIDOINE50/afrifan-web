@@ -130,31 +130,36 @@ export default function PaymentPage() {
   // 4. APPEL À LA MÊME FONCTION EDGE QUE MOBILE
   // ==========================================
   const verifyAndConfirmPayment = async (transactionId: string, referenceId: string | null) => {
-    try {
-      if (!user) throw new Error("Utilisateur non connecté");
+  try {
+    if (!user) throw new Error("Utilisateur non connecté");
 
-      const response = await supabase.functions.invoke('kkiapay-webhook', {
-        body: {
-          transaction_id: transactionId,
-          user_id: user.id,
-          type: paymentType === 'product' ? 'product' : 'subscription',
-          reference_id: referenceId,
-          amount: price,
-        }
-      });
+    const body: any = {
+      transaction_id: transactionId,
+      user_id: user.id,
+      type: paymentType === 'product' ? 'product' : 'subscription',
+      reference_id: referenceId,
+      amount: price,
+    };
 
-      if (response.data?.success === true) {
-        setShowSuccess(true);
-      } else {
-        throw new Error(response.data?.error || "Erreur de validation serveur");
-      }
-    } catch (err: any) {
-      console.error("❌ Erreur validation:", err);
-      setError("Paiement effectué mais erreur de validation. Contactez le support.");
-    } finally {
-      setIsLoading(false);
+    // ✅ AJOUT : Envoyer tier_type pour les abonnements
+    if (paymentType !== 'product') {
+      body.tier_type = tierType; // 'premium' ou 'pro'
     }
-  };
+
+    const response = await supabase.functions.invoke('kkiapay-webhook', { body });
+
+    if (response.data?.success === true) {
+      setShowSuccess(true);
+    } else {
+      throw new Error(response.data?.error || "Erreur de validation serveur");
+    }
+  } catch (err: any) {
+    console.error("❌ Erreur validation:", err);
+    setError("Paiement effectué mais erreur de validation. Contactez le support.");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleSuccessClose = () => {
     setShowSuccess(false);
