@@ -38,13 +38,15 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 
+// ✅ Interface mise à jour avec preview_url au lieu de media_url
 interface Product {
   id: string;
   title: string;
   description?: string;
   price: number;
   media_type: string;
-  media_url?: string;
+  preview_url?: string;  // ✅ Pour l'affichage (miniature)
+  file_url?: string;     // ✅ Pour le téléchargement (fichier réel)
   status: string;
   created_at: string;
 }
@@ -56,14 +58,11 @@ export default function CreatorShopTab() {
   
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  // ✅ Nouveau : produit en attente de suppression
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // ✅ Modal de confirmation de suppression
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
 
-  // ✅ Couleurs dynamiques
   const colors = {
     bg: theme.bg,
     card: theme.card,
@@ -125,13 +124,11 @@ export default function CreatorShopTab() {
     }
   };
 
-  // ✅ Ouvre le modal au lieu d'appeler confirm()
   const askDeleteProduct = (product: Product) => {
     setProductToDelete(product);
     onDeleteOpen();
   };
 
-  // ✅ Suppression effective (appelée par le bouton du modal)
   const confirmDeleteProduct = async () => {
     if (!productToDelete) return;
     setIsDeleting(true);
@@ -246,9 +243,10 @@ export default function CreatorShopTab() {
               alignItems="center"
               justifyContent="center"
             >
-              {product.media_url ? (
+              {/* ✅ CORRECTION ICI : preview_url au lieu de media_url */}
+              {product.preview_url ? (
                 <Image
-                  src={product.media_url}
+                  src={product.preview_url}
                   alt={product.title}
                   objectFit="cover"
                   w="100%"
@@ -279,7 +277,6 @@ export default function CreatorShopTab() {
                   >
                     <Icon as={FaEdit} />
                   </Button>
-                  {/* ✅ Ouvre le modal au lieu de confirm() */}
                   <Button
                     size="xs"
                     variant="ghost"
@@ -314,7 +311,6 @@ export default function CreatorShopTab() {
         Nouveau
       </Button>
 
-      {/* ✅ MODAL DE CONFIRMATION DE SUPPRESSION */}
       <Modal isOpen={isDeleteOpen} onClose={onDeleteClose} isCentered size="sm">
         <ModalOverlay bg="blackAlpha.700" backdropFilter="blur(4px)" />
         <ModalContent
@@ -327,7 +323,6 @@ export default function CreatorShopTab() {
           
           <ModalBody pt={8} pb={4}>
             <VStack spacing={4}>
-              {/* Icône d'avertissement */}
               <Box
                 p={4}
                 bg="rgba(239, 68, 68, 0.1)"

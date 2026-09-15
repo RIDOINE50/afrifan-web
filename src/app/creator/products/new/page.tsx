@@ -130,15 +130,19 @@ export default function CreateProductPage() {
         .from("digital_products")
         .getPublicUrl(filePath);
 
-      const { error: dbError } = await supabase.from("digital_products").insert({
-        creator_id: userId,
-        title: formData.title.trim(),
-        description: formData.description.trim() || null,
-        price: parseFloat(formData.price),
-        media_type: formData.media_type,
-        media_url: publicUrl,
-        status: formData.status,
-      });
+    const { error: dbError } = await supabase.from("digital_products").insert({
+  creator_id: userId,
+  title: formData.title.trim(),
+  description: formData.description.trim() || null,
+  price: parseFloat(formData.price),
+  media_type: formData.media_type,
+  file_url: publicUrl, // ✅ Le fichier réel (ce que l'acheteur télécharge)
+  preview_url: (formData.media_type === "image" || formData.media_type === "video") 
+    ? publicUrl  // ✅ Pour image/vidéo, l'aperçu = le fichier lui-même
+    : null,      // ✅ Pour PDF/ZIP/Audio, pas d'aperçu visuel
+  status: formData.status,
+  currency: "XOF",
+});
 
       if (dbError) throw dbError;
 
