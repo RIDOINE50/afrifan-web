@@ -94,7 +94,7 @@ export default function ExplorePage() {
   const fetchCreators = async (userId: string) => {
     const { data } = await supabase
       .from('profiles')
-      .select('id, username, full_name, avatar_url, is_verified, role') // ✅ Ajout de 'role'
+      .select('id, username, full_name, avatar_url, is_verified, role')
       .neq('id', userId)
       .limit(50);
     
@@ -104,7 +104,7 @@ export default function ExplorePage() {
   const fetchPosts = async () => {
     const { data: postsData } = await supabase
       .from('posts')
-      .select('id, user_id, media_url, media_type, caption, title, likes_count, comments_count, created_at')
+      .select('id, user_id, media_url, media_type, caption, title, background_color, likes_count, comments_count, created_at')
       .order('created_at', { ascending: false })
       .limit(30);
 
@@ -114,7 +114,7 @@ export default function ExplorePage() {
     
     const { data: profilesData } = await supabase
       .from('profiles')
-      .select('id, username, full_name, avatar_url, role, premium_price, pro_price') // ✅ Ajout de 'role'
+      .select('id, username, full_name, avatar_url, role, premium_price, pro_price')
       .in('id', userIds);
 
     const profilesMap: Record<string, any> = {};
@@ -122,7 +122,6 @@ export default function ExplorePage() {
 
     const mergedPosts = postsData.map((post: any) => ({
       ...post,
-      // ✅ Valeur par défaut avec role: 'user' pour éviter les erreurs
       profile: profilesMap[post.user_id] || { username: 'inconnu', full_name: null, avatar_url: null, role: 'user', premium_price: 0, pro_price: 0 },
       likes_count: post.likes_count ?? 0,
     }));
@@ -202,12 +201,26 @@ export default function ExplorePage() {
         backgroundColor: colors.bg,
         minHeight: "100vh"
       }}>
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+        {/* Header avec Notification bien visible */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", position: "sticky", top: 0, zIndex: 50, backgroundColor: colors.bg, padding: "10px 0" }}>
           <h1 style={{ color: colors.text, fontSize: "28px", fontWeight: "bold", margin: 0 }}>Découvrir</h1>
           <button 
             onClick={() => router.push("/notifications")}
-            style={{ background: "none", border: "none", color: colors.text, cursor: "pointer", padding: "8px", display: "flex" }}
+            style={{ 
+              background: colors.card, 
+              border: `1px solid ${colors.border}`, 
+              color: colors.text, 
+              cursor: "pointer", 
+              padding: "10px", 
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.2s"
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = colors.hover; e.currentTarget.style.transform = "scale(1.05)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = colors.card; e.currentTarget.style.transform = "scale(1)"; }}
+            title="Notifications"
           >
             <BellIcon />
           </button>
@@ -242,9 +255,19 @@ export default function ExplorePage() {
             </div>
             <button 
               onClick={() => router.push("/creators")}
-              style={{ background: "none", border: "none", color: colors.primary, cursor: "pointer", fontWeight: "bold", fontSize: "14px" }}
+              style={{ 
+                background: "none", 
+                border: "none", 
+                color: colors.primary, 
+                cursor: "pointer", 
+                fontWeight: "bold", 
+                fontSize: "14px",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px"
+              }}
             >
-              Voir tout →
+              Voir tout <span style={{ fontSize: "16px" }}>→</span>
             </button>
           </div>
 
@@ -268,7 +291,7 @@ export default function ExplorePage() {
                     onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
                     onClick={() => router.push(`/createur?id=${creator.id}`)}
                   >
-                    {/* ✅ PHOTO RÉELLE OU INITIALE (Plus de sticker "bonhomme") */}
+                    {/* ✅ INITIALE AVEC CONTRASTE PARFAIT (Blanc en sombre, Noir en clair) */}
                     {creator.avatar_url ? (
                       <img 
                         src={creator.avatar_url} 
@@ -280,7 +303,8 @@ export default function ExplorePage() {
                         width: "64px", height: "64px", borderRadius: "50%", 
                         backgroundColor: colors.primary, 
                         display: "flex", alignItems: "center", justifyContent: "center", 
-                        fontSize: "28px", fontWeight: "bold", color: "white"
+                        fontSize: "28px", fontWeight: "bold", 
+                        color: isDark ? "#FFFFFF" : "#000000" // ✅ Correction ici
                       }}>
                         {displayName.charAt(0).toUpperCase()}
                       </div>
@@ -317,9 +341,19 @@ export default function ExplorePage() {
             </div>
             <button 
               onClick={() => router.push("/posts")}
-              style={{ background: "none", border: "none", color: colors.primary, cursor: "pointer", fontWeight: "bold", fontSize: "14px" }}
+              style={{ 
+                background: "none", 
+                border: "none", 
+                color: colors.primary, 
+                cursor: "pointer", 
+                fontWeight: "bold", 
+                fontSize: "14px",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px"
+              }}
             >
-              Voir tout →
+              Voir tout <span style={{ fontSize: "16px" }}>→</span>
             </button>
           </div>
 
@@ -329,11 +363,10 @@ export default function ExplorePage() {
             </div>
           ) : (
             <div className="responsive-posts-grid">
-              {filteredPosts.map((post: any) => {
+              {filteredPosts.map((post: any, index: number) => { // ✅ Ajout de l'index
                 const creatorId = post.user_id;
                 const isMyOwnPost = user?.id === creatorId;
                 
-                // ✅ LOGIQUE EXACTE DU FLUTTER :
                 const creatorRole = post.profile?.role || 'user';
                 const isCreator = creatorRole === 'creator';
                 const isLocked = isCreator && !isMyOwnPost && !subscribedCreatorIds.has(creatorId);
@@ -350,12 +383,28 @@ export default function ExplorePage() {
                       if (isLocked) {
                         router.push(`/subscribe/${creatorId}?tier=premium&price=${premiumPrice}&name=${encodeURIComponent(displayName)}`);
                       } else {
-                        router.push(`/post/${post.id}?creatorId=${creatorId}`);
+                        // ✅ Ajout de l'index pour ouvrir le bon post
+                        router.push(`/post/${post.id}?creatorId=${creatorId}&index=${index}`);
                       }
                     }}
                     className="post-card"
                   >
-                    {post.media_url ? (
+                    {/* ✅ GESTION CORRECTE DES POSTS TEXTE */}
+                    {post.media_type === 'text' ? (
+                      <div style={{ 
+                        width: "100%", height: "100%", 
+                        backgroundColor: post.background_color || (isDark ? "#2D3748" : "#E2E8F0"),
+                        display: "flex", alignItems: "center", justifyContent: "center", padding: "16px"
+                      }}>
+                        <p style={{ 
+                          color: isDark ? "#FFFFFF" : "#000000", 
+                          fontSize: "14px", fontWeight: "bold", textAlign: "center", lineHeight: "1.4",
+                          overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 6, WebkitBoxOrient: "vertical"
+                        }}>
+                          {post.caption || post.title || "Texte"}
+                        </p>
+                      </div>
+                    ) : post.media_url ? (
                       <>
                         {isLocked ? (
                           <>
@@ -367,7 +416,9 @@ export default function ExplorePage() {
                         )}
                       </>
                     ) : (
-                      <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${colors.purple}33, ${colors.bg})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "48px", color: colors.textMuted }}>📷</div>
+                      <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${colors.purple}33, ${colors.bg})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "48px", color: colors.textMuted }}>
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                      </div>
                     )}
 
                     {isLocked && (
@@ -416,7 +467,10 @@ export default function ExplorePage() {
               border: "none",
               borderRadius: "12px", fontWeight: "bold", fontSize: "14px", cursor: "pointer",
               display: "inline-flex", alignItems: "center", gap: "8px",
+              transition: "transform 0.2s"
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
+            onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
           >
             <span style={{ display: "flex" }}><RefreshIcon /></span> Actualiser
           </button>
