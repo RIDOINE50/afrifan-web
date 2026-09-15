@@ -13,6 +13,32 @@ import TipsTab from "./TipsTab";
 import CreatorShopTab from "./CreatorShopTab";
 import SalesTab from "./SalesTab";
 
+// ==========================================
+// ✅ VRAIES ICÔNES SVG PROFESSIONNELLES
+// ==========================================
+const Icon = ({ path, size = 20, className = "", fill = "none", color = "currentColor", strokeWidth = 2 }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    {path}
+  </svg>
+);
+
+const Icons = {
+  User: (props: any) => <Icon {...props} path={<><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>} />,
+  X: (props: any) => <Icon {...props} path={<><path d="M18 6 6 18" /><path d="m6 6 12 12" /></>} />,
+  Chart: (props: any) => <Icon {...props} path={<><path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" /></>} />,
+  Wallet: (props: any) => <Icon {...props} path={<><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2" /><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" /></>} />,
+  Users: (props: any) => <Icon {...props} path={<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>} />,
+  TrendingUp: (props: any) => <Icon {...props} path={<><polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" /></>} />,
+  Coffee: (props: any) => <Icon {...props} path={<><path d="M17 8h1a4 4 0 1 1 0 8h-1" /><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" /><line x1="6" y1="2" x2="6" y2="4" /><line x1="10" y1="2" x2="10" y2="4" /><line x1="14" y1="2" x2="14" y2="4" /></>} />,
+  ShoppingBag: (props: any) => <Icon {...props} path={<><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></>} />,
+  CreditCard: (props: any) => <Icon {...props} path={<><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></>} />,
+  Settings: (props: any) => <Icon {...props} path={<><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></>} />,
+  Radio: (props: any) => <Icon {...props} path={<><circle cx="12" cy="12" r="2" /><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14" /></>} />,
+  Menu: (props: any) => <Icon {...props} path={<><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></>} />,
+  Eye: (props: any) => <Icon {...props} path={<><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></>} />,
+  Camera: (props: any) => <Icon {...props} path={<><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3" /></>} />,
+};
+
 export default function CreatorDashboard() {
   const router = useRouter();
   const { isDark, theme } = useAppTheme();
@@ -182,28 +208,38 @@ export default function CreatorDashboard() {
       }}>
         <div style={{ padding: "24px 20px", borderBottom: `1px solid ${colors.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {/* ✅ Avatar avec vraie icône User SVG */}
             <div style={{ 
               width: "48px", height: "48px", borderRadius: "50%", 
               backgroundColor: colors.primary, color: colors.primaryText, 
-              display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px" 
-            }}>👤</div>
+              display: "flex", alignItems: "center", justifyContent: "center"
+            }}>
+              <Icons.User size={24} color={colors.primaryText} />
+            </div>
             <div>
               <div style={{ fontWeight: "bold", fontSize: "16px" }}>{userName}</div>
               <div style={{ fontSize: "12px", color: colors.textMuted }}>Espace Créateur</div>
             </div>
           </div>
-          <button onClick={() => setIsMobileMenuOpen(false)} className="mobile-close-btn" style={{ background: "none", border: "none", color: colors.text, fontSize: "24px", cursor: "pointer", display: "none" }}>✕</button>
+          {/* ✅ Bouton close avec icône X SVG */}
+          <button 
+            onClick={() => setIsMobileMenuOpen(false)} 
+            className="mobile-close-btn" 
+            style={{ background: "none", border: "none", color: colors.text, cursor: "pointer", display: "none", padding: "4px" }}
+          >
+            <Icons.X size={24} color={colors.text} />
+          </button>
         </div>
 
         <nav style={{ flex: 1, padding: "16px 0", overflowY: "auto" }}>
-          <SidebarItem icon="📊" label="Vue d'ensemble" isActive={activeTab === "overview"} onClick={() => handleTabChange("overview")} colors={colors} />
-          <SidebarItem icon="💰" label="Portefeuille" isActive={activeTab === "wallet"} onClick={() => handleTabChange("wallet")} colors={colors} />
-          <SidebarItem icon="👥" label="Abonnés" isActive={activeTab === "subscribers"} onClick={() => handleTabChange("subscribers")} colors={colors} />
-          <SidebarItem icon="📈" label="Statistiques" isActive={activeTab === "stats"} onClick={() => handleTabChange("stats")} colors={colors} />
-          <SidebarItem icon="☕" label="Pourboires" isActive={activeTab === "tips"} onClick={() => handleTabChange("tips")} colors={colors} />
-          <SidebarItem icon="🛍️" label="Boutique" isActive={activeTab === "shop"} onClick={() => handleTabChange("shop")} colors={colors} />
-          <SidebarItem icon="💳" label="Ventes" isActive={activeTab === "sales"} onClick={() => handleTabChange("sales")} colors={colors} />
-          <SidebarItem icon="⚙️" label="Paramètres" isActive={activeTab === "settings"} onClick={() => handleTabChange("settings")} colors={colors} />
+          <SidebarItem icon={<Icons.Chart size={18} />} label="Vue d'ensemble" isActive={activeTab === "overview"} onClick={() => handleTabChange("overview")} colors={colors} />
+          <SidebarItem icon={<Icons.Wallet size={18} />} label="Portefeuille" isActive={activeTab === "wallet"} onClick={() => handleTabChange("wallet")} colors={colors} />
+          <SidebarItem icon={<Icons.Users size={18} />} label="Abonnés" isActive={activeTab === "subscribers"} onClick={() => handleTabChange("subscribers")} colors={colors} />
+          <SidebarItem icon={<Icons.TrendingUp size={18} />} label="Statistiques" isActive={activeTab === "stats"} onClick={() => handleTabChange("stats")} colors={colors} />
+          <SidebarItem icon={<Icons.Coffee size={18} />} label="Pourboires" isActive={activeTab === "tips"} onClick={() => handleTabChange("tips")} colors={colors} />
+          <SidebarItem icon={<Icons.ShoppingBag size={18} />} label="Boutique" isActive={activeTab === "shop"} onClick={() => handleTabChange("shop")} colors={colors} />
+          <SidebarItem icon={<Icons.CreditCard size={18} />} label="Ventes" isActive={activeTab === "sales"} onClick={() => handleTabChange("sales")} colors={colors} />
+          <SidebarItem icon={<Icons.Settings size={18} />} label="Paramètres" isActive={activeTab === "settings"} onClick={() => handleTabChange("settings")} colors={colors} />
         </nav>
 
         <div style={{ padding: "20px", borderTop: `1px solid ${colors.border}` }}>
@@ -217,7 +253,7 @@ export default function CreatorDashboard() {
               display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" 
             }}
           >
-            🔴 Lancer un Live
+            <Icons.Radio size={18} color={colors.red} /> Lancer un Live
           </button>
         </div>
       </aside>
@@ -225,7 +261,10 @@ export default function CreatorDashboard() {
       <main className="main-content" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
         
         <header className="mobile-header" style={{ padding: "16px 20px", borderBottom: `1px solid ${colors.border}`, display: "none", alignItems: "center", justifyContent: "space-between", backgroundColor: colors.bg, position: "sticky", top: 0, zIndex: 30 }}>
-          <button onClick={() => setIsMobileMenuOpen(true)} style={{ background: "none", border: "none", color: colors.text, fontSize: "24px", cursor: "pointer" }}>☰</button>
+          {/* ✅ Burger avec icône Menu SVG */}
+          <button onClick={() => setIsMobileMenuOpen(true)} style={{ background: "none", border: "none", color: colors.text, cursor: "pointer", padding: "4px" }}>
+            <Icons.Menu size={24} color={colors.text} />
+          </button>
           <h1 style={{ margin: 0, fontSize: "18px", fontWeight: "bold" }}>{getTabName(activeTab)}</h1>
           <div style={{ width: "24px" }} />
         </header>
@@ -234,14 +273,14 @@ export default function CreatorDashboard() {
           
           {activeTab === "overview" && (
             <div>
-              <h1 style={{ fontSize: "28px", fontWeight: "bold", marginBottom: "8px" }}>Bonjour, {userName.split(' ')[0]} 👋</h1>
+              <h1 style={{ fontSize: "28px", fontWeight: "bold", marginBottom: "8px" }}>Bonjour, {userName.split(' ')[0]}</h1>
               <p style={{ color: colors.textMuted, marginBottom: "32px" }}>Voici un résumé de ton activité de créateur.</p>
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px", marginBottom: "32px" }}>
-                <StatCard icon="👥" label="Abonnés actifs" value={stats.subscribers.toString()} color={colors.primary} colors={colors} />
-                <StatCard icon="👁️" label="Vues totales" value={formatCount(stats.totalViews)} color={colors.green} colors={colors} />
+                <StatCard icon={<Icons.Users size={20} />} label="Abonnés actifs" value={stats.subscribers.toString()} color={colors.primary} colors={colors} />
+                <StatCard icon={<Icons.Eye size={20} />} label="Vues totales" value={formatCount(stats.totalViews)} color={colors.green} colors={colors} />
                 <StatCard 
-                  icon="💰" 
+                  icon={<Icons.Wallet size={20} />} 
                   label="Solde disponible" 
                   value={`${stats.balance.toLocaleString('fr-FR')} FCFA`} 
                   color={colors.text} 
@@ -265,7 +304,10 @@ export default function CreatorDashboard() {
                   </button>
                 </div>
                 <div style={{ textAlign: "center", padding: "40px", color: colors.textMuted, border: `2px dashed ${colors.border}`, borderRadius: "12px" }}>
-                  <div style={{ fontSize: "40px", marginBottom: "12px" }}>📸</div>
+                  {/* ✅ Icône Camera SVG au lieu de l'émoji 📸 */}
+                  <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
+                    <Icons.Camera size={40} color={colors.textMuted} />
+                  </div>
                   <p>Tes derniers posts apparaîtront ici.</p>
                   <p style={{ fontSize: "13px" }}>Commence par publier du contenu pour voir tes performances !</p>
                 </div>
@@ -304,7 +346,8 @@ export default function CreatorDashboard() {
   );
 }
 
-function SidebarItem({ icon, label, isActive, onClick, colors }: { icon: string, label: string, isActive: boolean, onClick: () => void, colors: any }) {
+// ✅ SidebarItem accepte maintenant un ReactNode comme icône (au lieu d'un émoji string)
+function SidebarItem({ icon, label, isActive, onClick, colors }: { icon: React.ReactNode, label: string, isActive: boolean, onClick: () => void, colors: any }) {
   return (
     <button 
       onClick={onClick} 
@@ -318,12 +361,16 @@ function SidebarItem({ icon, label, isActive, onClick, colors }: { icon: string,
         transition: "all 0.2s", textAlign: "left" 
       }}
     >
-      <span style={{ fontSize: "18px" }}>{icon}</span> {label}
+      <span style={{ display: "flex", alignItems: "center", color: isActive ? colors.primary : colors.textMuted }}>
+        {icon}
+      </span>
+      {label}
     </button>
   );
 }
 
-function StatCard({ icon, label, value, color, isMoney, onWithdraw, colors }: { icon: string, label: string, value: string, color: string, isMoney?: boolean, onWithdraw?: () => void, colors: any }) {
+// ✅ StatCard accepte maintenant un ReactNode comme icône
+function StatCard({ icon, label, value, color, isMoney, onWithdraw, colors }: { icon: React.ReactNode, label: string, value: string, color: string, isMoney?: boolean, onWithdraw?: () => void, colors: any }) {
   return (
     <div style={{ 
       backgroundColor: colors.card, 
@@ -333,7 +380,8 @@ function StatCard({ icon, label, value, color, isMoney, onWithdraw, colors }: { 
       display: "flex", flexDirection: "column", gap: "12px" 
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: "8px", color: colors.textMuted, fontSize: "14px" }}>
-        <span style={{ fontSize: "20px" }}>{icon}</span> {label}
+        <span style={{ display: "flex", alignItems: "center" }}>{icon}</span>
+        {label}
       </div>
       <div style={{ fontSize: "28px", fontWeight: "bold", color: color }}>{value}</div>
       {isMoney && onWithdraw && (

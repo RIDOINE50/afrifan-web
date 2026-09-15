@@ -5,6 +5,24 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppTheme } from "@/contexts/ThemeContext";
 
+// ==========================================
+// ✅ VRAIES ICÔNES SVG PROFESSIONNELLES
+// ==========================================
+const Icon = ({ path, size = 20, className = "", fill = "none", color = "currentColor", strokeWidth = 2 }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    {path}
+  </svg>
+);
+
+const Icons = {
+  TrendingUp: (props: any) => <Icon {...props} path={<><polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" /></>} />,
+  Clock: (props: any) => <Icon {...props} path={<><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>} />,
+  Calendar: (props: any) => <Icon {...props} path={<><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>} />,
+  Users: (props: any) => <Icon {...props} path={<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>} />,
+  User: (props: any) => <Icon {...props} path={<><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>} />,
+  ChevronRight: (props: any) => <Icon {...props} path={<><path d="m9 18 6-6-6-6" /></>} />,
+};
+
 export default function SubscribersTab() {
   const router = useRouter();
   const { isDark, theme } = useAppTheme();
@@ -132,9 +150,9 @@ export default function SubscribersTab() {
       
       {/* 1. SECTION MÉTRIQUES */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "16px" }}>
-        <MiniMetricCard label="Ce mois" value={metrics.currentMonth} icon="📈" color={colors.green} colors={colors} />
-        <MiniMetricCard label="Mois dernier" value={metrics.lastMonth} icon="🕒" color={colors.blue} colors={colors} />
-        <MiniMetricCard label="6 derniers mois" value={metrics.last6Months} icon="📅" color={colors.primary} colors={colors} />
+        <MiniMetricCard label="Ce mois" value={metrics.currentMonth} icon={<Icons.TrendingUp size={20} color={colors.green} />} color={colors.green} colors={colors} />
+        <MiniMetricCard label="Mois dernier" value={metrics.lastMonth} icon={<Icons.Clock size={20} color={colors.blue} />} color={colors.blue} colors={colors} />
+        <MiniMetricCard label="6 derniers mois" value={metrics.last6Months} icon={<Icons.Calendar size={20} color={colors.primary} />} color={colors.primary} colors={colors} />
       </div>
 
       {/* 2. SECTION FILTRES */}
@@ -165,7 +183,10 @@ export default function SubscribersTab() {
       <div style={{ flex: 1, overflowY: "auto" }}>
         {subscribers.length === 0 ? (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "200px", color: colors.textMuted }}>
-            <div style={{ fontSize: "48px", marginBottom: "16px" }}>👥</div>
+            {/* ✅ Icône Users SVG au lieu de l'émoji 👥 */}
+            <div style={{ marginBottom: "16px", opacity: 0.6 }}>
+              <Icons.Users size={48} color={colors.textMuted} strokeWidth={1.5} />
+            </div>
             <p style={{ fontSize: "16px" }}>Aucun abonné actif {selectedFilter !== 'all' ? 'dans cette catégorie' : ''}</p>
           </div>
         ) : (
@@ -202,9 +223,10 @@ export default function SubscribersTab() {
                     backgroundImage: profile?.avatar_url ? `url(${profile.avatar_url})` : undefined,
                     backgroundSize: "cover", backgroundPosition: "center",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "20px", color: colors.primary, flexShrink: 0
+                    color: colors.primary, flexShrink: 0
                   }}>
-                    {!profile?.avatar_url && "👤"}
+                    {/* ✅ Icône User SVG au lieu de l'émoji 👤 */}
+                    {!profile?.avatar_url && <Icons.User size={22} color={colors.primary} />}
                   </div>
 
                   {/* Infos */}
@@ -225,17 +247,20 @@ export default function SubscribersTab() {
                         {sub.tier_type === 'pro' ? 'PRO' : 'PREMIUM'}
                       </span>
 
+                      {/* ✅ Icône Calendar SVG au lieu de l'émoji 📅 */}
                       <span style={{ 
                         color: isExpiringSoon ? colors.orange : colors.textMuted, 
                         fontSize: "12px",
                         display: "flex", alignItems: "center", gap: "4px"
                       }}>
-                        📅 {isExpiringSoon ? `Expire dans ${daysLeft}j` : `Expire le ${formatDate(sub.end_date)}`}
+                        <Icons.Calendar size={12} color={isExpiringSoon ? colors.orange : colors.textMuted} />
+                        {isExpiringSoon ? `Expire dans ${daysLeft}j` : `Expire le ${formatDate(sub.end_date)}`}
                       </span>
                     </div>
                   </div>
 
-                  <span style={{ color: colors.textMuted, fontSize: "20px" }}>›</span>
+                  {/* ✅ Icône ChevronRight SVG au lieu du caractère › */}
+                  <Icons.ChevronRight size={20} color={colors.textMuted} />
                 </div>
               );
             })}
@@ -250,7 +275,8 @@ export default function SubscribersTab() {
   );
 }
 
-function MiniMetricCard({ label, value, icon, color, colors }: { label: string; value: number; icon: string; color: string; colors: any }) {
+// ✅ MiniMetricCard accepte maintenant un ReactNode comme icône
+function MiniMetricCard({ label, value, icon, color, colors }: { label: string; value: number; icon: React.ReactNode; color: string; colors: any }) {
   return (
     <div style={{
       backgroundColor: colors.card,
@@ -262,7 +288,7 @@ function MiniMetricCard({ label, value, icon, color, colors }: { label: string; 
       alignItems: "center",
       textAlign: "center"
     }}>
-      <span style={{ fontSize: "20px", marginBottom: "6px" }}>{icon}</span>
+      <span style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>{icon}</span>
       <div style={{ color: colors.text, fontSize: "18px", fontWeight: "bold" }}>{value}</div>
       <div style={{ color: colors.textMuted, fontSize: "10px", marginTop: "2px", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {label}

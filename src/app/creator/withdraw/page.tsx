@@ -5,6 +5,22 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppTheme } from "@/contexts/ThemeContext";
 
+// ==========================================
+// ✅ VRAIES ICÔNES SVG PROFESSIONNELLES
+// ==========================================
+const Icon = ({ path, size = 20, className = "", fill = "none", color = "currentColor", strokeWidth = 2 }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    {path}
+  </svg>
+);
+
+const Icons = {
+  ArrowLeft: (props: any) => <Icon {...props} path={<><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></>} />,
+  CheckCircle: (props: any) => <Icon {...props} path={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></>} />,
+  AlertCircle: (props: any) => <Icon {...props} path={<><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></>} />,
+  Wallet: (props: any) => <Icon {...props} path={<><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2" /><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" /></>} />,
+};
+
 export default function WithdrawalScreen() {
   const router = useRouter();
   const { isDark, theme } = useAppTheme();
@@ -17,6 +33,8 @@ export default function WithdrawalScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // ✅ Nouvelle : état pour le message de succès non bloquant
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // ✅ Couleurs dynamiques
   const colors = {
@@ -65,6 +83,7 @@ export default function WithdrawalScreen() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMessage(null);
 
     const amountValue = parseFloat(amount);
 
@@ -106,8 +125,13 @@ export default function WithdrawalScreen() {
         .update({ balance: newBalance })
         .eq('creator_id', user.id);
 
-      alert("✅ Demande de retrait envoyée avec succès !");
-      router.push("/creator/dashboard?tab=wallet");
+      // ✅ Message de succès propre (plus d'alert bloquant)
+      setSuccessMessage("Demande de retrait envoyée avec succès !");
+      
+      // ✅ Redirection après un court délai pour laisser voir le message
+      setTimeout(() => {
+        router.push("/creator/dashboard?tab=wallet");
+      }, 1500);
       
     } catch (err: any) {
       console.error("❌ Erreur retrait:", err);
@@ -129,7 +153,14 @@ export default function WithdrawalScreen() {
     <div style={{ minHeight: "100vh", backgroundColor: colors.bg, color: colors.text, display: "flex", flexDirection: "column" }}>
       {/* Header */}
       <div style={{ padding: "16px 24px", borderBottom: `1px solid ${colors.border}`, display: "flex", alignItems: "center", gap: "16px" }}>
-        <button onClick={() => router.back()} style={{ background: "none", border: "none", color: colors.text, fontSize: "24px", cursor: "pointer" }}>←</button>
+        {/* ✅ Icône ArrowLeft SVG au lieu du caractère ← */}
+        <button 
+          onClick={() => router.back()} 
+          style={{ background: "none", border: "none", color: colors.text, cursor: "pointer", display: "flex", padding: "4px" }}
+          aria-label="Retour"
+        >
+          <Icons.ArrowLeft size={24} color={colors.text} />
+        </button>
         <h1 style={{ margin: 0, fontSize: "20px", fontWeight: "bold" }}>Demander un retrait</h1>
       </div>
 
@@ -142,18 +173,38 @@ export default function WithdrawalScreen() {
           backgroundColor: colors.card, borderRadius: "16px",
           border: `1px solid ${colors.border}`
         }}>
-          <div style={{ color: colors.textMuted, fontSize: "14px", marginBottom: "8px" }}>Solde disponible</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", color: colors.textMuted, fontSize: "14px", marginBottom: "8px" }}>
+            {/* ✅ Icône Wallet SVG */}
+            <Icons.Wallet size={16} color={colors.textMuted} />
+            Solde disponible
+          </div>
           <div style={{ color: colors.text, fontSize: "36px", fontWeight: "bold" }}>
             {currentBalance.toLocaleString('fr-FR')} FCFA
           </div>
         </div>
 
+        {/* ✅ Message de succès non bloquant */}
+        {successMessage && (
+          <div style={{
+            padding: "12px 16px", backgroundColor: "rgba(34, 197, 94, 0.1)",
+            border: `1px solid ${colors.green}`, borderRadius: "12px",
+            color: colors.green, fontSize: "14px",
+            display: "flex", alignItems: "center", gap: "10px"
+          }}>
+            <Icons.CheckCircle size={20} color={colors.green} />
+            {successMessage}
+          </div>
+        )}
+
+        {/* Message d'erreur */}
         {error && (
           <div style={{
             padding: "12px 16px", backgroundColor: "rgba(239, 68, 68, 0.1)",
             border: `1px solid ${colors.red}`, borderRadius: "12px",
-            color: colors.red, fontSize: "14px", textAlign: "center"
+            color: colors.red, fontSize: "14px",
+            display: "flex", alignItems: "center", gap: "10px"
           }}>
+            <Icons.AlertCircle size={20} color={colors.red} />
             {error}
           </div>
         )}
@@ -170,6 +221,7 @@ export default function WithdrawalScreen() {
               onChange={(e) => setAmount(e.target.value)}
               placeholder="Min. 5000"
               required
+              disabled={isSubmitting}
               style={{
                 width: "100%", padding: "14px 16px", paddingRight: "60px",
                 backgroundColor: colors.card, border: `1px solid ${colors.border}`,
@@ -193,6 +245,7 @@ export default function WithdrawalScreen() {
           <select
             value={paymentMethod}
             onChange={(e) => setPaymentMethod(e.target.value)}
+            disabled={isSubmitting}
             style={{
               width: "100%", padding: "14px 16px",
               backgroundColor: colors.card, border: `1px solid ${colors.border}`,
@@ -218,6 +271,7 @@ export default function WithdrawalScreen() {
             onChange={(e) => setAccountNumber(e.target.value)}
             placeholder="Ex: 07 XX XX XX XX"
             required
+            disabled={isSubmitting}
             style={{
               width: "100%", padding: "14px 16px",
               backgroundColor: colors.card, border: `1px solid ${colors.border}`,
@@ -229,13 +283,13 @@ export default function WithdrawalScreen() {
         {/* Bouton Confirmer */}
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !!successMessage}
           style={{
             width: "100%", padding: "16px", marginTop: "16px",
-            backgroundColor: isSubmitting ? colors.border : colors.primary,
+            backgroundColor: (isSubmitting || successMessage) ? colors.border : colors.primary,
             border: "none", borderRadius: "12px",
             color: colors.primaryText, fontSize: "16px", fontWeight: "bold",
-            cursor: isSubmitting ? "not-allowed" : "pointer",
+            cursor: (isSubmitting || successMessage) ? "not-allowed" : "pointer",
             display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
             transition: "background 0.2s"
           }}
@@ -244,6 +298,11 @@ export default function WithdrawalScreen() {
             <>
               <div style={{ width: "20px", height: "20px", border: `2px solid ${colors.primaryText}`, borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
               Traitement en cours...
+            </>
+          ) : successMessage ? (
+            <>
+              <Icons.CheckCircle size={20} color={colors.primaryText} />
+              Envoyé !
             </>
           ) : (
             "Confirmer le retrait"

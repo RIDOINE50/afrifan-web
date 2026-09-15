@@ -4,6 +4,26 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppTheme } from "@/contexts/ThemeContext";
 
+// ==========================================
+// ✅ VRAIES ICÔNES SVG PROFESSIONNELLES
+// ==========================================
+const Icon = ({ path, size = 20, className = "", fill = "none", color = "currentColor", strokeWidth = 2 }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    {path}
+  </svg>
+);
+
+const Icons = {
+  // Flèche entrante (revenu)
+  ArrowDownLeft: (props: any) => <Icon {...props} path={<><path d="M17 7 7 17" /><path d="M17 17H7V7" /></>} />,
+  // Flèche sortante (retrait)
+  ArrowUpRight: (props: any) => <Icon {...props} path={<><path d="M7 17 17 7" /><path d="M7 7h10v10" /></>} />,
+  // Pourboire
+  Coffee: (props: any) => <Icon {...props} path={<><path d="M17 8h1a4 4 0 1 1 0 8h-1" /><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" /><line x1="6" y1="2" x2="6" y2="4" /><line x1="10" y1="2" x2="10" y2="4" /><line x1="14" y1="2" x2="14" y2="4" /></>} />,
+  // Empty state
+  CreditCard: (props: any) => <Icon {...props} path={<><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></>} />,
+};
+
 export default function WalletTab() {
   const { isDark, theme } = useAppTheme();
   const [isLoading, setIsLoading] = useState(true);
@@ -153,7 +173,10 @@ export default function WalletTab() {
   if (history.length === 0) {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "300px", color: colors.textMuted }}>
-        <div style={{ fontSize: "64px", marginBottom: "16px" }}>💳</div>
+        {/* ✅ Icône CreditCard SVG au lieu de l'émoji 💳 */}
+        <div style={{ marginBottom: "16px", opacity: 0.8 }}>
+          <Icons.CreditCard size={64} color={colors.textMuted} strokeWidth={1.5} />
+        </div>
         <p style={{ fontSize: "16px" }}>Aucune transaction pour le moment</p>
       </div>
     );
@@ -165,7 +188,8 @@ export default function WalletTab() {
         const isIncome = item.type === 'income';
         const isTip = item.type === 'tip';
         
-        let icon = "⬇️";
+        // ✅ Par défaut : revenu d'abonnement
+        let iconNode = <Icons.ArrowDownLeft size={24} color={colors.primary} />;
         let iconColor = colors.primary;
         let iconBg = colors.hover;
         let title = `Abonnement ${item.tierType?.toUpperCase() || 'FAN'}`;
@@ -173,14 +197,14 @@ export default function WalletTab() {
         let amountColor = colors.green;
 
         if (isTip) {
-          icon = "☕";
+          iconNode = <Icons.Coffee size={24} color={colors.orange} />;
           iconColor = colors.orange;
           iconBg = "rgba(249, 115, 22, 0.1)";
           title = `Pourboire de ${item.fanName}`;
           amountText = `+ ${formatMoney(item.amount)}`;
           amountColor = colors.green;
         } else if (!isIncome) {
-          icon = "⬆️";
+          iconNode = <Icons.ArrowUpRight size={24} color={colors.orange} />;
           iconColor = colors.orange;
           iconBg = "rgba(249, 115, 22, 0.1)";
           title = `Retrait vers ${item.paymentMethod?.toUpperCase() || 'Compte'}`;
@@ -198,14 +222,14 @@ export default function WalletTab() {
             alignItems: "center",
             gap: "16px"
           }}>
-            {/* Icône */}
+            {/* ✅ Icône SVG */}
             <div style={{
               width: "48px", height: "48px", borderRadius: "10px",
               backgroundColor: iconBg,
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "24px", color: iconColor, flexShrink: 0
+              flexShrink: 0
             }}>
-              {icon}
+              {iconNode}
             </div>
 
             {/* Détails */}

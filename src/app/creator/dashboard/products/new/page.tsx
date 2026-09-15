@@ -10,12 +10,10 @@ import {
   Button,
   Input,
   Textarea,
-  Select,
   VStack,
   HStack,
   FormControl,
   FormLabel,
-  FormErrorMessage,
   useToast,
   Spinner,
   Center,
@@ -23,8 +21,31 @@ import {
   Radio,
   RadioGroup,
   Stack,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  MenuOptionGroup,
+  MenuItemOption,
 } from "@chakra-ui/react";
-import { FaArrowLeft, FaUpload, FaFileAlt, FaImage, FaVideo, FaMusic } from "react-icons/fa";
+import {
+  FaArrowLeft,
+  FaUpload,
+  FaFileAlt,
+  FaImage,
+  FaVideo,
+  FaMusic,
+  FaChevronDown,
+  FaFile,
+} from "react-icons/fa";
+
+// ✅ Configuration des types de médias avec icônes SVG
+const MEDIA_TYPES = [
+  { value: "image", label: "Image", icon: FaImage, color: "#8B5CF6" },
+  { value: "video", label: "Vidéo", icon: FaVideo, color: "#EC4899" },
+  { value: "audio", label: "Audio", icon: FaMusic, color: "#10B981" },
+  { value: "file", label: "Fichier (PDF, ZIP, etc.)", icon: FaFile, color: "#F97316" },
+];
 
 export default function CreateProductPage() {
   const router = useRouter();
@@ -61,7 +82,6 @@ export default function CreateProductPage() {
     if (file) {
       setSelectedFile(file);
       
-      // Générer une prévisualisation si c'est une image ou une vidéo
       if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
         const url = URL.createObjectURL(file);
         setPreviewUrl(url);
@@ -69,7 +89,6 @@ export default function CreateProductPage() {
         setPreviewUrl(null);
       }
 
-      // Mise à jour automatique du type de média basé sur le fichier
       if (file.type.startsWith("image/")) setFormData(prev => ({ ...prev, media_type: "image" }));
       else if (file.type.startsWith("video/")) setFormData(prev => ({ ...prev, media_type: "video" }));
       else if (file.type.startsWith("audio/")) setFormData(prev => ({ ...prev, media_type: "audio" }));
@@ -81,7 +100,6 @@ export default function CreateProductPage() {
     e.preventDefault();
     if (!userId) return;
 
-    // Validation de base
     if (!formData.title.trim()) {
       toast({ title: "Erreur", description: "Le titre est obligatoire.", status: "error", duration: 3000 });
       return;
@@ -98,23 +116,20 @@ export default function CreateProductPage() {
     setIsLoading(true);
 
     try {
-      // 1. Upload du fichier vers Supabase Storage
       const fileExt = selectedFile.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${userId}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("digital_products") // ⚠️ Assure-toi que ce bucket existe dans Supabase
+        .from("digital_products")
         .upload(filePath, selectedFile);
 
       if (uploadError) throw uploadError;
 
-      // 2. Récupérer l'URL publique
       const { data: { publicUrl } } = supabase.storage
         .from("digital_products")
         .getPublicUrl(filePath);
 
-      // 3. Enregistrer les données du produit dans la base de données
       const { error: dbError } = await supabase.from("digital_products").insert({
         creator_id: userId,
         title: formData.title.trim(),
@@ -134,11 +149,10 @@ export default function CreateProductPage() {
         duration: 4000,
       });
 
-      // Redirection vers la boutique avec un flag pour recharger
       router.push("/creator/dashboard?tab=shop&refresh=true");
       
     } catch (error: any) {
-      console.error("❌ Erreur création produit:", error);
+      console.error("Erreur création produit:", error);
       toast({
         title: "Échec",
         description: error.message || "Une erreur est survenue lors de la création du produit.",
@@ -157,6 +171,10 @@ export default function CreateProductPage() {
       </Center>
     );
   }
+
+  // ✅ Récupère le type sélectionné pour l'affichage dans le MenuButton
+  const selectedMediaType = MEDIA_TYPES.find(m => m.value === formData.media_type) || MEDIA_TYPES[0];
+  const SelectedMediaIcon = selectedMediaType.icon;
 
   return (
     <Box minH="100vh" bg="#0A0A0A" color="white" p={{ base: 4, md: 8 }}>
@@ -223,18 +241,47 @@ export default function CreateProductPage() {
 
               <FormControl flex={1}>
                 <FormLabel color="gray.300">Type de média</FormLabel>
-                <Select
-                  bg="#0A0A0A"
-                  border="1px solid #2A2A2A"
-                  _focus={{ borderColor: "#8B5CF6", boxShadow: "none" }}
-                  value={formData.media_type}
-                  onChange={(e) => setFormData({ ...formData, media_type: e.target.value })}
-                >
-                  <option value="image">🖼️ Image</option>
-                  <option value="video">🎬 Vidéo</option>
-                  <option value="audio">🎵 Audio</option>
-                  <option value="file">📄 Fichier (PDF, ZIP, etc.)</option>
-                </Select>
+                {/* ✅ Menu Chakra avec icônes SVG (au lieu du <select> qui ne supporte pas les SVG) */}
+                <Menu matchWidth>
+                  <MenuButton
+                    as={Button}
+                    rightIcon={<Icon as={FaChevronDown} />}
+                    bg="#0A0A0A"
+                    border="1px solid #2A2A2A"
+                    color="white"
+                    _hover={{ borderColor: "#8B5CF6", bg: "#0A0A0A" }}
+                    _active={{ bg: "#0A0A0A", borderColor: "#8B5CF6" }}
+                    _focus={{ borderColor: "#8B5CF6", boxShadow: "none" }}
+                    w="100%"
+                    justifyContent="space-between"
+                    fontWeight="normal"
+                    textAlign="left"
+                    h="40px"
+                    px={4}
+                  >
+                    <HStack spacing={2}>
+                      <Icon as={SelectedMediaIcon} color={selectedMediaType.color} />
+                      <Text>{selectedMediaType.label}</Text>
+                    </HStack>
+                  </MenuButton>
+                  <MenuList bg="#1A1A1A" border="1px solid #2A2A2A" color="white" minW="240px" zIndex={200}>
+                    {MEDIA_TYPES.map((type) => {
+                      const ItemIcon = type.icon;
+                      return (
+                        <MenuItem
+                          key={type.value}
+                          bg={formData.media_type === type.value ? "whiteAlpha.200" : "transparent"}
+                          _hover={{ bg: "whiteAlpha.100" }}
+                          _focus={{ bg: "whiteAlpha.100" }}
+                          onClick={() => setFormData({ ...formData, media_type: type.value })}
+                          icon={<Icon as={ItemIcon} color={type.color} />}
+                        >
+                          <Text fontSize="14px">{type.label}</Text>
+                        </MenuItem>
+                      );
+                    })}
+                  </MenuList>
+                </Menu>
               </FormControl>
             </Flex>
 

@@ -12,6 +12,7 @@ import {
   VStack,
   Icon,
   Badge,
+  HStack,
 } from "@chakra-ui/react";
 import {
   FaWallet,
@@ -21,6 +22,10 @@ import {
   FaMusic,
   FaFileAlt,
   FaChartBar,
+  FaSearch,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaTimesCircle,
 } from "react-icons/fa";
 
 interface ProductStat {
@@ -31,6 +36,13 @@ interface ProductStat {
   revenue: number;
 }
 
+// ✅ Type du message de debug
+type DebugType = "success" | "warning" | "error" | "neutral";
+interface DebugMessage {
+  type: DebugType;
+  text: string;
+}
+
 export default function SalesTab() {
   const { isDark, theme } = useAppTheme();
   const [isLoading, setIsLoading] = useState(true);
@@ -38,7 +50,8 @@ export default function SalesTab() {
   const [totalSales, setTotalSales] = useState(0);
   const [productStats, setProductStats] = useState<ProductStat[]>([]);
   
-  const [debugMessage, setDebugMessage] = useState("");
+  // ✅ Refactor : message de debug avec type + texte
+  const [debugMessage, setDebugMessage] = useState<DebugMessage>({ type: "neutral", text: "" });
   const [rawRowCount, setRawRowCount] = useState(0);
 
   // ✅ Couleurs dynamiques
@@ -90,9 +103,15 @@ export default function SalesTab() {
         setRawRowCount(purchases.length);
         
         if (purchases.length === 0) {
-          setDebugMessage("⚠️ 0 vente trouvée avec le statut \"completed\".\nVérifie si ton achat test est bien passé en \"completed\" dans Supabase.");
+          setDebugMessage({
+            type: "warning",
+            text: "0 vente trouvée avec le statut \"completed\".\nVérifie si ton achat test est bien passé en \"completed\" dans Supabase.",
+          });
         } else {
-          setDebugMessage(`✅ ${purchases.length} vente(s) "completed" trouvée(s) en base de données.`);
+          setDebugMessage({
+            type: "success",
+            text: `${purchases.length} vente(s) "completed" trouvée(s) en base de données.`,
+          });
         }
 
         const statsMap: Record<string, ProductStat> = {};
@@ -134,7 +153,7 @@ export default function SalesTab() {
       }
     } catch (error: any) {
       console.error("❌ ERREUR chargement ventes:", error);
-      setDebugMessage(`❌ ERREUR : ${error.message}`);
+      setDebugMessage({ type: "error", text: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -153,6 +172,34 @@ export default function SalesTab() {
     }
   };
 
+  // ✅ Renvoie l'icône + les couleurs selon le type de message
+  const getDebugIcon = (type: DebugType) => {
+    switch (type) {
+      case "success": return FaCheckCircle;
+      case "warning": return FaExclamationTriangle;
+      case "error":   return FaTimesCircle;
+      default:        return FaSearch;
+    }
+  };
+
+  const getDebugColor = (type: DebugType) => {
+    switch (type) {
+      case "success": return colors.green;
+      case "warning": return colors.orange;
+      case "error":   return colors.red;
+      default:        return colors.textMuted;
+    }
+  };
+
+  const getDebugBg = (type: DebugType) => {
+    switch (type) {
+      case "success": return "rgba(16, 185, 129, 0.1)";
+      case "warning": return "rgba(249, 115, 22, 0.1)";
+      case "error":   return "rgba(239, 68, 68, 0.1)";
+      default:        return colors.hover;
+    }
+  };
+
   if (isLoading) {
     return (
       <Center h="400px">
@@ -161,22 +208,30 @@ export default function SalesTab() {
     );
   }
 
+  const debugColor = getDebugColor(debugMessage.type);
+  const DebugIcon = getDebugIcon(debugMessage.type);
+
   return (
     <Box p={4}>
+      {/* ✅ Bandeau diagnostic avec icône SVG dynamique */}
       <Box
         w="100%"
         p={3}
         mb={6}
-        bg={rawRowCount > 0 ? "rgba(16, 185, 129, 0.1)" : "rgba(249, 115, 22, 0.1)"}
+        bg={getDebugBg(debugMessage.type)}
         borderRadius="8px"
         border="1px solid"
-        borderColor={rawRowCount > 0 ? colors.green : colors.orange}
+        borderColor={debugColor}
       >
-        <Text fontSize="12px" fontWeight="bold" color={colors.text} mb={1}>
-          🔍 DIAGNOSTIC BASE DE DONNÉES
-        </Text>
+        <HStack align="center" spacing={2} mb={1}>
+          {/* ✅ Icône Search / CheckCircle / ExclamationTriangle / TimesCircle */}
+          <Icon as={DebugIcon} color={debugColor} boxSize={4} />
+          <Text fontSize="12px" fontWeight="bold" color={colors.text}>
+            DIAGNOSTIC BASE DE DONNÉES
+          </Text>
+        </HStack>
         <Text fontSize="13px" color={colors.text} whiteSpace="pre-line">
-          {debugMessage}
+          {debugMessage.text}
         </Text>
         <Text fontSize="12px" color={colors.textMuted} mt={1}>
           Somme calculée par Next.js : {formatPrice(totalRevenue)}

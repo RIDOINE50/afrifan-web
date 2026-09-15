@@ -12,11 +12,20 @@ import {
   Spinner,
   Center,
   VStack,
+  HStack,
   SimpleGrid,
   Icon,
   Badge,
   Image,
   useToast,
+  useDisclosure,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
 } from "@chakra-ui/react";
 import {
   FaStore,
@@ -26,6 +35,7 @@ import {
   FaFileAlt,
   FaEdit,
   FaTrash,
+  FaExclamationTriangle,
 } from "react-icons/fa";
 
 interface Product {
@@ -46,6 +56,12 @@ export default function CreatorShopTab() {
   
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // ✅ Nouveau : produit en attente de suppression
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // ✅ Modal de confirmation de suppression
+  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
 
   // ✅ Couleurs dynamiques
   const colors = {
@@ -85,7 +101,7 @@ export default function CreatorShopTab() {
 
       setProducts(data || []);
     } catch (error: any) {
-      console.error("❌ Erreur chargement boutique:", error);
+      console.error("Erreur chargement boutique:", error);
       toast({
         title: "Erreur",
         description: "Impossible de charger vos produits",
@@ -109,14 +125,22 @@ export default function CreatorShopTab() {
     }
   };
 
-  const handleDeleteProduct = async (productId: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) return;
+  // ✅ Ouvre le modal au lieu d'appeler confirm()
+  const askDeleteProduct = (product: Product) => {
+    setProductToDelete(product);
+    onDeleteOpen();
+  };
+
+  // ✅ Suppression effective (appelée par le bouton du modal)
+  const confirmDeleteProduct = async () => {
+    if (!productToDelete) return;
+    setIsDeleting(true);
 
     try {
       const { error } = await supabase
         .from("digital_products")
         .delete()
-        .eq("id", productId);
+        .eq("id", productToDelete.id);
 
       if (error) throw error;
 
@@ -127,15 +151,19 @@ export default function CreatorShopTab() {
         duration: 3000,
       });
 
+      onDeleteClose();
+      setProductToDelete(null);
       loadProducts();
     } catch (error: any) {
-      console.error("❌ Erreur suppression:", error);
+      console.error("Erreur suppression:", error);
       toast({
         title: "Erreur",
         description: "Impossible de supprimer le produit",
         status: "error",
         duration: 3000,
       });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -251,12 +279,13 @@ export default function CreatorShopTab() {
                   >
                     <Icon as={FaEdit} />
                   </Button>
+                  {/* ✅ Ouvre le modal au lieu de confirm() */}
                   <Button
                     size="xs"
                     variant="ghost"
                     color={colors.textMuted}
                     _hover={{ color: colors.red, bg: "rgba(239, 68, 68, 0.1)" }}
-                    onClick={() => handleDeleteProduct(product.id)}
+                    onClick={() => askDeleteProduct(product)}
                   >
                     <Icon as={FaTrash} />
                   </Button>
@@ -284,6 +313,71 @@ export default function CreatorShopTab() {
       >
         Nouveau
       </Button>
+
+      {/* ✅ MODAL DE CONFIRMATION DE SUPPRESSION */}
+      <Modal isOpen={isDeleteOpen} onClose={onDeleteClose} isCentered size="sm">
+        <ModalOverlay bg="blackAlpha.700" backdropFilter="blur(4px)" />
+        <ModalContent
+          bg={colors.card}
+          color={colors.text}
+          borderRadius="16px"
+          border={`1px solid ${colors.border}`}
+        >
+          <ModalCloseButton color={colors.textMuted} _hover={{ bg: colors.hover }} />
+          
+          <ModalBody pt={8} pb={4}>
+            <VStack spacing={4}>
+              {/* Icône d'avertissement */}
+              <Box
+                p={4}
+                bg="rgba(239, 68, 68, 0.1)"
+                borderRadius="full"
+                border="2px solid rgba(239, 68, 68, 0.3)"
+              >
+                <Icon as={FaExclamationTriangle} color={colors.red} boxSize={8} />
+              </Box>
+
+              <Text fontSize="18px" fontWeight="bold" textAlign="center">
+                Supprimer ce produit ?
+              </Text>
+
+              <Text fontSize="14px" color={colors.textMuted} textAlign="center">
+                <Text as="span" fontWeight="bold" color={colors.text}>
+                  "{productToDelete?.title || "Sans titre"}"
+                </Text>
+                {" "}sera définitivement supprimé. Cette action est irréversible.
+              </Text>
+            </VStack>
+          </ModalBody>
+
+          <ModalFooter gap={2} pb={5}>
+            <Button
+              flex={1}
+              bg="transparent"
+              color={colors.text}
+              border={`1px solid ${colors.border}`}
+              _hover={{ bg: colors.hover }}
+              onClick={onDeleteClose}
+              isDisabled={isDeleting}
+              borderRadius="10px"
+            >
+              Annuler
+            </Button>
+            <Button
+              flex={1}
+              bg={colors.red}
+              color="white"
+              _hover={{ opacity: 0.9 }}
+              onClick={confirmDeleteProduct}
+              isLoading={isDeleting}
+              loadingText="Suppression..."
+              borderRadius="10px"
+            >
+              Supprimer
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 }
