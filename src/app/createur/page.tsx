@@ -17,6 +17,8 @@ import {
   Tabs,
   TabList,
   Tab,
+  ModalHeader,      // ✅ AJOUT
+
   TabPanels,
   TabPanel,
   SimpleGrid,
