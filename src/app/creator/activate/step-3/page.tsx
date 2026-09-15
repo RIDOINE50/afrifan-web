@@ -7,7 +7,7 @@ import { useAppTheme } from "@/contexts/ThemeContext";
 export default function CreatorPricingScreen() {
   const router = useRouter();
   const { isDark, theme } = useAppTheme();
-  
+
   const [previousData, setPreviousData] = useState<any>(null);
 
   const [selectedCurrency, setSelectedCurrency] = useState("XOF");
@@ -15,6 +15,10 @@ export default function CreatorPricingScreen() {
   const [proPrice, setProPrice] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ✅ Erreurs par champ
+  const [premiumError, setPremiumError] = useState<string | null>(null);
+  const [proError, setProError] = useState<string | null>(null);
 
   // ✅ Couleurs dynamiques
   const colors = {
@@ -32,8 +36,8 @@ export default function CreatorPricingScreen() {
   const currencies = [
     { code: 'XOF', symbol: 'FCFA', name: 'Franc CFA', rate: 1.0 },
     { code: 'XAF', symbol: 'FCFA', name: 'Franc CFA (CEMAC)', rate: 1.0 },
-    { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.00152 }, 
-    { code: 'USD', symbol: '$', name: 'Dollar US', rate: 0.00165 }, 
+    { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.00152 },
+    { code: 'USD', symbol: '$', name: 'Dollar US', rate: 0.00165 },
     { code: 'GBP', symbol: '£', name: 'Livre Sterling', rate: 0.00129 },
   ];
 
@@ -56,31 +60,42 @@ export default function CreatorPricingScreen() {
   const convertToCurrency = (fcfaAmount: number) => (fcfaAmount * currentCurrency.rate).toFixed(2);
   const convertToFCFA = (amount: number) => Math.round(amount / currentCurrency.rate);
 
-  const validatePrices = () => {
-    const pPrice = parseFloat(premiumPrice);
-    const prPrice = parseFloat(proPrice);
+  // ✅ Validation Premium
+  const validatePremium = (value: string): string | null => {
+    if (!value.trim()) return "Le prix Premium est obligatoire.";
+    const price = parseFloat(value);
+    if (isNaN(price)) return "Entrez un montant valide.";
+    const min = parseFloat(convertToCurrency(PREMIUM_MIN_FCFA));
+    const max = parseFloat(convertToCurrency(PREMIUM_MAX_FCFA));
+    if (price < min) return `Le prix minimum est ${convertToCurrency(PREMIUM_MIN_FCFA)} ${currentCurrency.symbol}.`;
+    if (price > max) return `Le prix maximum est ${convertToCurrency(PREMIUM_MAX_FCFA)} ${currentCurrency.symbol}.`;
+    return null;
+  };
 
-    if (isNaN(pPrice) || isNaN(prPrice)) return false;
-
-    const pMin = parseFloat(convertToCurrency(PREMIUM_MIN_FCFA));
-    const pMax = parseFloat(convertToCurrency(PREMIUM_MAX_FCFA));
-    const prMin = parseFloat(convertToCurrency(PRO_MIN_FCFA));
-    const prMax = parseFloat(convertToCurrency(PRO_MAX_FCFA));
-
-    if (pPrice < pMin || pPrice > pMax) return false;
-    if (prPrice < prMin || prPrice > prMax) return false;
-
-    return true;
+  // ✅ Validation Pro / VIP
+  const validatePro = (value: string): string | null => {
+    if (!value.trim()) return "Le prix Pro / VIP est obligatoire.";
+    const price = parseFloat(value);
+    if (isNaN(price)) return "Entrez un montant valide.";
+    const min = parseFloat(convertToCurrency(PRO_MIN_FCFA));
+    const max = parseFloat(convertToCurrency(PRO_MAX_FCFA));
+    if (price < min) return `Le prix minimum est ${convertToCurrency(PRO_MIN_FCFA)} ${currentCurrency.symbol}.`;
+    if (price > max) return `Le prix maximum est ${convertToCurrency(PRO_MAX_FCFA)} ${currentCurrency.symbol}.`;
+    return null;
   };
 
   const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!validatePrices()) {
-      setError(`Les prix doivent être entre ${convertToCurrency(PREMIUM_MIN_FCFA)} et ${convertToCurrency(PREMIUM_MAX_FCFA)} ${currentCurrency.symbol} pour Premium, et entre ${convertToCurrency(PRO_MIN_FCFA)} et ${convertToCurrency(PRO_MAX_FCFA)} ${currentCurrency.symbol} pour Pro.`);
-      return;
-    }
+    const pErr = validatePremium(premiumPrice);
+    const prErr = validatePro(proPrice);
+
+    setPremiumError(pErr);
+    setProError(prErr);
+
+    // ❌ Si au moins une erreur, on arrête là (les messages sont affichés sous chaque champ)
+    if (pErr || prErr) return;
 
     setIsLoading(true);
 
@@ -118,7 +133,7 @@ export default function CreatorPricingScreen() {
   return (
     <div style={{ minHeight: "100vh", backgroundColor: colors.bg, color: colors.text, display: "flex", flexDirection: "column" }}>
       <div style={{ flex: 1, padding: "24px", maxWidth: "600px", margin: "0 auto", width: "100%" }}>
-        
+
         {/* Barre de progression */}
         <div style={{ marginBottom: "24px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
@@ -146,7 +161,7 @@ export default function CreatorPricingScreen() {
         )}
 
         <form onSubmit={handleNext} style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-          
+
           {/* Sélecteur de devise */}
           <div style={{
             padding: "12px 16px", backgroundColor: colors.card,
@@ -160,6 +175,8 @@ export default function CreatorPricingScreen() {
                 setSelectedCurrency(e.target.value);
                 setPremiumPrice("");
                 setProPrice("");
+                setPremiumError(null);
+                setProError(null);
               }}
               style={{
                 backgroundColor: "transparent", color: colors.text, fontWeight: "bold",
@@ -179,11 +196,15 @@ export default function CreatorPricingScreen() {
             title="Niveau Premium"
             description="Accès aux publications standards et aux lives réservés."
             value={premiumPrice}
-            onChange={setPremiumPrice}
+            onChange={(v) => {
+              setPremiumPrice(v);
+              if (premiumError) setPremiumError(null);
+            }}
             minText={convertToCurrency(PREMIUM_MIN_FCFA)}
             maxText={convertToCurrency(PREMIUM_MAX_FCFA)}
             symbol={currentCurrency.symbol}
             colors={colors}
+            error={premiumError}
           />
 
           {/* Carte Pro / VIP */}
@@ -191,11 +212,15 @@ export default function CreatorPricingScreen() {
             title="Niveau Pro / VIP"
             description="Accès total à tout le contenu, messagerie privée et avantages exclusifs."
             value={proPrice}
-            onChange={setProPrice}
+            onChange={(v) => {
+              setProPrice(v);
+              if (proError) setProError(null);
+            }}
             minText={convertToCurrency(PRO_MIN_FCFA)}
             maxText={convertToCurrency(PRO_MAX_FCFA)}
             symbol={currentCurrency.symbol}
             colors={colors}
+            error={proError}
           />
 
           {/* Bouton Continuer */}
@@ -237,19 +262,28 @@ export default function CreatorPricingScreen() {
   );
 }
 
-function PricingCard({ 
-  title, description, value, onChange, minText, maxText, symbol, colors 
-}: { 
-  title: string, description: string, value: string, onChange: (val: string) => void, minText: string, maxText: string, symbol: string, colors: any 
+function PricingCard({
+  title, description, value, onChange, minText, maxText, symbol, colors, error
+}: {
+  title: string,
+  description: string,
+  value: string,
+  onChange: (val: string) => void,
+  minText: string,
+  maxText: string,
+  symbol: string,
+  colors: any,
+  error?: string | null
 }) {
   return (
     <div style={{
       padding: "16px", backgroundColor: colors.card,
-      borderRadius: "16px", border: `1px solid ${colors.border}`
+      borderRadius: "16px",
+      border: `1px solid ${error ? colors.red : colors.border}`
     }}>
       <div style={{ color: colors.text, fontSize: "18px", fontWeight: "bold", marginBottom: "4px" }}>{title}</div>
       <div style={{ color: colors.textMuted, fontSize: "13px", marginBottom: "16px" }}>{description}</div>
-      
+
       <div style={{ position: "relative" }}>
         <input
           type="number"
@@ -259,8 +293,10 @@ function PricingCard({
           placeholder={`Recommandé : ${minText} - ${maxText}`}
           style={{
             width: "100%", padding: "14px 16px", paddingRight: "50px",
-            backgroundColor: colors.bg, border: `1px solid ${colors.border}`,
-            borderRadius: "12px", color: colors.text, fontSize: "16px", outline: "none", boxSizing: "border-box"
+            backgroundColor: colors.bg,
+            border: `1px solid ${error ? colors.red : colors.border}`,
+            borderRadius: "12px", color: colors.text, fontSize: "16px",
+            outline: "none", boxSizing: "border-box"
           }}
         />
         <span style={{
@@ -270,9 +306,16 @@ function PricingCard({
           {symbol}
         </span>
       </div>
-      <div style={{ color: colors.textMuted, fontSize: "11px", marginTop: "6px", opacity: 0.7 }}>
-        Plage autorisée : {minText} à {maxText} {symbol}
-      </div>
+
+      {error ? (
+        <div style={{ color: colors.red, fontSize: "12px", marginTop: "6px", fontWeight: 500 }}>
+          ⚠️ {error}
+        </div>
+      ) : (
+        <div style={{ color: colors.textMuted, fontSize: "11px", marginTop: "6px", opacity: 0.7 }}>
+          Plage autorisée : {minText} à {maxText} {symbol}
+        </div>
+      )}
     </div>
   );
 }
