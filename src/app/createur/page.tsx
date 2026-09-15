@@ -89,16 +89,13 @@ function CreatorProfileContent() {
   const [shopProducts, setShopProducts] = useState<any[]>([]);
   const [isLoadingShop, setIsLoadingShop] = useState(true);
 
-  // ✅ Nouveau : état de chargement du signalement
   const [isReporting, setIsReporting] = useState(false);
 
-  // Modals
   const { isOpen: isAvatarOpen, onOpen: onAvatarOpen, onClose: onAvatarClose } = useDisclosure();
   const { isOpen: isReportOpen, onOpen: onReportOpen, onClose: onReportClose } = useDisclosure();
   
   const isSubscribed = currentSubscription !== null;
 
-  // ✅ Couleurs explicites selon le mode (garantit la lisibilité en dark mode)
   const colors = {
     bg: theme.bg,
     card: theme.card,
@@ -109,7 +106,6 @@ function CreatorProfileContent() {
     textMuted: theme.textMuted,
     hover: theme.hover,
     success: "#10B981",
-    // Couleurs explicites pour le modal de signalement
     modalBg: isDark ? "#1A1A1A" : "#FFFFFF",
     modalText: isDark ? "#FFFFFF" : "#1A1A1A",
     modalMuted: isDark ? "#A0A0A0" : "#6B7280",
@@ -160,7 +156,7 @@ function CreatorProfileContent() {
   };
 
   const loadCreatorProfile = async () => {
-    const { data } = await supabase.from('profiles').select('id, username, full_name, avatar_url, bio, is_verified, premium_price, pro_price').eq('id', creatorId).maybeSingle();
+    const { data } = await supabase.from('profiles').select('id, username, full_name, avatar_url, bio, is_verified, premium_price, pro_price, role').eq('id', creatorId).maybeSingle();
     if (data) setCreator(data);
   };
 
@@ -240,43 +236,19 @@ function CreatorProfileContent() {
         await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', creatorId);
         setIsFollowing(false);
         setFollowersCount(prev => Math.max(0, prev - 1));
-        // ✅ Toast au lieu d'alert
-        toast({
-          title: "Désabonné",
-          description: `Vous ne suivez plus @${creator?.username}`,
-          status: "info",
-          duration: 2000,
-          isClosable: true,
-          position: "top",
-        });
+        toast({ title: "Désabonné", description: `Vous ne suivez plus @${creator?.username}`, status: "info", duration: 2000, isClosable: true, position: "top" });
       } else {
         await supabase.from('follows').insert({ follower_id: user.id, following_id: creatorId });
         setIsFollowing(true);
         setFollowersCount(prev => prev + 1);
-        // ✅ Toast au lieu d'alert
-        toast({
-          title: "Abonné !",
-          description: `Vous suivez maintenant @${creator?.username}`,
-          status: "success",
-          duration: 2000,
-          isClosable: true,
-          position: "top",
-        });
+        toast({ title: "Abonné !", description: `Vous suivez maintenant @${creator?.username}`, status: "success", duration: 2000, isClosable: true, position: "top" });
       }
     } catch (error) {
       console.error("❌ Erreur follow:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de mettre à jour le suivi.",
-        status: "error",
-        duration: 2500,
-        isClosable: true,
-        position: "top",
-      });
+      toast({ title: "Erreur", description: "Impossible de mettre à jour le suivi.", status: "error", duration: 2500, isClosable: true, position: "top" });
     }
   };
 
-  // ✅ Nouvelle fonction : envoie le signalement avec la VRAIE raison + toast
   const handleReportCreator = async (reason: string) => {
     if (!user) {
       router.push("/login");
@@ -289,10 +261,9 @@ function CreatorProfileContent() {
         reporter_id: user.id,
         target_id: creatorId,
         target_type: 'user',
-        reason: reason, // ✅ On enregistre la vraie raison choisie
+        reason: reason,
       });
       onReportClose();
-      // ✅ Toast propre au lieu d'alert
       toast({
         title: "Signalement envoyé",
         description: "Merci, notre équipe va examiner ce compte.",
@@ -304,14 +275,7 @@ function CreatorProfileContent() {
       });
     } catch (error) {
       console.error("Erreur signalement:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible d'envoyer le signalement. Réessayez.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-        position: "top",
-      });
+      toast({ title: "Erreur", description: "Impossible d'envoyer le signalement. Réessayez.", status: "error", duration: 3000, isClosable: true, position: "top" });
     } finally {
       setIsReporting(false);
     }
@@ -338,6 +302,10 @@ function CreatorProfileContent() {
   const proPrice = creator.pro_price || 0;
   const creatorDisplayName = creator.full_name || creator.username;
 
+  // ✅ NOUVELLE LOGIQUE : On ne verrouille le contenu que si le profil a des abonnements payants ET que le visiteur n'est pas abonné.
+  // Si c'est un utilisateur normal (prix = 0), tout le monde peut voir son contenu.
+  const isContentLocked = (premiumPrice > 0 || proPrice > 0) && !isSubscribed;
+
   return (
     <Box minH="100vh" bg={colors.bg} color={colors.text}>
       
@@ -352,7 +320,6 @@ function CreatorProfileContent() {
             {isVerified && <Text color={colors.primary} fontSize="12px">✓ Vérifié</Text>}
           </Flex>
           
-          {/* Menu 3 points pour signaler */}
           <Menu>
             <MenuButton as={Button} variant="ghost" color={colors.text} p={0} w="40px" h="40px">
               <Icons.MoreVertical size={24} />
@@ -365,7 +332,7 @@ function CreatorProfileContent() {
                 _hover={{ bg: colors.modalItemHover }} 
                 onClick={onReportOpen}
               >
-                Signaler ce créateur
+                Signaler ce compte
               </MenuItem>
             </MenuList>
           </Menu>
@@ -435,7 +402,7 @@ function CreatorProfileContent() {
             </Box>
           </Flex>
 
-          {/* ABONNEMENTS */}
+          {/* ABONNEMENTS (Affiché seulement s'il y a des prix) */}
           {(premiumPrice > 0 || proPrice > 0) && (
             <Box mb={6} p={4} bg={colors.card} borderRadius="12px" border={`1px solid ${colors.border}`}>
               <Text fontSize="16px" fontWeight="bold" mb={3}>{isSubscribed ? '💎 Votre abonnement' : '💎 Devenir abonné'}</Text>
@@ -472,13 +439,13 @@ function CreatorProfileContent() {
                     <PostCard 
                       key={post.id} 
                       post={post} 
-                      isSubscribed={isSubscribed} 
+                      isContentLocked={isContentLocked} // ✅ On passe la nouvelle variable
                       colors={colors} 
                       onClick={() => {
-                        if (!isSubscribed && post.media_type !== 'text') {
+                        // ✅ On ne redirige vers l'abonnement que si le contenu est verrouillé ET que ce n'est pas du texte
+                        if (isContentLocked && post.media_type !== 'text') {
                           router.push(`/subscribe/${creatorId}?tier=premium&price=${premiumPrice}&name=${encodeURIComponent(creatorDisplayName)}`);
                         } else {
-                          // ✅ On passe l'index du post pour ouvrir CE post précis
                           router.push(`/post/${post.id}?creatorId=${creatorId}&index=${index}`);
                         }
                       }} 
@@ -536,7 +503,7 @@ function CreatorProfileContent() {
         </ModalContent>
       </Modal>
 
-      {/* ✅ MODAL DE SIGNALEMENT - COULEURS EXPLICITES POUR DARK MODE */}
+      {/* MODAL DE SIGNALEMENT */}
       <Modal isOpen={isReportOpen} onClose={onReportClose} isCentered>
         <ModalOverlay bg="blackAlpha.700" />
         <ModalContent 
@@ -546,7 +513,7 @@ function CreatorProfileContent() {
           borderRadius="16px"
           border={`1px solid ${colors.modalBorder}`}
         >
-          <ModalHeader color={colors.modalText}>Signaler ce créateur</ModalHeader>
+          <ModalHeader color={colors.modalText}>Signaler ce compte</ModalHeader>
           <ModalCloseButton color={colors.modalText} _hover={{ bg: colors.modalItemHover }} />
           <ModalBody pb={6}>
             <Text fontSize="14px" color={colors.modalMuted} mb={4}>
@@ -628,7 +595,7 @@ function SubscriptionCard({ badge, title, price, features, isPro, currentTier, d
   );
 }
 
-function PostCard({ post, isSubscribed, colors, onClick }: any) {
+function PostCard({ post, isContentLocked, colors, onClick }: any) {
   const isTextPost = post.media_type === 'text';
   
   return (
@@ -641,12 +608,13 @@ function PostCard({ post, isSubscribed, colors, onClick }: any) {
           </Text>
         </Box>
       ) : post.media_url ? (
-        <Box as="img" src={post.media_url} alt={post.caption || "Post"} w="100%" h="100%" objectFit="cover" style={{ filter: !isSubscribed ? "blur(20px) brightness(0.5)" : "none", transform: !isSubscribed ? "scale(1.1)" : "none", transition: "all 0.3s" }} />
+        <Box as="img" src={post.media_url} alt={post.caption || "Post"} w="100%" h="100%" objectFit="cover" style={{ filter: isContentLocked ? "blur(20px) brightness(0.5)" : "none", transform: isContentLocked ? "scale(1.1)" : "none", transition: "all 0.3s" }} />
       ) : (
         <Center w="100%" h="100%" color={colors.textMuted}><Icons.FileText size={40} /></Center>
       )}
 
-      {!isSubscribed && !isTextPost && (
+      {/* ✅ On affiche le cadenas SEULEMENT si le contenu est verrouillé (créateur payant + non abonné) ET que ce n'est pas un post texte */}
+      {isContentLocked && !isTextPost && (
         <Center position="absolute" inset={0} flexDirection="column" backdropFilter="blur(2px)">
           <Box p={3} borderRadius="full" bg="rgba(0,0,0,0.6)" mb={2}>
             <Icons.Lock size={24} color="white" />
@@ -656,7 +624,7 @@ function PostCard({ post, isSubscribed, colors, onClick }: any) {
         </Center>
       )}
 
-      {post.media_type === 'video' && isSubscribed && (
+      {post.media_type === 'video' && !isContentLocked && (
         <Box position="absolute" top={2} right={2} bg="rgba(0,0,0,0.6)" p={1.5} borderRadius="full">
           <Icons.Play size={14} color="white" />
         </Box>
