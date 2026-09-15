@@ -16,7 +16,7 @@ import {
 export default function LandingPage() {
   return (
     <Box minH="100vh" bg="#0A0A0A" color="white" position="relative">
-      
+
       {/* ==========================================
           1. NAVBAR (EN-TÊTE)
       ========================================== */}
@@ -35,10 +35,10 @@ export default function LandingPage() {
             {/* Logo */}
             <Link href="/" style={{ textDecoration: "none" }}>
               <HStack spacing={2}>
-                <Box w="8" h="8" bg="#8B5CF6" borderRadius="md" display="flex" alignItems="center" justifyContent="center">
-                  <Zap color="white" size={20} />
+                <Box w="8" h="8" bg="white" borderRadius="md" display="flex" alignItems="center" justifyContent="center">
+                  <Zap color="black" size={20} />
                 </Box>
-                <Text fontSize="xl" fontWeight="bold" letterSpacing="tight">Afrifan</Text>
+                <Text fontSize="xl" fontWeight="bold" letterSpacing="tight" color="white">Afrifan</Text>
               </HStack>
             </Link>
 
@@ -51,13 +51,12 @@ export default function LandingPage() {
               </Link>
               <Link href="/register" style={{ textDecoration: "none" }}>
                 <Button
-                  bg="#8B5CF6"
-                  _hover={{ bg: "#7C3AED" }}
-                  color="white"
+                  bg="white"
+                  _hover={{ bg: "gray.200" }}
+                  color="black"
                   fontSize="sm"
-                  fontWeight="medium"
+                  fontWeight="semibold"
                   borderRadius="lg"
-                  boxShadow="0 10px 15px -3px rgba(139, 92, 246, 0.2)"
                 >
                   Créer un compte
                 </Button>
@@ -68,12 +67,12 @@ export default function LandingPage() {
       </Box>
 
       <Box pt="16">
-        
+
         {/* ==========================================
             2. SECTION HÉRO (ACCROCHE)
         ========================================== */}
         <Box position="relative" py={{ base: 20, sm: 32 }} overflow="hidden">
-          {/* Effet de lueur en arrière-plan */}
+          {/* Effet de lueur subtile (blanc) */}
           <Box
             position="absolute"
             top="0"
@@ -81,12 +80,12 @@ export default function LandingPage() {
             transform="translateX(-50%)"
             w="600px"
             h="600px"
-            bg="rgba(139, 92, 246, 0.2)"
+            bg="rgba(255, 255, 255, 0.05)"
             borderRadius="full"
             filter="blur(120px)"
             zIndex="-1"
           />
-          
+
           <Container maxW="7xl" px={{ base: 4, sm: 6, lg: 8 }} textAlign="center">
             <Box
               display="inline-flex"
@@ -95,27 +94,27 @@ export default function LandingPage() {
               px={3}
               py={1}
               borderRadius="full"
-              bg="rgba(139, 92, 246, 0.1)"
+              bg="whiteAlpha.100"
               border="1px solid"
-              borderColor="rgba(139, 92, 246, 0.2)"
-              color="#A78BFA"
+              borderColor="whiteAlpha.200"
+              color="gray.200"
               fontSize="xs"
               fontWeight="medium"
               mb={6}
             >
               <Star size={12} />
-              La première plateforme de Creator Economy en Afrique
+              La Creator Economy africaine, sans compromis
             </Box>
-            
+
             <Text fontSize={{ base: "4xl", sm: "6xl" }} fontWeight="bold" letterSpacing="tight" mb={6} lineHeight="1.1">
-              Monétisez votre talent <br />
-              <Text as="span" bgGradient="linear(to-r, #A78BFA, #E879F9)" bgClip="text">
-                dès 1 000 abonnés engagés.
+              Monétisez votre talent, <br />
+              <Text as="span" bgGradient="linear(to-r, #FFFFFF, #9CA3AF)" bgClip="text">
+                quel que soit votre nombre d'abonnés.
               </Text>
             </Text>
-            
+
             <Text maxW="2xl" mx="auto" fontSize="lg" color="gray.400" mb={10}>
-              Oubliez les millions de vues requis par YouTube ou TikTok. Sur Afrifan, vos vrais fans paient directement via Mobile Money pour accéder à votre contenu exclusif.
+              Pas besoin d'attendre des millions de vues. Sur Afrifan, chaque fan compte : vos vrais abonnés paient directement via Mobile Money pour accéder à votre contenu exclusif.
             </Text>
 
             <Flex flexDir={{ base: "column", sm: "row" }} align="center" justify="center" gap={4}>
@@ -124,12 +123,12 @@ export default function LandingPage() {
                   w={{ base: "100%", sm: "auto" }}
                   px={8}
                   py={7}
-                  bg="#8B5CF6"
-                  _hover={{ bg: "#7C3AED" }}
-                  color="white"
+                  bg="white"
+                  _hover={{ bg: "gray.200" }}
+                  color="black"
                   fontWeight="semibold"
                   borderRadius="xl"
-                  boxShadow="0 10px 15px -3px rgba(139, 92, 246, 0.2)"
+                  boxShadow="0 10px 15px -3px rgba(255, 255, 255, 0.1)"
                   fontSize="md"
                 >
                   Commencer à gagner <ArrowRight size={18} style={{ marginLeft: "8px" }} />
@@ -143,7 +142,7 @@ export default function LandingPage() {
                   bg="whiteAlpha.50"
                   _hover={{ bg: "whiteAlpha.100" }}
                   border="1px solid"
-                  borderColor="whiteAlpha.100"
+                  borderColor="whiteAlpha.200"
                   color="white"
                   fontWeight="semibold"
                   borderRadius="xl"
@@ -158,15 +157,15 @@ export default function LandingPage() {
             <SimpleGrid columns={{ base: 2, md: 4 }} spacing={8} maxW="4xl" mx="auto" borderTop="1px solid" borderColor="whiteAlpha.100" pt={8} mt={16}>
               <VStack spacing={1}>
                 <Text fontSize="3xl" fontWeight="bold" color="white">15%</Text>
-                <Text fontSize="sm" color="gray.500">Commission only</Text>
+                <Text fontSize="sm" color="gray.500">Commission unique</Text>
               </VStack>
               <VStack spacing={1}>
                 <Text fontSize="3xl" fontWeight="bold" color="white">Mobile</Text>
                 <Text fontSize="sm" color="gray.500">Money First</Text>
               </VStack>
               <VStack spacing={1}>
-                <Text fontSize="3xl" fontWeight="bold" color="white">1k</Text>
-                <Text fontSize="sm" color="gray.500">Abonnés min.</Text>
+                <Text fontSize="3xl" fontWeight="bold" color="white">Zéro</Text>
+                <Text fontSize="sm" color="gray.500">Seuil requis</Text>
               </VStack>
               <VStack spacing={1}>
                 <Text fontSize="3xl" fontWeight="bold" color="white">24h</Text>
@@ -189,17 +188,17 @@ export default function LandingPage() {
             <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8}>
               {[
                 {
-                  icon: <Users color="#A78BFA" size={28} />,
+                  icon: <Users color="#FFFFFF" size={28} />,
                   title: "1. Créez votre espace",
                   desc: "Inscrivez-vous gratuitement, configurez vos paliers d'abonnement (ex: 500 FCFA, 2000 FCFA) et personnalisez votre profil."
                 },
                 {
-                  icon: <Play color="#A78BFA" size={28} />,
+                  icon: <Play color="#FFFFFF" size={28} />,
                   title: "2. Publiez du contenu exclusif",
                   desc: "Partagez vos vidéos, podcasts, tutoriels ou lives réservés uniquement à vos abonnés payants."
                 },
                 {
-                  icon: <Wallet color="#A78BFA" size={28} />,
+                  icon: <Wallet color="#FFFFFF" size={28} />,
                   title: "3. Recevez vos paiements",
                   desc: "Vos fans paient via MTN, Orange, Moov ou Wave. Retirez vos gains directement sur votre compte Mobile Money."
                 }
@@ -211,9 +210,9 @@ export default function LandingPage() {
                   borderColor="whiteAlpha.100"
                   borderRadius="2xl"
                   p={8}
-                  _hover={{ borderColor: "rgba(139, 92, 246, 0.3)", transition: "all 0.2s" }}
+                  _hover={{ borderColor: "whiteAlpha.300", transition: "all 0.2s" }}
                 >
-                  <Box w="14" h="14" bg="rgba(139, 92, 246, 0.1)" borderRadius="xl" display="flex" alignItems="center" justifyContent="center" mb={6} _groupHover={{ bg: "rgba(139, 92, 246, 0.2)" }}>
+                  <Box w="14" h="14" bg="whiteAlpha.100" borderRadius="xl" display="flex" alignItems="center" justifyContent="center" mb={6}>
                     {step.icon}
                   </Box>
                   <Text fontSize="xl" fontWeight="bold" color="white" mb={3}>{step.title}</Text>
@@ -244,7 +243,7 @@ export default function LandingPage() {
                 { icon: <ArrowRight size={24} />, title: "Tableau de bord", desc: "Suivez vos revenus, vos abonnés et vos statistiques en temps réel." }
               ].map((feature, index) => (
                 <Box key={index} bg="whiteAlpha.50" border="1px solid" borderColor="whiteAlpha.100" borderRadius="xl" p={6}>
-                  <Box w="10" h="10" bg="whiteAlpha.50" borderRadius="lg" display="flex" alignItems="center" justifyContent="center" color="#A78BFA" mb={4}>
+                  <Box w="10" h="10" bg="whiteAlpha.100" borderRadius="lg" display="flex" alignItems="center" justifyContent="center" color="white" mb={4}>
                     {feature.icon}
                   </Box>
                   <Text fontSize="lg" fontWeight="semibold" color="white" mb={2}>{feature.title}</Text>
@@ -264,18 +263,18 @@ export default function LandingPage() {
               Prêt à vivre de votre passion ?
             </Text>
             <Text color="gray.400" mb={8} fontSize="lg">
-              Rejoignez les premiers créateurs africains qui construisent leur indépendance financière sur Afrifan.
+              Rejoignez les créateurs africains qui construisent leur indépendance financière sur Afrifan — peu importe où ils en sont dans leur parcours.
             </Text>
             <Link href="/register" style={{ textDecoration: "none" }}>
               <Button
                 px={8}
                 py={8}
-                bg="#8B5CF6"
-                _hover={{ bg: "#7C3AED" }}
-                color="white"
+                bg="white"
+                _hover={{ bg: "gray.200" }}
+                color="black"
                 fontWeight="semibold"
                 borderRadius="xl"
-                boxShadow="0 10px 15px -3px rgba(139, 92, 246, 0.2)"
+                boxShadow="0 10px 15px -3px rgba(255, 255, 255, 0.1)"
                 fontSize="md"
               >
                 Créer mon compte gratuitement <ArrowRight size={18} style={{ marginLeft: "8px" }} />
