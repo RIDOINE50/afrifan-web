@@ -181,7 +181,6 @@ export default function PostDetailPage() {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        // ✅ CORRECTION 1 : Ajouter 'content' et 'background_color' dans le select
         const { data: postData, error: postError } = await supabase
           .from('posts')
           .select('id, user_id, media_url, media_type, caption, title, content, background_color, created_at, likes_count, comments_count')
@@ -207,7 +206,6 @@ export default function PostDetailPage() {
             avatar: profileData.avatar_url
           });
 
-          // ✅ CORRECTION 1 (suite) : Ajouter 'content' et 'background_color' ici aussi
           const { data: allPosts } = await supabase
             .from('posts')
             .select('id, media_url, media_type, caption, title, content, background_color, created_at, likes_count, comments_count')
@@ -216,12 +214,23 @@ export default function PostDetailPage() {
             .limit(30);
 
           if (allPosts) {
-            setPosts(allPosts);
-const index = allPosts.findIndex((p: any) => String(p.id) === String(postId));
-            setCurrentIndex(index !== -1 ? index : 0);
+            // ✅ CORRECTION MAJEURE : Garantir que le post cliqué est dans la liste
+            let finalPosts = [...allPosts];
+            const existingIndex = finalPosts.findIndex((p: any) => String(p.id) === String(postId));
+            
+            if (existingIndex === -1) {
+              // Si le post n'est pas dans les 30 derniers, on l'ajoute au début pour qu'il soit affiché
+              finalPosts.unshift(postData);
+            }
+            
+            setPosts(finalPosts);
+            
+            // On recalcule l'index, qui sera maintenant correct (soit l'index trouvé, soit 0 s'il a été ajouté)
+            const newIndex = finalPosts.findIndex((p: any) => String(p.id) === String(postId));
+            setCurrentIndex(newIndex !== -1 ? newIndex : 0);
 
             if (user) {
-              await loadUserInteractions(postData.user_id, allPosts.map((p: any) => p.id));
+              await loadUserInteractions(postData.user_id, finalPosts.map((p: any) => p.id));
             }
           }
         }
@@ -234,6 +243,16 @@ const index = allPosts.findIndex((p: any) => String(p.id) === String(postId));
 
     loadData();
   }, [postId, user?.id]);
+
+  // ✅ SCROLL AUTOMATIQUE : Si le post n'est pas le premier, on scroll vers lui au chargement
+  useEffect(() => {
+    if (!isLoading && currentIndex > 0 && containerRef.current) {
+      const container = containerRef.current;
+      const scrollTop = currentIndex * container.clientHeight;
+      // 'auto' pour que le défilement soit instantané au chargement de la page
+      container.scrollTo({ top: scrollTop, behavior: 'auto' });
+    }
+  }, [isLoading, currentIndex]);
 
   const loadUserInteractions = async (creatorId: string, postIds: string[]) => {
     if (!user) return;
@@ -267,14 +286,13 @@ const index = allPosts.findIndex((p: any) => String(p.id) === String(postId));
     });
   }, [currentIndex]);
 
-    const handleLike = async (post: any, e?: React.MouseEvent) => {
+  const handleLike = async (post: any, e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!user) return router.push("/login");
 
     const isLiked = likedPostIds.has(post.id);
     const newCount = isLiked ? Math.max(0, (post.likes_count || 0) - 1) : (post.likes_count || 0) + 1;
 
-    // 1. Mise à jour immédiate de l'interface (Optimistic UI) - EXACTEMENT COMME DANS HOME
     setLikedPostIds(prev => { 
       const next = new Set(prev); 
       isLiked ? next.delete(post.id) : next.add(post.id); 
@@ -283,20 +301,16 @@ const index = allPosts.findIndex((p: any) => String(p.id) === String(postId));
     setPosts(prev => prev.map(p => p.id === post.id ? { ...p, likes_count: newCount } : p));
 
     try {
-      // 2. Action dans la base de données
       if (isLiked) {
         await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', user.id);
       } else {
         await supabase.from('post_likes').insert({ post_id: post.id, user_id: user.id });
       }
       
-      // 3. Mise à jour du compteur
       await supabase.from('posts').update({ likes_count: newCount }).eq('id', post.id);
       
     } catch (error) {
       console.error("❌ Erreur like:", error);
-      
-      // 4. Rollback (annulation) en cas d'erreur, EXACTEMENT COMME DANS HOME
       setLikedPostIds(prev => { 
         const next = new Set(prev); 
         isLiked ? next.add(post.id) : next.delete(post.id); 
@@ -348,7 +362,6 @@ const index = allPosts.findIndex((p: any) => String(p.id) === String(postId));
 
   const openEditModal = (post: any) => {
     setPostToEdit(post);
-    // ✅ On prend content en priorité, puis caption ou title
     setEditCaption(post.content || post.caption || post.title || "");
     setIsEditModalOpen(true);
     setShowMoreMenu(null);
@@ -359,12 +372,11 @@ const index = allPosts.findIndex((p: any) => String(p.id) === String(postId));
     try {
       const { error } = await supabase.from('posts').update({
         content: editCaption,
-        caption: editCaption // ✅ On met à jour les deux pour être sûr que l'affichage le prenne en compte
+        caption: editCaption
       }).eq('id', postToEdit.id);
 
       if (error) throw error;
 
-      // ✅ Mise à jour immédiate de l'interface locale
       setPosts(prev => prev.map(p => p.id === postToEdit.id ? { ...p, content: editCaption, caption: editCaption } : p));
 
       toast({ title: "✅ Post modifié avec succès", status: "success", duration: 3000 });
@@ -520,7 +532,6 @@ const index = allPosts.findIndex((p: any) => String(p.id) === String(postId));
 
           return (
             <div key={post.id} className="snap-item">
-              {/* ✅ CORRECTION 2 : Gestion correcte des posts de type 'text' */}
               {post.media_type === 'video' ? (
                 <video
                   ref={el => { videoRefs.current[index] = el; }}
@@ -541,8 +552,9 @@ const index = allPosts.findIndex((p: any) => String(p.id) === String(postId));
                   justifyContent: "center", 
                   padding: "40px" 
                 }}>
+                  {/* ✅ CORRECTION : Couleur du texte adaptative pour rester lisible */}
                   <p style={{ 
-                    color: "#ffffff", 
+                    color: post.background_color ? "#ffffff" : (isDark ? "#ffffff" : "#000000"), 
                     fontSize: "clamp(24px, 5vw, 48px)", 
                     fontWeight: "bold", 
                     textAlign: "center", 
@@ -694,7 +706,6 @@ const index = allPosts.findIndex((p: any) => String(p.id) === String(postId));
                   </div>
                 </div>
                 
-                {/* ✅ CORRECTION 3 : Afficher 'content' en priorité pour la légende */}
                 <p style={{ color: "white", fontSize: "14px", lineHeight: "1.4", marginBottom: "8px", textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}>
                   {post.content || post.caption || post.title || " (Pas de légende)"}
                 </p>
@@ -882,12 +893,11 @@ const index = allPosts.findIndex((p: any) => String(p.id) === String(postId));
           border-top: none;
         }
 
-        /* ✅ CORRECTION 4 : Agrandir l'espace d'affichage sur Desktop */
         @media (min-width: 768px) {
           .snap-container {
             width: 100%;
-            max-width: 600px; /* Agrandi de 450px à 600px pour mieux voir les posts texte */
-            height: 90vh; /* Un peu plus grand en hauteur */
+            max-width: 600px;
+            height: 90vh;
             border-radius: 16px;
             border: 1px solid ${colors.border};
             box-shadow: 0 20px 50px rgba(0,0,0,0.8);
@@ -909,7 +919,7 @@ const index = allPosts.findIndex((p: any) => String(p.id) === String(postId));
 
           .comments-panel {
             position: fixed;
-            right: calc(50% - 300px); /* Centré par rapport au nouveau max-width */
+            right: calc(50% - 300px);
             top: 50%;
             transform: translateY(-50%);
             bottom: auto;
