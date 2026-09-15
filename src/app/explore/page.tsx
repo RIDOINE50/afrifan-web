@@ -304,7 +304,7 @@ export default function ExplorePage() {
                         backgroundColor: colors.primary, 
                         display: "flex", alignItems: "center", justifyContent: "center", 
                         fontSize: "28px", fontWeight: "bold", 
-                        color: isDark ? "#FFFFFF" : "#000000" // ✅ Correction ici
+color: colors.primaryText
                       }}>
                         {displayName.charAt(0).toUpperCase()}
                       </div>
