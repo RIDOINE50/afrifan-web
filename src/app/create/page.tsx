@@ -151,8 +151,7 @@ function CreateContent() {
       if (fileToUpload) {
         const fileExt = fileToUpload.name.split('.').pop() || 'jpg';
         const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-        const bucketName = "post-images";
-
+const bucketName = mediaType === "video" ? "post-media" : "post-images";
         const { error: uploadError } = await supabase.storage
           .from(bucketName)
           .upload(fileName, fileToUpload);
