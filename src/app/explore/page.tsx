@@ -391,20 +391,27 @@ color: colors.primaryText
                   >
                     {/* ✅ GESTION CORRECTE DES POSTS TEXTE */}
                     {post.media_type === 'text' ? (
-                      <div style={{ 
-                        width: "100%", height: "100%", 
-                        backgroundColor: post.background_color || (isDark ? "#2D3748" : "#E2E8F0"),
-                        display: "flex", alignItems: "center", justifyContent: "center", padding: "16px"
-                      }}>
-                        <p style={{ 
-                          color: isDark ? "#FFFFFF" : "#000000", 
-                          fontSize: "14px", fontWeight: "bold", textAlign: "center", lineHeight: "1.4",
-                          overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 6, WebkitBoxOrient: "vertical"
-                        }}>
-                          {post.caption || post.title || "Texte"}
-                        </p>
-                      </div>
-                    ) : post.media_url ? (
+  <>
+    <div style={{ 
+      width: "100%", height: "100%", 
+      backgroundColor: post.background_color || (isDark ? "#2D3748" : "#E2E8F0"),
+      display: "flex", alignItems: "center", justifyContent: "center", padding: "16px",
+      filter: isLocked ? "blur(25px) brightness(0.6)" : "none",
+      transform: isLocked ? "scale(1.1)" : "scale(1)",
+    }}>
+      <p style={{ 
+        color: isDark ? "#FFFFFF" : "#000000", 
+        fontSize: "14px", fontWeight: "bold", textAlign: "center", lineHeight: "1.4",
+        overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 6, WebkitBoxOrient: "vertical"
+      }}>
+        {post.caption || post.title || "Texte"}
+      </p>
+    </div>
+    {isLocked && (
+      <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.6)" }} />
+    )}
+  </>
+) : post.media_url ? (
                       <>
                         {isLocked ? (
                           <>
