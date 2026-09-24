@@ -32,8 +32,10 @@ function VerifyOtpResetContent() {
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (code.length !== 6) {
-      setMessage(" Le code doit contenir exactement 6 chiffres.");
+    
+    // ✅ MODIFICATION : Vérification pour 8 chiffres
+    if (code.length !== 8) {
+      setMessage(" Le code doit contenir exactement 8 chiffres.");
       return;
     }
 
@@ -62,8 +64,10 @@ function VerifyOtpResetContent() {
         <button onClick={() => router.push("/forgot-password")} style={{ background: "none", border: "none", color: colors.textMuted, fontSize: "24px", cursor: "pointer", marginBottom: "24px" }}>←</button>
         
         <h1 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "8px", color: colors.text }}>Vérification</h1>
+        
+        {/* ✅ MODIFICATION : Texte mis à jour */}
         <p style={{ fontSize: "14px", color: colors.textMuted, marginBottom: "24px", lineHeight: 1.5 }}>
-          Entrez le code à 6 chiffres envoyé à <strong>{email}</strong>
+          Entrez le code à 8 chiffres envoyé à <strong>{email}</strong>
         </p>
 
         {message && (
@@ -82,12 +86,12 @@ function VerifyOtpResetContent() {
             <input
               type="text"
               inputMode="numeric"
-              pattern="\d{6}"
-              maxLength={6}
+              pattern="\d{8}" 
+              maxLength={8} 
               required
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-              placeholder="0 0 0 0 0 0"
+              placeholder="0 0 0 0 0 0 0 0" 
               style={{ 
                 width: "100%", padding: "12px 16px", backgroundColor: colors.bg, 
                 border: `1px solid ${colors.border}`, borderRadius: "8px", 
