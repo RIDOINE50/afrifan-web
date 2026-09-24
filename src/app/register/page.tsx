@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link"; // ✅ AJOUTÉ
 import { supabase } from "@/lib/supabaseClient";
 import { ArrowLeft, User, Mail, AlertCircle, CheckCircle, Loader2, Zap, ArrowRight } from "lucide-react";
 
@@ -85,13 +86,12 @@ export default function RegisterPage() {
     try {
       const { error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
-        password: Math.random().toString(36).slice(-8), // Mot de passe temporaire sécurisé
+        password: Math.random().toString(36).slice(-8),
         options: { data: { full_name: fullName.trim() } },
       });
 
       if (signUpError) throw signUpError;
 
-      // Redirection vers la page de vérification OTP
       router.push(`/verify-otp?email=${encodeURIComponent(email.trim())}`);
     } catch (err: any) {
       setGeneralError(err.message || "Une erreur est survenue. Veuillez réessayer.");
@@ -102,7 +102,7 @@ export default function RegisterPage() {
 
   const isButtonDisabled = isLoading || emailExists || isCheckingEmail;
 
-  // ✅ Styles professionnels (identiques à LoginPage pour la cohérence)
+  // ✅ Styles professionnels
   const styles: Record<string, React.CSSProperties> = {
     container: {
       minHeight: "100vh",
@@ -243,6 +243,15 @@ export default function RegisterPage() {
       color: "#9CA3AF",
       lineHeight: "1.5",
     },
+    // ✅ NOUVEAU STYLE pour les liens légaux
+    legalLink: {
+      color: "#FFFFFF",
+      fontWeight: "600",
+      textDecoration: "underline",
+      textDecorationColor: "rgba(255,255,255,0.3)",
+      textUnderlineOffset: "3px",
+      transition: "color 0.2s, textDecorationColor 0.2s",
+    },
     button: {
       width: "100%",
       backgroundColor: "#FFFFFF",
@@ -373,7 +382,6 @@ export default function RegisterPage() {
                 }}
               />
               
-              {/* Icône de validation à droite */}
               <div style={styles.validationIcon}>
                 {isCheckingEmail ? (
                   <Loader2 size={18} style={{ animation: "spin 1s linear infinite", color: "#9CA3AF" }} />
@@ -385,7 +393,6 @@ export default function RegisterPage() {
               </div>
             </div>
             
-            {/* Message d'erreur email */}
             {emailError && (
               <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
                 <AlertCircle size={14} color="#EF4444" />
@@ -403,7 +410,7 @@ export default function RegisterPage() {
             )}
           </div>
 
-          {/* Checkbox Conditions */}
+          {/* ✅ Checkbox Conditions avec LIENS FONCTIONNELS */}
           <label style={styles.checkboxWrapper}>
             <div 
               style={{
@@ -416,9 +423,39 @@ export default function RegisterPage() {
             </div>
             <span style={styles.checkboxText}>
               J'accepte les{" "}
-              <span style={{ color: "#FFFFFF", fontWeight: "600" }}>Conditions d'utilisation</span>{" "}
+              <Link 
+                href="/terms" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={styles.legalLink}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "#FFFFFF";
+                  e.currentTarget.style.textDecorationColor = "#FFFFFF";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "#FFFFFF";
+                  e.currentTarget.style.textDecorationColor = "rgba(255,255,255,0.3)";
+                }}
+              >
+                Conditions d'utilisation
+              </Link>{" "}
               et la{" "}
-              <span style={{ color: "#FFFFFF", fontWeight: "600" }}>Politique de confidentialité</span>
+              <Link 
+                href="/privacy" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={styles.legalLink}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "#FFFFFF";
+                  e.currentTarget.style.textDecorationColor = "#FFFFFF";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "#FFFFFF";
+                  e.currentTarget.style.textDecorationColor = "rgba(255,255,255,0.3)";
+                }}
+              >
+                Politique de confidentialité
+              </Link>
             </span>
           </label>
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { 
   Zap, Users, Wallet, Smartphone, ArrowRight, Play, Star, 
-  Menu, X, Check, Mail, TrendingUp, Shield, Text as ChakraText
+  Menu, X, Check, Mail, TrendingUp, Shield 
 } from "lucide-react";
 import {
   Box, Flex, Text, Button, VStack, HStack, SimpleGrid, Container,
@@ -300,7 +300,6 @@ export default function LandingPage() {
                 </Text>
               </Box>
               
-              {/* ✅ CORRECTION ICI : Utilisation de Text avec _hover en tant que prop Chakra UI */}
               <Box>
                 <Text fontSize="sm" fontWeight="bold" color="white" mb={4} textTransform="uppercase" letterSpacing="wider">Plateforme</Text>
                 <VStack align="flex-start" spacing={3}>
@@ -316,11 +315,16 @@ export default function LandingPage() {
                 </VStack>
               </Box>
 
+              {/* ✅ LIENS LÉGAUX ACTUALISÉS ICI */}
               <Box>
                 <Text fontSize="sm" fontWeight="bold" color="white" mb={4} textTransform="uppercase" letterSpacing="wider">Légal</Text>
                 <VStack align="flex-start" spacing={3}>
-                  <Text color="gray.400" fontSize="sm" cursor="pointer" _hover={{ color: "white" }} transition="color 0.2s">Conditions d'utilisation</Text>
-                  <Text color="gray.400" fontSize="sm" cursor="pointer" _hover={{ color: "white" }} transition="color 0.2s">Politique de confidentialité</Text>
+                  <Link href="/terms" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", width: "100%" }}>
+                    <Text color="gray.400" fontSize="sm" _hover={{ color: "white" }} transition="color 0.2s" cursor="pointer">Conditions d'utilisation</Text>
+                  </Link>
+                  <Link href="/privacy" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", width: "100%" }}>
+                    <Text color="gray.400" fontSize="sm" _hover={{ color: "white" }} transition="color 0.2s" cursor="pointer">Politique de confidentialité</Text>
+                  </Link>
                 </VStack>
               </Box>
 
