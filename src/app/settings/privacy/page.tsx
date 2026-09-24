@@ -41,25 +41,36 @@ export default function PrivacySettingsPage() {
     setShowDeleteModal(true);
   };
 
-  // 🗑️ Exécute la suppression après confirmation dans la modale
+  // 🗑️ Exécute la suppression via l'Edge Function
   const confirmDeleteAccount = async () => {
     setIsDeleting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        // 1. Supprimer les données du profil
-        await supabase.from("profiles").delete().eq("id", user.id);
-        
-        // 2. Déconnecter l'utilisateur
-        await supabase.auth.signOut();
+      // 1. Récupérer la session actuelle pour prouver l'identité
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Session expirée. Veuillez vous reconnecter.");
 
-        // 3. Rediriger vers la page de connexion
-        router.push("/login");
+      // 2. Appeler l'Edge Function Supabase
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/delete-user`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Échec de la suppression du compte");
       }
-    } catch (error) {
+
+      // 3. Si succès, déconnecter et rediriger
+      await supabase.auth.signOut();
+      router.push("/login");
+
+    } catch (error: any) {
       console.error("Erreur lors de la suppression du compte:", error);
-      setErrorMsg("Une erreur est survenue. Veuillez vérifier votre connexion et réessayer.");
+      setErrorMsg(error.message || "Une erreur est survenue. Veuillez réessayer.");
       setIsDeleting(false); // On garde la modale ouverte pour montrer l'erreur
     }
   };
@@ -261,51 +272,28 @@ export default function PrivacySettingsPage() {
 }
 
 // --- Composants Helpers ---
-
 function SettingItem({ title, subtitle, value, onChange, colors }: any) {
   return (
     <div 
       onClick={() => onChange(!value)}
-      style={{ 
-        display: "flex", 
-        justifyContent: "space-between", 
-        alignItems: "center", 
-        padding: "16px 0", 
-        cursor: "pointer" 
-      }}
+      style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 0", cursor: "pointer" }}
     >
       <div style={{ flex: 1, paddingRight: "16px" }}>
-        <div style={{ color: colors.text, fontWeight: "bold", fontSize: "16px", marginBottom: "4px" }}>
-          {title}
-        </div>
-        <div style={{ color: colors.textMuted, fontSize: "14px" }}>
-          {subtitle}
-        </div>
+        <div style={{ color: colors.text, fontWeight: "bold", fontSize: "16px", marginBottom: "4px" }}>{title}</div>
+        <div style={{ color: colors.textMuted, fontSize: "14px" }}>{subtitle}</div>
       </div>
-      
-      {/* Switch personnalisé */}
       <div 
         onClick={(e) => { e.stopPropagation(); onChange(!value); }}
         style={{
-          width: "50px",
-          height: "30px",
-          borderRadius: "15px",
+          width: "50px", height: "30px", borderRadius: "15px",
           backgroundColor: value ? colors.primary : colors.switchBgOff,
-          position: "relative",
-          transition: "background-color 0.3s ease",
-          flexShrink: 0
+          position: "relative", transition: "background-color 0.3s ease", flexShrink: 0
         }}
       >
         <div style={{
-          width: "26px",
-          height: "26px",
-          borderRadius: "50%",
-          backgroundColor: "#FFFFFF",
-          position: "absolute",
-          top: "2px",
-          left: value ? "22px" : "2px",
-          transition: "left 0.3s ease",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+          width: "26px", height: "26px", borderRadius: "50%", backgroundColor: "#FFFFFF",
+          position: "absolute", top: "2px", left: value ? "22px" : "2px",
+          transition: "left 0.3s ease", boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
         }} />
       </div>
     </div>
