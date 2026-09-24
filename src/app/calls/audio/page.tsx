@@ -8,7 +8,7 @@ import { useAppTheme } from "@/contexts/ThemeContext";
 
 export const dynamic = 'force-dynamic';
 
-// ─── COMPOSANT CONTENU ──────────
+// ── COMPOSANT CONTENU ──────────
 function VoiceCallContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -26,12 +26,15 @@ function VoiceCallContent() {
   const [isOtherUserJoined, setIsOtherUserJoined] = useState(isReceiver);
   const [isLeaving, setIsLeaving] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
+  const [ringingDuration, setRingingDuration] = useState(0);
 
   const clientRef = useRef<any>(null);
   const localTrackRef = useRef<any>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const ringingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<any>(null);
   const agoraModuleRef = useRef<any>(null);
+  const ringtoneRef = useRef<HTMLAudioElement | null>(null);
 
   // ✅ Couleurs dynamiques selon le thème
   const colors = {
@@ -72,6 +75,45 @@ function VoiceCallContent() {
       cleanup();
     };
   }, [callId]);
+
+  // ════════════════════════════════════════════════════════════
+  // 1.5 GESTION DE LA SONNERIE
+  // ════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (!ringtoneRef.current) return;
+
+    if (!isOtherUserJoined && !isLeaving) {
+      // L'autre n'a pas encore répondu → ON SONNE
+      ringtoneRef.current.loop = true;
+      ringtoneRef.current.volume = 0.6;
+      ringtoneRef.current.play().catch((e) => {
+        console.log("🔇 Sonnerie bloquée par le navigateur (interaction requise):", e);
+      });
+    } else {
+      // L'autre a répondu OU on raccroche → ON ARRÊTE
+      ringtoneRef.current.pause();
+      ringtoneRef.current.currentTime = 0;
+    }
+  }, [isOtherUserJoined, isLeaving]);
+
+  // ════════════════════════════════════════════════════════════
+  // 1.6 TIMER DE SONNERIE (pour afficher "Sonnerie: 00:15")
+  // ════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (!isOtherUserJoined && !isLeaving) {
+      ringingTimerRef.current = setInterval(() => {
+        setRingingDuration((prev) => prev + 1);
+      }, 1000);
+    } else {
+      if (ringingTimerRef.current) {
+        clearInterval(ringingTimerRef.current);
+        ringingTimerRef.current = null;
+      }
+    }
+    return () => {
+      if (ringingTimerRef.current) clearInterval(ringingTimerRef.current);
+    };
+  }, [isOtherUserJoined, isLeaving]);
 
   // ════════════════════════════════════════════════════════════
   // 2. CANAL DE SYNCHRONISATION SUPABASE (Broadcast)
@@ -152,7 +194,7 @@ function VoiceCallContent() {
   };
 
   // ════════════════════════════════════════════════════════════
-  // 4. TIMER
+  // 4. TIMER D'APPEL
   // ════════════════════════════════════════════════════════════
   const startTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -183,22 +225,31 @@ function VoiceCallContent() {
   };
 
   // ════════════════════════════════════════════════════════════
-  // 6. RACROCHER
+  // 6. RACCROCHER
   // ════════════════════════════════════════════════════════════
   const handleLeave = async (sendSignal = true) => {
     if (isLeaving) return;
     setIsLeaving(true);
 
+    // Arrêter tous les timers
     if (timerRef.current) clearInterval(timerRef.current);
+    if (ringingTimerRef.current) clearInterval(ringingTimerRef.current);
+
+    // Arrêter la sonnerie
+    if (ringtoneRef.current) {
+      ringtoneRef.current.pause();
+      ringtoneRef.current.currentTime = 0;
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (user && callId) {
       const durationFormatted = formatDuration(callDuration);
+      const status = isOtherUserJoined ? "terminé" : "manqué";
       await supabase.from("messages").insert({
         sender_id: user.id,
         receiver_id: otherUserId,
         type: "call_log",
-        content: `Appel vocal terminé • ${durationFormatted}`,
+        content: `Appel vocal ${status} • ${durationFormatted}`,
         created_at: new Date().toISOString(),
       });
     }
@@ -229,7 +280,15 @@ function VoiceCallContent() {
   // ════════════════════════════════════════════════════════════
   const cleanup = () => {
     if (timerRef.current) clearInterval(timerRef.current);
+    if (ringingTimerRef.current) clearInterval(ringingTimerRef.current);
     if (channelRef.current) channelRef.current.unsubscribe();
+    
+    // Arrêter la sonnerie
+    if (ringtoneRef.current) {
+      ringtoneRef.current.pause();
+      ringtoneRef.current.currentTime = 0;
+    }
+    
     if (localTrackRef.current) {
       localTrackRef.current.close();
       localTrackRef.current = null;
@@ -245,19 +304,25 @@ function VoiceCallContent() {
   // ════════════════════════════════════════════════════════════
   return (
     <div style={{ height: "100vh", backgroundColor: colors.bg, color: colors.text, display: "flex", flexDirection: "column" }}>
+      {/* 🔔 Fichier audio de la sonnerie (caché) */}
+      <audio ref={ringtoneRef} src="/ringtone.mp3" preload="auto" />
+
       <div style={{ padding: "16px" }}>
         <button onClick={() => handleLeave(true)} style={{ background: "none", border: "none", color: colors.textMuted, fontSize: "24px", cursor: "pointer" }}>←</button>
       </div>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px" }}>
         <div style={{ position: "relative", marginBottom: "24px" }}>
+          {/* Avatar avec animation de pulsation pendant la sonnerie */}
           <div style={{
             width: "120px", height: "120px", borderRadius: "50%", backgroundColor: colors.card,
             backgroundImage: otherUserAvatar ? `url(${otherUserAvatar})` : undefined,
             backgroundSize: "cover", backgroundPosition: "center",
-            display: "flex", alignItems: "center", justifyContent: "center"
+            display: "flex", alignItems: "center", justifyContent: "center",
+            animation: !isOtherUserJoined && !isLeaving ? "pulse 2s infinite" : "none",
+            boxShadow: !isOtherUserJoined && !isLeaving ? `0 0 0 0 ${colors.primary}80` : "none",
           }}>
-            {!otherUserAvatar && <span style={{ fontSize: "60px", color: colors.textMuted }}>👤</span>}
+            {!otherUserAvatar && <span style={{ fontSize: "60px", color: colors.textMuted }}></span>}
           </div>
           <div style={{
             position: "absolute", bottom: "4px", right: "4px", width: "24px", height: "24px",
@@ -276,7 +341,10 @@ function VoiceCallContent() {
           color: isOtherUserJoined ? colors.primary : colors.textMuted,
           margin: 0
         }}>
-          {isOtherUserJoined ? formatDuration(callDuration) : "En attente de réponse..."}
+          {isOtherUserJoined 
+            ? formatDuration(callDuration) 
+            : `En attente de réponse... ${formatDuration(ringingDuration)}`
+          }
         </p>
       </div>
 
@@ -289,7 +357,7 @@ function VoiceCallContent() {
           onClick={toggleMute} 
         />
         <ControlButton 
-          icon={isSpeakerOn ? "🔊" : "🔈"} 
+          icon={isSpeakerOn ? "" : "🔈"} 
           bgColor={colors.card} 
           borderColor={colors.border}
           iconColor={isSpeakerOn ? colors.primary : colors.text} 
@@ -308,6 +376,14 @@ function VoiceCallContent() {
           📞
         </button>
       </div>
+
+      <style>{`
+        @keyframes pulse {
+          0% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.7); }
+          70% { box-shadow: 0 0 0 20px rgba(139, 92, 246, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
+        }
+      `}</style>
     </div>
   );
 }
