@@ -4,17 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { 
   Zap, Users, Wallet, Smartphone, ArrowRight, Play, Star, 
-  Menu, X, Check, Mail, TrendingUp, Shield 
+  Menu, X, Check, Mail, TrendingUp, Shield, Text as ChakraText
 } from "lucide-react";
 import {
   Box, Flex, Text, Button, VStack, HStack, SimpleGrid, Container,
-  useDisclosure, Collapse
+  Collapse
 } from "@chakra-ui/react";
 
 export default function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  // Données pour les sections (facile à modifier)
   const features = [
     { icon: <TrendingUp size={28} />, title: "Abonnements récurrents", desc: "Construisez une source de revenus stable mois après mois grâce à vos fans les plus fidèles." },
     { icon: <Wallet size={28} />, title: "Pourboires (Tips)", desc: "Recevez des dons ponctuels et directs de votre communauté à tout moment." },
@@ -68,7 +67,6 @@ export default function LandingPage() {
       <Box position="fixed" top="0" w="100%" zIndex="50" bg="rgba(10, 10, 10, 0.85)" backdropFilter="blur(12px)" borderBottom="1px solid" borderColor="whiteAlpha.100">
         <Container maxW="7xl" px={{ base: 4, md: 8 }}>
           <Flex align="center" justify="space-between" h="20">
-            {/* Logo */}
             <Link href="/" style={{ textDecoration: "none" }}>
               <HStack spacing={2}>
                 <Box w="10" h="10" bg="white" borderRadius="lg" display="flex" alignItems="center" justifyContent="center">
@@ -78,7 +76,6 @@ export default function LandingPage() {
               </HStack>
             </Link>
 
-            {/* Desktop Menu */}
             <HStack spacing={8} display={{ base: "none", md: "flex" }}>
               {["Accueil", "Fonctionnalités", "Comment ça marche", "Contact"].map((item) => (
                 <Link key={item} href={`#${item.toLowerCase().replace(/ /g, "-")}`} style={{ textDecoration: "none" }}>
@@ -89,7 +86,6 @@ export default function LandingPage() {
               ))}
             </HStack>
 
-            {/* Desktop CTA & Mobile Hamburger */}
             <HStack spacing={4}>
               <Link href="/login" style={{ textDecoration: "none" }}>
                 <Button display={{ base: "none", md: "flex" }} variant="ghost" color="gray.300" _hover={{ color: "white", bg: "transparent" }} fontSize="sm" fontWeight="medium">
@@ -102,7 +98,6 @@ export default function LandingPage() {
                 </Button>
               </Link>
               
-              {/* Hamburger Mobile */}
               <Button 
                 display={{ base: "flex", md: "none" }} 
                 variant="ghost" 
@@ -116,7 +111,6 @@ export default function LandingPage() {
           </Flex>
         </Container>
 
-        {/* Mobile Menu Dropdown (Chic & Fluide) */}
         <Collapse in={isMenuOpen} animateOpacity>
           <Box bg="rgba(10, 10, 10, 0.95)" backdropFilter="blur(12px)" borderBottom="1px solid" borderColor="whiteAlpha.100" px={4} py={6} display={{ base: "block", md: "none" }}>
             <VStack spacing={6} align="stretch">
@@ -177,7 +171,6 @@ export default function LandingPage() {
               </Link>
             </Flex>
 
-            {/* Stats rapides */}
             <SimpleGrid columns={{ base: 2, md: 4 }} spacing={8} maxW="4xl" mx="auto" borderTop="1px solid" borderColor="whiteAlpha.200" pt={8} mt={16} className="fade-in-up" style={{ animationDelay: "0.8s" }}>
               {[
                 { val: "15%", label: "Commission unique" },
@@ -193,7 +186,6 @@ export default function LandingPage() {
             </SimpleGrid>
           </Container>
 
-          {/* Images flottantes (Cachées sur mobile pour la lisibilité, visibles sur desktop) */}
           <Box display={{ base: "none", md: "block" }}>
             <Box position="absolute" top="20%" left="5%" w="120px" h="120px" borderRadius="2xl" overflow="hidden" border="3px solid rgba(255,255,255,0.2)" className="float-1" zIndex="2" boxShadow="0 20px 40px rgba(0,0,0,0.6)">
               <img src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=300&h=300&fit=crop&crop=face" alt="Créatrice" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -308,20 +300,27 @@ export default function LandingPage() {
                 </Text>
               </Box>
               
+              {/* ✅ CORRECTION ICI : Utilisation de Text avec _hover en tant que prop Chakra UI */}
               <Box>
                 <Text fontSize="sm" fontWeight="bold" color="white" mb={4} textTransform="uppercase" letterSpacing="wider">Plateforme</Text>
                 <VStack align="flex-start" spacing={3}>
-                  <Link href="#fonctionnalités" style={{ color: "#9CA3AF", fontSize: "sm", textDecoration: "none", _hover: { color: "white" } }}>Fonctionnalités</Link>
-                  <Link href="#comment-ça-marche" style={{ color: "#9CA3AF", fontSize: "sm", textDecoration: "none", _hover: { color: "white" } }}>Comment ça marche</Link>
-                  <Link href="/login" style={{ color: "#9CA3AF", fontSize: "sm", textDecoration: "none", _hover: { color: "white" } }}>Connexion</Link>
+                  <Link href="#fonctionnalités" style={{ textDecoration: "none", width: "100%" }}>
+                    <Text color="gray.400" fontSize="sm" _hover={{ color: "white" }} transition="color 0.2s">Fonctionnalités</Text>
+                  </Link>
+                  <Link href="#comment-ça-marche" style={{ textDecoration: "none", width: "100%" }}>
+                    <Text color="gray.400" fontSize="sm" _hover={{ color: "white" }} transition="color 0.2s">Comment ça marche</Text>
+                  </Link>
+                  <Link href="/login" style={{ textDecoration: "none", width: "100%" }}>
+                    <Text color="gray.400" fontSize="sm" _hover={{ color: "white" }} transition="color 0.2s">Connexion</Text>
+                  </Link>
                 </VStack>
               </Box>
 
               <Box>
                 <Text fontSize="sm" fontWeight="bold" color="white" mb={4} textTransform="uppercase" letterSpacing="wider">Légal</Text>
                 <VStack align="flex-start" spacing={3}>
-                  <Text as="span" style={{ color: "#9CA3AF", fontSize: "sm", cursor: "pointer", _hover: { color: "white" } }}>Conditions d'utilisation</Text>
-                  <Text as="span" style={{ color: "#9CA3AF", fontSize: "sm", cursor: "pointer", _hover: { color: "white" } }}>Politique de confidentialité</Text>
+                  <Text color="gray.400" fontSize="sm" cursor="pointer" _hover={{ color: "white" }} transition="color 0.2s">Conditions d'utilisation</Text>
+                  <Text color="gray.400" fontSize="sm" cursor="pointer" _hover={{ color: "white" }} transition="color 0.2s">Politique de confidentialité</Text>
                 </VStack>
               </Box>
 
