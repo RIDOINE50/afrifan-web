@@ -14,8 +14,10 @@ export default function PrivacySettingsPage() {
   const [showOnlineStatus, setShowOnlineStatus] = useState(true);
   const [allowDirectMessages, setAllowDirectMessages] = useState(true);
   
-  // État pour le chargement de la suppression
+  // États pour la suppression du compte
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   // ✅ Couleurs dynamiques
   const colors = {
@@ -29,46 +31,36 @@ export default function PrivacySettingsPage() {
     hover: theme.hover,
     divider: theme.border,
     switchBgOff: isDark ? "#4B5563" : "#D1D5DB",
-    danger: "#EF4444", // 🔴 Rouge pour la zone de danger
+    danger: "#EF4444",
     dangerBg: isDark ? "rgba(239, 68, 68, 0.1)" : "rgba(239, 68, 68, 0.05)",
   };
 
-  // 🗑️ FONCTION DE SUPPRESSION DU COMPTE
-  const handleDeleteAccount = async () => {
-    // 1. Demander une confirmation ferme à l'utilisateur
-    const isConfirmed = window.confirm(
-      "⚠️ ATTENTION : Cette action est IRRÉVERSIBLE.\n\n" +
-      "Êtes-vous vraiment sûr de vouloir supprimer définitivement votre compte et toutes vos données (publications, messages, profil) ?"
-    );
+  // 🗑️ Ouvre la modale de confirmation
+  const handleDeleteClick = () => {
+    setErrorMsg("");
+    setShowDeleteModal(true);
+  };
 
-    if (!isConfirmed) return;
-
+  // 🗑️ Exécute la suppression après confirmation dans la modale
+  const confirmDeleteAccount = async () => {
     setIsDeleting(true);
-
     try {
-      // 2. Récupérer l'utilisateur actuel
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
-        // 3. Supprimer les données du profil dans la base de données
-        // (Assure-toi que tes règles RLS Supabase autorisent un utilisateur à supprimer sa propre ligne)
+        // 1. Supprimer les données du profil
         await supabase.from("profiles").delete().eq("id", user.id);
         
-        // Note: Pour supprimer complètement l'utilisateur de l'Auth Supabase, 
-        // il faut normalement une Edge Function. Ici, on supprime les données et on déconnecte,
-        // ce qui est la méthode standard et sécurisée côté client.
-
-        // 4. Déconnecter l'utilisateur
+        // 2. Déconnecter l'utilisateur
         await supabase.auth.signOut();
 
-        // 5. Rediriger vers la page d'accueil ou de connexion
+        // 3. Rediriger vers la page de connexion
         router.push("/login");
       }
     } catch (error) {
       console.error("Erreur lors de la suppression du compte:", error);
-      alert("Une erreur est survenue lors de la suppression. Veuillez réessayer.");
-    } finally {
-      setIsDeleting(false);
+      setErrorMsg("Une erreur est survenue. Veuillez vérifier votre connexion et réessayer.");
+      setIsDeleting(false); // On garde la modale ouverte pour montrer l'erreur
     }
   };
 
@@ -155,54 +147,113 @@ export default function PrivacySettingsPage() {
             </p>
             
             <button
-              onClick={handleDeleteAccount}
+              onClick={handleDeleteClick}
               disabled={isDeleting}
               style={{
-                backgroundColor: isDeleting ? "rgba(239, 68, 68, 0.5)" : "transparent",
+                backgroundColor: "transparent",
                 color: colors.danger,
                 border: `1.5px solid ${colors.danger}`,
                 borderRadius: "8px",
                 padding: "10px 20px",
                 fontSize: "14px",
                 fontWeight: "bold",
-                cursor: isDeleting ? "not-allowed" : "pointer",
+                cursor: "pointer",
                 transition: "all 0.2s ease",
                 display: "flex",
                 alignItems: "center",
                 gap: "8px"
               }}
               onMouseEnter={(e) => {
-                if (!isDeleting) {
-                  e.currentTarget.style.backgroundColor = colors.danger;
-                  e.currentTarget.style.color = "#FFFFFF";
-                }
+                e.currentTarget.style.backgroundColor = colors.danger;
+                e.currentTarget.style.color = "#FFFFFF";
               }}
               onMouseLeave={(e) => {
-                if (!isDeleting) {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.color = colors.danger;
-                }
+                e.currentTarget.style.backgroundColor = "transparent";
+                e.currentTarget.style.color = colors.danger;
               }}
             >
-              {isDeleting ? (
-                <>
-                  <span style={{ display: "inline-block", width: "16px", height: "16px", border: "2px solid #FFFFFF", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></span>
-                  Suppression en cours...
-                </>
-              ) : (
-                "🗑️ Supprimer définitivement mon compte"
-              )}
+              🗑️ Supprimer définitivement mon compte
             </button>
           </div>
         </div>
 
       </div>
 
-      {/* Animation pour le spinner de chargement */}
+      {/* ========================================== */}
+      {/* 🎯 MODALE DE CONFIRMATION PERSONNALISÉE */}
+      {/* ========================================== */}
+      {showDeleteModal && (
+        <div style={{
+          position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.7)", 
+          zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px",
+          backdropFilter: "blur(4px)"
+        }}>
+          <div style={{
+            backgroundColor: colors.card, border: `1px solid ${colors.border}`,
+            borderRadius: "16px", padding: "24px", maxWidth: "400px", width: "100%",
+            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.5)",
+            animation: "fadeIn 0.2s ease-out"
+          }}>
+            <h3 style={{ fontSize: "20px", fontWeight: "bold", color: colors.danger, marginBottom: "12px" }}>
+              Supprimer le compte ?
+            </h3>
+            <p style={{ fontSize: "14px", color: colors.textMuted, lineHeight: "1.5", marginBottom: "20px" }}>
+              Cette action est <strong>irréversible</strong>. Toutes vos données, publications et messages seront définitivement effacés de nos serveurs.
+            </p>
+            
+            {errorMsg && (
+              <div style={{
+                padding: "10px", backgroundColor: "rgba(239, 68, 68, 0.1)", 
+                border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "8px",
+                color: colors.danger, fontSize: "13px", marginBottom: "16px"
+              }}>
+                {errorMsg}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+                style={{
+                  padding: "10px 16px", borderRadius: "8px", border: `1px solid ${colors.border}`,
+                  backgroundColor: "transparent", color: colors.text, fontWeight: "bold", cursor: "pointer"
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmDeleteAccount}
+                disabled={isDeleting}
+                style={{
+                  padding: "10px 16px", borderRadius: "8px", border: "none",
+                  backgroundColor: colors.danger, color: "#FFFFFF", fontWeight: "bold", 
+                  cursor: isDeleting ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: "8px"
+                }}
+              >
+                {isDeleting ? (
+                  <>
+                    <span style={{ display: "inline-block", width: "14px", height: "14px", border: "2px solid #FFFFFF", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></span>
+                    Suppression...
+                  </>
+                ) : (
+                  "Oui, supprimer"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Animations */}
       <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </div>
