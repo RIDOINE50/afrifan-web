@@ -49,6 +49,10 @@ export default function LandingPage() {
           from { opacity: 0; transform: translateX(50px); }
           to { opacity: 1; transform: translateX(0); }
         }
+        @keyframes slowZoom {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
         .float-1 { animation: float 6s ease-in-out infinite; }
         .float-2 { animation: floatReverse 7s ease-in-out infinite; }
         .float-3 { animation: floatSlow 8s ease-in-out infinite; }
@@ -58,7 +62,50 @@ export default function LandingPage() {
         .slide-left { animation: slideInLeft 1s ease-out forwards; }
         .slide-right { animation: slideInRight 1s ease-out forwards; }
         .pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
+        .slow-zoom { animation: slowZoom 20s ease-in-out infinite; }
       `}</style>
+
+      {/* ==========================================
+          IMAGE DE FOND PRINCIPALE (HOMME AVEC TÉLÉPHONE)
+      ========================================== */}
+      <Box
+        position="fixed"
+        top="0"
+        left="0"
+        right="0"
+        bottom="0"
+        zIndex="0"
+        overflow="hidden"
+      >
+        {/* Image de fond */}
+        <Box
+          position="absolute"
+          top="50%"
+          left="50%"
+          transform="translate(-50%, -50%)"
+          w="100%"
+          h="100%"
+          className="slow-zoom"
+        >
+          <img
+            src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&h=1600&fit=crop"
+            alt="Créateur africain avec téléphone"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              opacity: 0.4,
+            }}
+          />
+        </Box>
+
+        {/* Overlay dégradé pour lisibilité */}
+        <Box
+          position="absolute"
+          inset="0"
+          bg="linear-gradient(to bottom, rgba(10,10,10,0.9) 0%, rgba(10,10,10,0.7) 50%, rgba(10,10,10,0.95) 100%)"
+        />
+      </Box>
 
       {/* ==========================================
           1. NAVBAR (EN-TÊTE)
@@ -109,7 +156,7 @@ export default function LandingPage() {
         </Container>
       </Box>
 
-      <Box pt="16">
+      <Box pt="16" position="relative" zIndex="1">
 
         {/* ==========================================
             2. SECTION HÉRO (ACCROCHE) AVEC IMAGES FLOTTANTES
@@ -385,7 +432,7 @@ export default function LandingPage() {
         {/* ==========================================
             3. SECTION COMMENT ÇA MARCHE
         ========================================== */}
-        <Box py={20} bg="#111111">
+        <Box py={20} bg="rgba(17,17,17,0.95)">
           <Container maxW="7xl" px={{ base: 4, sm: 6, lg: 8 }}>
             <Box textAlign="center" mb={16}>
               <Text fontSize="3xl" fontWeight="bold" color="white" mb={4}>Comment ça marche ?</Text>
@@ -435,7 +482,7 @@ export default function LandingPage() {
         {/* ==========================================
             4. SECTION NOS SERVICES / FONCTIONNALITÉS
         ========================================== */}
-        <Box py={20}>
+        <Box py={20} bg="#0A0A0A">
           <Container maxW="7xl" px={{ base: 4, sm: 6, lg: 8 }}>
             <Box textAlign="center" mb={16}>
               <Text fontSize="3xl" fontWeight="bold" color="white" mb={4}>Tout ce dont vous avez besoin pour réussir</Text>
@@ -475,7 +522,7 @@ export default function LandingPage() {
         {/* ==========================================
             5. SECTION APPEL À L'ACTION FINAL
         ========================================== */}
-        <Box py={20} bgGradient="linear(to-b, #111111, #0A0A0A)">
+        <Box py={20} bg="rgba(17,17,17,0.95)">
           <Container maxW="4xl" px={4} textAlign="center">
             <Text fontSize={{ base: "3xl", sm: "4xl" }} fontWeight="bold" color="white" mb={6}>
               Prêt à vivre de votre passion ?
@@ -506,7 +553,7 @@ export default function LandingPage() {
       {/* ==========================================
           6. FOOTER
       ========================================== */}
-      <Box borderTop="1px solid" borderColor="whiteAlpha.100" py={8} bg="#0A0A0A">
+      <Box borderTop="1px solid" borderColor="whiteAlpha.100" py={8} bg="#0A0A0A" position="relative" zIndex="1">
         <Container maxW="7xl" px={4} textAlign="center">
           <Text fontSize="sm" color="gray.500">
             © 2026 Afrifan. Tous droits réservés. Fait avec ❤️ pour les créateurs africains.
