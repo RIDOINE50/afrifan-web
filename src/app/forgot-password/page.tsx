@@ -27,17 +27,27 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
     setMessage("");
 
-    // L'URL vers laquelle l'utilisateur sera redirigé après avoir cliqué dans l'email
-    const redirectUrl = `${window.location.origin}/update-password`;
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectUrl,
+    // 🔑 shouldCreateUser: false empêche la création d'un nouveau compte
+    const { data, error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: {
+        shouldCreateUser: false, 
+        emailRedirectTo: `${window.location.origin}/update-password`
+      }
     });
 
     if (error) {
-      setMessage(`❌ Erreur : ${error.message}`);
+      if (error.message.includes("User not found") || error.message.includes("not found")) {
+        setMessage("❌ Aucun compte n'est associé à cette adresse email.");
+      } else {
+        setMessage(`❌ Erreur : ${error.message}`);
+      }
     } else {
-      setMessage("✅ Un lien de réinitialisation a été envoyé à votre email. Vérifiez vos spams !");
+      setMessage("✅ Code de vérification envoyé à votre email !");
+      // 👉 REDIRECTION VERS LE NOUVEAU DOSSIER
+      setTimeout(() => {
+        router.push(`/verify-otp-reset?email=${encodeURIComponent(email)}`);
+      }, 1500);
     }
     
     setIsLoading(false);
@@ -47,11 +57,11 @@ export default function ForgotPasswordPage() {
     <div style={{ minHeight: "100vh", backgroundColor: colors.bg, color: colors.text, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
       <div style={{ width: "100%", maxWidth: "400px", backgroundColor: colors.card, padding: "32px", borderRadius: "16px", border: `1px solid ${colors.border}` }}>
         
-        <button onClick={() => router.back()} style={{ background: "none", border: "none", color: colors.textMuted, fontSize: "24px", cursor: "pointer", marginBottom: "24px" }}>←</button>
+        <button onClick={() => router.push("/login")} style={{ background: "none", border: "none", color: colors.textMuted, fontSize: "24px", cursor: "pointer", marginBottom: "24px" }}>←</button>
         
-        <h1 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "8px", color: colors.text }}>Mot de passe oublié ?</h1>
+        <h1 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "8px", color: colors.text }}>Mot de passe oublié</h1>
         <p style={{ fontSize: "14px", color: colors.textMuted, marginBottom: "24px", lineHeight: 1.5 }}>
-          Entrez votre adresse email. Nous vous enverrons un lien pour réinitialiser votre mot de passe.
+          Entrez l'email associé à votre compte. Nous vous enverrons un code de vérification.
         </p>
 
         {message && (
@@ -75,7 +85,7 @@ export default function ForgotPasswordPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="exemple@email.com"
+              placeholder="ton@email.com"
               style={{ 
                 width: "100%", padding: "12px 16px", backgroundColor: colors.bg, 
                 border: `1px solid ${colors.border}`, borderRadius: "8px", 
@@ -94,15 +104,9 @@ export default function ForgotPasswordPage() {
               opacity: isLoading ? 0.7 : 1
             }}
           >
-            {isLoading ? "Envoi en cours..." : "Envoyer le lien"}
+            {isLoading ? "Vérification..." : "Envoyer le code"}
           </button>
         </form>
-
-        <div style={{ marginTop: "24px", textAlign: "center" }}>
-          <button onClick={() => router.push("/login")} style={{ background: "none", border: "none", color: colors.primary, cursor: "pointer", fontSize: "14px" }}>
-            Retour à la connexion
-          </button>
-        </div>
       </div>
     </div>
   );
