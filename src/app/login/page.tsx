@@ -148,6 +148,8 @@ export default function LoginPage() {
       border: "none",
       fontSize: "14px",
       padding: 0,
+      textDecoration: "underline", // Ajouté pour bien montrer que c'est cliquable
+      textDecorationColor: "rgba(255,255,255,0.3)",
     },
   };
 
@@ -205,8 +207,13 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div style={{ textAlign: "left" as const }}>
-            <button type="button" style={styles.link}>
+          {/* 👉 MODIFICATION ICI : Ajout du onClick pour rediriger vers la page mot de passe oublié */}
+          <div style={{ textAlign: "right" as const }}>
+            <button 
+              type="button" 
+              style={styles.link}
+              onClick={() => router.push("/forgot-password")}
+            >
               Mot de passe oublié ?
             </button>
           </div>
