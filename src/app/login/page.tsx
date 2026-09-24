@@ -33,20 +33,29 @@ export default function LoginPage() {
       if (signInError) throw signInError;
 
       // 2. ✅ VÉRIFICATION DU STATUT DE BANNISSEMENT
-      if (data.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("is_banned")
-          .eq("id", data.user.id)
-          .single();
+     // 2. ✅ VÉRIFICATION DU STATUT DE BANNISSEMENT
+if (data.user) {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_banned, is_deleted")
+    .eq("id", data.user.id)
+    .single();
 
-        if (profile?.is_banned === true) {
-          await supabase.auth.signOut();
-          setError("🚫 Votre compte a été banni de la plateforme Afrifan. Veuillez contacter le support.");
-          setIsLoading(false);
-          return;
-        }
-      }
+  if (profile?.is_banned === true) {
+    await supabase.auth.signOut();
+    setError("🚫 Votre compte a été banni de la plateforme Afrifan. Veuillez contacter le support.");
+    setIsLoading(false);
+    return;
+  }
+
+  // 👉 NOUVEAU : Vérifier si le compte a été supprimé
+  if (profile?.is_deleted === true) {
+    await supabase.auth.signOut();
+    setError("⚠️ Ce compte a été supprimé. Veuillez créer un nouveau compte.");
+    setIsLoading(false);
+    return;
+  }
+}
 
       // 3. Si tout est bon, on redirige
       router.push("/home");

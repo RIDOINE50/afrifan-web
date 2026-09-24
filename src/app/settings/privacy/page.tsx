@@ -42,38 +42,35 @@ export default function PrivacySettingsPage() {
   };
 
   // 🗑️ Exécute la suppression via l'Edge Function
-  const confirmDeleteAccount = async () => {
-    setIsDeleting(true);
-    try {
-      // 1. Récupérer la session actuelle pour prouver l'identité
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Session expirée. Veuillez vous reconnecter.");
+ const confirmDeleteAccount = async () => {
+  setIsDeleting(true);
+  setErrorMsg("");
+  
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) throw new Error("Utilisateur non trouvé");
 
-      // 2. Appeler l'Edge Function Supabase
-      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/delete-user`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+    // 1. Marquer le compte comme supprimé (au lieu de le supprimer)
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ is_deleted: true })
+      .eq("id", user.id);
 
-      const result = await response.json();
+    if (updateError) throw updateError;
 
-      if (!response.ok) {
-        throw new Error(result.error || "Échec de la suppression du compte");
-      }
+    // 2. Déconnecter l'utilisateur
+    await supabase.auth.signOut();
 
-      // 3. Si succès, déconnecter et rediriger
-      await supabase.auth.signOut();
-      router.push("/login");
-
-    } catch (error: any) {
-      console.error("Erreur lors de la suppression du compte:", error);
-      setErrorMsg(error.message || "Une erreur est survenue. Veuillez réessayer.");
-      setIsDeleting(false); // On garde la modale ouverte pour montrer l'erreur
-    }
-  };
+    // 3. Rediriger vers la page de connexion
+    router.push("/login");
+    
+  } catch (error: any) {
+    console.error("Erreur:", error);
+    setErrorMsg(error.message || "Une erreur est survenue");
+    setIsDeleting(false);
+  }
+};
 
   return (
     <div style={{ 
