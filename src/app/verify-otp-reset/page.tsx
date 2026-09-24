@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppTheme } from "@/contexts/ThemeContext";
 
-export default function VerifyOtpResetPage() {
+// ─── COMPOSANT INTERNE (utilise useSearchParams) ─────────
+function VerifyOtpResetContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { theme } = useAppTheme();
@@ -32,24 +33,22 @@ export default function VerifyOtpResetPage() {
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (code.length !== 6) {
-      setMessage("❌ Le code doit contenir exactement 6 chiffres.");
+      setMessage(" Le code doit contenir exactement 6 chiffres.");
       return;
     }
 
     setIsLoading(true);
     setMessage("");
 
-    // Vérification du code OTP pour la récupération de mot de passe
     const { data, error } = await supabase.auth.verifyOtp({
       email: email,
       token: code,
-      type: "email", // "email" est le type correct pour la récupération de mot de passe
+      type: "email",
     });
 
     if (error) {
       setMessage("❌ Code invalide ou expiré. Veuillez réessayer.");
     } else {
-      // ✅ SUCCÈS : Session de récupération créée, on passe à l'étape suivante
       router.push("/update-password");
     }
     
@@ -119,5 +118,18 @@ export default function VerifyOtpResetPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── EXPORT PRINCIPAL AVEC SUSPENSE ──────────────────────
+export default function VerifyOtpResetPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#0A0A0A", color: "#FFFFFF" }}>
+        Chargement...
+      </div>
+    }>
+      <VerifyOtpResetContent />
+    </Suspense>
   );
 }
