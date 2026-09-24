@@ -47,7 +47,7 @@ const Icons = {
   </>} />,
 };
 
-// ─── COMPOSANT CONTENU (utilise useSearchParams) ──────────
+// ─── COMPOSANT CONTENU ─────────────────────────────────────
 function CreateContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -65,7 +65,6 @@ function CreateContent() {
 
   const [feedTitle, setFeedTitle] = useState("");
   const [feedCaption, setFeedCaption] = useState("");
-
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
 
   const colors = {
@@ -122,6 +121,25 @@ function CreateContent() {
     setStep("upload");
   };
 
+  // 🚀 NOUVELLE FONCTION D'UPLOAD VERS CLOUDINARY
+  const uploadToCloudinary = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'afrifan_uploads'); // Ton preset créé plus tôt
+
+    const response = await fetch('https://api.cloudinary.com/v1_1/bhqprefc/auto/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error("Échec de l'upload vers Cloudinary");
+    }
+
+    const data = await response.json();
+    return data.secure_url; // Retourne l'URL optimisée de la vidéo/image
+  };
+
   const handlePublish = async (target: "story" | "feed") => {
     if (!selectedFile && !previewUrl) {
       alert("Aucun média à publier.");
@@ -140,6 +158,7 @@ function CreateContent() {
       let fileToUpload: File | null = selectedFile;
       let mediaUrl = previewUrl;
 
+      // Gestion des images générées par IA
       if (!fileToUpload && previewUrl) {
         const response = await fetch(previewUrl);
         const blob = await response.blob();
@@ -148,24 +167,16 @@ function CreateContent() {
         });
       }
 
+      // 🔄 ICI : On remplace l'upload Supabase par l'upload Cloudinary
       if (fileToUpload) {
-        const fileExt = fileToUpload.name.split('.').pop() || 'jpg';
-        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-        const bucketName = "post-media";
-        const { error: uploadError } = await supabase.storage
-          .from(bucketName)
-          .upload(fileName, fileToUpload);
-
-        if (uploadError) throw new Error(`Échec de l'upload: ${uploadError.message}`);
-
-        const { data } = supabase.storage.from(bucketName).getPublicUrl(fileName);
-        mediaUrl = data.publicUrl;
+        mediaUrl = await uploadToCloudinary(fileToUpload);
       }
 
+      // ✅ Sauvegarde dans Supabase (seulement l'URL, pas le fichier)
       if (target === "feed") {
         const { error: dbError } = await supabase.from("posts").insert({
           user_id: user.id,
-          media_url: mediaUrl,
+          media_url: mediaUrl, // ← URL Cloudinary
           media_type: mediaType,
           content: feedCaption || "",
           caption: feedCaption || "",
@@ -175,13 +186,14 @@ function CreateContent() {
       } else {
         const { error: dbError } = await supabase.from("stories").insert({
           creator_id: user.id,
-          media_url: mediaUrl,
+          media_url: mediaUrl, // ← URL Cloudinary
           media_type: mediaType,
           created_at: new Date().toISOString(),
         });
         if (dbError) throw dbError;
       }
 
+      // Reset et succès
       setSelectedFile(null);
       setPreviewUrl(null);
       setFeedCaption("");
@@ -189,7 +201,6 @@ function CreateContent() {
       setStep("upload");
       setShowFeedModal(false);
       setIsPublishing(false);
-      
       setShowSuccess(true);
 
       setTimeout(() => {
@@ -208,7 +219,7 @@ function CreateContent() {
     return (
       <div style={{ minHeight: "100vh", backgroundColor: colors.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px" }}>
         <div style={{ width: "40px", height: "40px", border: `4px solid ${colors.border}`, borderTop: `4px solid ${colors.primary}`, borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
-        <p style={{ color: colors.text, fontSize: "16px" }}>Publication en cours...</p>
+        <p style={{ color: colors.text, fontSize: "16px" }}>Publication en cours vers Cloudinary...</p>
       </div>
     );
   }
@@ -254,32 +265,15 @@ function CreateContent() {
           </div>
         </div>
 
-        <h1 style={{ 
-          fontSize: "26px", 
-          fontWeight: "bold", 
-          color: colors.text, 
-          margin: "0 0 12px 0",
-          textAlign: "center"
-        }}>
+        <h1 style={{ fontSize: "26px", fontWeight: "bold", color: colors.text, margin: "0 0 12px 0", textAlign: "center" }}>
           Publié avec succès !
         </h1>
 
-        <p style={{ 
-          fontSize: "15px", 
-          color: colors.textMuted, 
-          margin: 0, 
-          textAlign: "center",
-          maxWidth: "300px",
-          lineHeight: 1.5
-        }}>
+        <p style={{ fontSize: "15px", color: colors.textMuted, margin: 0, textAlign: "center", maxWidth: "300px", lineHeight: 1.5 }}>
           Ta publication est maintenant en ligne. Redirection en cours...
         </p>
 
-        <div style={{
-          marginTop: "32px",
-          display: "flex",
-          gap: "8px",
-        }}>
+        <div style={{ marginTop: "32px", display: "flex", gap: "8px" }}>
           <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: colors.primary, animation: "bounce 1.4s infinite ease-in-out both", animationDelay: "0s" }} />
           <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: colors.primary, animation: "bounce 1.4s infinite ease-in-out both", animationDelay: "0.2s" }} />
           <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: colors.primary, animation: "bounce 1.4s infinite ease-in-out both", animationDelay: "0.4s" }} />
@@ -318,9 +312,7 @@ function CreateContent() {
           style={{
             flex: 1,
             padding: "20px 12px",
-            background: hoveredTab === "ai"
-              ? `linear-gradient(135deg, ${colors.primary}26, ${colors.pink}26)`
-              : colors.card,
+            background: hoveredTab === "ai" ? `linear-gradient(135deg, ${colors.primary}26, ${colors.pink}26)` : colors.card,
             border: `1.5px solid ${hoveredTab === "ai" ? colors.primary : colors.border}`,
             borderRadius: "16px",
             color: colors.text,
@@ -350,9 +342,7 @@ function CreateContent() {
           style={{
             flex: 1,
             padding: "20px 12px",
-            background: hoveredTab === "text"
-              ? `linear-gradient(135deg, ${colors.primary}26, ${colors.pink}26)`
-              : colors.card,
+            background: hoveredTab === "text" ? `linear-gradient(135deg, ${colors.primary}26, ${colors.pink}26)` : colors.card,
             border: `1.5px solid ${hoveredTab === "text" ? colors.primary : colors.border}`,
             borderRadius: "16px",
             color: colors.text,
