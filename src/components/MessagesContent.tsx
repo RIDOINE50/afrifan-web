@@ -698,27 +698,26 @@ export default function MessagesContent() {
                     maxWidth: "75%",
                     alignSelf: isMine ? "flex-end" : "flex-start"
                   }}>
-                    {msg.reply_to_content && (
-                      <div style={{ 
-                        backgroundColor: isMine ? "rgba(255,255,255,0.1)" : colors.hover, 
-                        padding: "6px 10px", 
-                        borderRadius: "8px 8px 0 0", 
-                        fontSize: "12px", 
-                        color: colors.textMuted, 
-                        borderLeft: `3px solid ${colors.primary}`, 
-                        marginBottom: "-4px",
-                        width: "100%",
-                        marginBottom: "4px"
-                      }}>
-                        <div style={{ fontWeight: "600", color: colors.primary, fontSize: "11px", marginBottom: "2px" }}>
-                          {msg.reply_to_name}
-                        </div>
-                        <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {msg.reply_to_content}
-                        </div>
-                      </div>
-                    )}
-                    
+                   // ✅ NOUVEAU CODE CORRIGÉ
+{msg.reply_to_content && (
+  <div style={{ 
+    backgroundColor: isMine ? "rgba(255,255,255,0.1)" : colors.hover, 
+    padding: "6px 10px", 
+    borderRadius: "8px 8px 0 0", 
+    fontSize: "12px", 
+    color: colors.textMuted, 
+    borderLeft: `3px solid ${colors.primary}`, 
+    marginBottom: "4px", // 👈 Une seule fois, c'est parfait
+    width: "100%"
+  }}>
+    <div style={{ fontWeight: "600", color: colors.primary, fontSize: "11px", marginBottom: "2px" }}>
+      {msg.reply_to_name}
+    </div>
+    <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+      {msg.reply_to_content}
+    </div>
+  </div>
+)}
                     <div
                       onContextMenu={(e) => { e.preventDefault(); if (isMine) deleteMessage(msg.id); }}
                       style={{
