@@ -1261,8 +1261,15 @@ recordingTimerRef.current = setInterval(() => {
         </div>
       )}
 
-      <style>{`
-        @keyframes pulse { 
+           <style>{`
+        html, body {
+          overflow: hidden !important;
+          height: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overscroll-behavior: none;
+        }
+        @keyframes pulse {  
           0% { opacity: 1; transform: scale(1); } 
           50% { opacity: 0.5; transform: scale(1.1); } 
           100% { opacity: 1; transform: scale(1); } 
@@ -1276,8 +1283,8 @@ recordingTimerRef.current = setInterval(() => {
         }
         
                .msg-layout {
-          height: 100dvh;
-          max-height: 100dvh;
+                   height: 100%;
+          max-height: 100%;
           background-color: ${colors.bg};
           color: ${colors.text};
           display: flex;
