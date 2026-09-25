@@ -6,14 +6,11 @@ import { supabase } from "@/lib/supabaseClient";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { 
   ArrowLeft, Phone, Mic, Send, Paperclip, Smile, 
-  MoreVertical, Check, CheckCheck, User, RefreshCw, 
+  MoreVertical, Check, CheckCheck, User, RefreshCw,
   Settings, Search, X, MessageSquare, Users, Pin,
-  BellOff, Trash, Ban, Circle, Square
+  BellOff, Trash, Ban, Circle, Square, Play, Pause
 } from "lucide-react";
 
-// ==========================================
-// ✅ COMPOSANT PRINCIPAL
-// ==========================================
 export default function MessagesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -36,6 +33,11 @@ export default function MessagesContent() {
   const mediaRecorderRef = useRef<any>(null);
   const audioChunksRef = useRef<any[]>([]);
   const recordingTimerRef = useRef<any>(null);
+
+  // ✅ NOUVEAU : États pour le lecteur audio personnalisé
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const [audioProgress, setAudioProgress] = useState<Record<string, number>>({});
+  const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -97,6 +99,32 @@ export default function MessagesContent() {
     window.addEventListener("click", closeMenu);
     return () => window.removeEventListener("click", closeMenu);
   }, []);
+
+  // ✅ NOUVEAU : Fonction pour contrôler la lecture audio
+  const toggleAudioPlay = (msgId: string, audioUrl: string) => {
+    if (playingAudioId === msgId) {
+      audioRefs.current[msgId]?.pause();
+      setPlayingAudioId(null);
+    } else {
+      if (playingAudioId && audioRefs.current[playingAudioId]) {
+        audioRefs.current[playingAudioId].pause();
+      }
+      if (!audioRefs.current[msgId]) {
+        const audio = new Audio(audioUrl);
+        audio.onended = () => {
+          setPlayingAudioId(null);
+          setAudioProgress(prev => ({ ...prev, [msgId]: 0 }));
+        };
+        audio.ontimeupdate = () => {
+          const progress = (audio.currentTime / audio.duration) * 100;
+          setAudioProgress(prev => ({ ...prev, [msgId]: progress }));
+        };
+        audioRefs.current[msgId] = audio;
+      }
+      audioRefs.current[msgId].play();
+      setPlayingAudioId(msgId);
+    }
+  };
 
   const fetchInbox = async (userId: string) => {
     const { data: messagesData } = await supabase
@@ -397,11 +425,8 @@ export default function MessagesContent() {
 
   return (
     <div className="msg-layout">
-      {/* ========================================== */}
-      {/* COLONNE GAUCHE : LISTE DES CONVERSATIONS   */}
-      {/* ========================================== */}
+      {/* COLONNE GAUCHE : LISTE DES CONVERSATIONS */}
       <div className="msg-list-col">
-        {/* Header */}
         <div className="chat-header" style={{ padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
           <h1 style={{ margin: 0, fontSize: "22px", fontWeight: "bold", color: colors.text }}>Messages</h1>
           <div style={{ display: "flex", gap: "8px" }}>
@@ -409,21 +434,18 @@ export default function MessagesContent() {
               onClick={handleRefresh}
               disabled={refreshing}
               style={{ background: "none", border: "none", color: colors.textMuted, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
-              title="Actualiser"
             >
-                 {refreshing ? <RefreshCw size={20} className="animate-spin" /> : <RefreshCw size={20} />}
+              {refreshing ? <RefreshCw size={20} className="animate-spin" /> : <RefreshCw size={20} />}
             </button>
             <button
               onClick={() => setShowSettings(true)}
               style={{ background: "none", border: "none", color: colors.textMuted, cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" }}
-              title="Paramètres"
             >
               <Settings size={20} />
             </button>
           </div>
         </div>
 
-        {/* Search */}
         <div style={{ padding: "12px 16px", borderBottom: `1px solid ${colors.border}`, flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", backgroundColor: colors.card, borderRadius: "12px", border: `1px solid ${colors.border}`, padding: "8px 12px" }}>
             <span style={{ color: colors.textMuted, marginRight: "8px", display: "flex" }}><Search size={18} /></span>
@@ -442,7 +464,6 @@ export default function MessagesContent() {
           </div>
         </div>
 
-        {/* Top Recents */}
         {topRecents.length > 0 && (
           <div style={{ padding: "12px 0", borderBottom: `1px solid ${colors.border}`, flexShrink: 0 }}>
             <div style={{ display: "flex", gap: "16px", overflowX: "auto", padding: "0 16px", scrollbarWidth: "none" }}>
@@ -473,7 +494,6 @@ export default function MessagesContent() {
           </div>
         )}
 
-        {/* Requests */}
         {requestsCount > 0 && allowFanRequests && (
           <div style={{ margin: "12px 16px", padding: "14px", backgroundColor: colors.card, borderRadius: "12px", border: `1px solid ${colors.border}`, display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
             <div style={{ width: "44px", height: "44px", borderRadius: "12px", backgroundColor: colors.hover, display: "flex", alignItems: "center", justifyContent: "center", color: colors.primary }}>
@@ -489,7 +509,6 @@ export default function MessagesContent() {
           </div>
         )}
 
-        {/* Conversations Scrollable */}
         <div className="conversations-scroll-area">
           <div style={{ padding: "12px 16px 8px", fontSize: "12px", fontWeight: "bold", color: colors.textMuted, letterSpacing: "1px" }}>
             TOUTES LES CONVERSATIONS
@@ -565,13 +584,10 @@ export default function MessagesContent() {
         </div>
       </div>
 
-      {/* ========================================== */}
-      {/* COLONNE DROITE : ZONE DE CHAT              */}
-      {/* ========================================== */}
+      {/* COLONNE DROITE : ZONE DE CHAT */}
       <div className="msg-chat-col">
         {selectedUserId && selectedUser ? (
           <>
-            {/* HEADER - Design identique à l'image */}
             <div className="chat-header" style={{ 
               padding: "12px 16px", 
               display: "flex", 
@@ -590,7 +606,6 @@ export default function MessagesContent() {
                   <ArrowLeft size={24} />
                 </button>
                 
-                {/* Avatar cliquable */}
                 <div 
                   onClick={goToUserProfile}
                   style={{ 
@@ -610,7 +625,6 @@ export default function MessagesContent() {
                   }}
                 >
                   {!selectedUser.avatar_url && <User size={20} />}
-                  {/* Indicateur en ligne */}
                   <div style={{
                     position: "absolute",
                     bottom: "2px",
@@ -623,7 +637,6 @@ export default function MessagesContent() {
                   }} />
                 </div>
 
-                {/* Nom et statut */}
                 <div onClick={goToUserProfile} style={{ cursor: "pointer", flex: 1 }}>
                   <div style={{ fontWeight: "600", fontSize: "16px", color: colors.text }}>
                     {selectedUser.full_name || selectedUser.username}
@@ -634,7 +647,6 @@ export default function MessagesContent() {
                 </div>
               </div>
 
-              {/* Boutons d'action - Téléphone uniquement (pas de caméra) */}
               <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                 <button 
                   onClick={() => initiateCall("audio")} 
@@ -650,7 +662,6 @@ export default function MessagesContent() {
                     borderRadius: "50%",
                     transition: "background-color 0.2s"
                   }}
-                  title="Appel audio"
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.hover}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                 >
@@ -669,7 +680,6 @@ export default function MessagesContent() {
                     borderRadius: "50%",
                     transition: "background-color 0.2s"
                   }}
-                  title="Plus d'options"
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.hover}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                 >
@@ -678,7 +688,6 @@ export default function MessagesContent() {
               </div>
             </div>
 
-            {/* ZONE SCROLLABLE DES MESSAGES */}
             <div className="messages-scroll-area" style={{ 
               flex: 1, 
               overflowY: "auto", 
@@ -698,26 +707,26 @@ export default function MessagesContent() {
                     maxWidth: "75%",
                     alignSelf: isMine ? "flex-end" : "flex-start"
                   }}>
-                   // ✅ NOUVEAU CODE CORRIGÉ
-{msg.reply_to_content && (
-  <div style={{ 
-    backgroundColor: isMine ? "rgba(255,255,255,0.1)" : colors.hover, 
-    padding: "6px 10px", 
-    borderRadius: "8px 8px 0 0", 
-    fontSize: "12px", 
-    color: colors.textMuted, 
-    borderLeft: `3px solid ${colors.primary}`, 
-    marginBottom: "4px", // 👈 Une seule fois, c'est parfait
-    width: "100%"
-  }}>
-    <div style={{ fontWeight: "600", color: colors.primary, fontSize: "11px", marginBottom: "2px" }}>
-      {msg.reply_to_name}
-    </div>
-    <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-      {msg.reply_to_content}
-    </div>
-  </div>
-)}
+                    {msg.reply_to_content && (
+                      <div style={{ 
+                        backgroundColor: isMine ? "rgba(255,255,255,0.1)" : colors.hover, 
+                        padding: "6px 10px", 
+                        borderRadius: "8px 8px 0 0", 
+                        fontSize: "12px", 
+                        color: colors.textMuted, 
+                        borderLeft: `3px solid ${colors.primary}`, 
+                        marginBottom: "4px",
+                        width: "100%"
+                      }}>
+                        <div style={{ fontWeight: "600", color: colors.primary, fontSize: "11px", marginBottom: "2px" }}>
+                          {msg.reply_to_name}
+                        </div>
+                        <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {msg.reply_to_content}
+                        </div>
+                      </div>
+                    )}
+                    
                     <div
                       onContextMenu={(e) => { e.preventDefault(); if (isMine) deleteMessage(msg.id); }}
                       style={{
@@ -732,23 +741,90 @@ export default function MessagesContent() {
                       }}
                     >
                       {msg.type === "voice" ? (
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: "160px" }}>
-                          <div style={{ 
-                            width: "36px", 
-                            height: "36px", 
-                            borderRadius: "50%", 
-                            backgroundColor: isMine ? "rgba(255,255,255,0.2)" : colors.primary, 
-                            display: "flex", 
-                            alignItems: "center", 
-                            justifyContent: "center", 
-                            flexShrink: 0 
+                        <div style={{ 
+                          display: "flex", 
+                          alignItems: "center", 
+                          gap: "12px", 
+                          minWidth: "200px",
+                          maxWidth: "280px",
+                          padding: "4px 0"
+                        }}>
+                          <button
+                            onClick={() => toggleAudioPlay(msg.id, msg.content)}
+                            style={{
+                              width: "40px",
+                              height: "40px",
+                              borderRadius: "50%",
+                              backgroundColor: isMine ? "rgba(255,255,255,0.2)" : colors.primary,
+                              border: "none",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: "pointer",
+                              flexShrink: 0,
+                              transition: "transform 0.1s"
+                            }}
+                            onMouseDown={(e) => e.currentTarget.style.transform = "scale(0.95)"}
+                            onMouseUp={(e) => e.currentTarget.style.transform = "scale(1)"}
+                          >
+                            {playingAudioId === msg.id ? (
+                              <Pause size={18} color="white" />
+                            ) : (
+                              <Play size={18} color="white" style={{ marginLeft: "2px" }} />
+                            )}
+                          </button>
+
+                          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
+                            <div style={{
+                              height: "4px",
+                              backgroundColor: isMine ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.1)",
+                              borderRadius: "2px",
+                              overflow: "hidden",
+                              position: "relative"
+                            }}>
+                              <div style={{
+                                height: "100%",
+                                width: `${audioProgress[msg.id] || 0}%`,
+                                backgroundColor: isMine ? "white" : colors.primary,
+                                borderRadius: "2px",
+                                transition: "width 0.1s linear"
+                              }} />
+                            </div>
+                            
+                            <div style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "2px",
+                              height: "20px"
+                            }}>
+                              {Array.from({ length: 20 }).map((_, i) => {
+                                const height = Math.random() * 16 + 4;
+                                const isActive = playingAudioId === msg.id && (i / 20) * 100 <= (audioProgress[msg.id] || 0);
+                                return (
+                                  <div
+                                    key={i}
+                                    style={{
+                                      width: "3px",
+                                      height: `${height}px`,
+                                      backgroundColor: isActive 
+                                        ? (isMine ? "white" : colors.primary) 
+                                        : (isMine ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.15)"),
+                                      borderRadius: "2px",
+                                      transition: "background-color 0.2s"
+                                    }}
+                                  />
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <span style={{ 
+                            fontSize: "12px", 
+                            opacity: 0.8, 
+                            flexShrink: 0,
+                            fontFamily: "monospace",
+                            color: isMine ? "white" : colors.textMuted
                           }}>
-                            <Mic size={16} color="white" />
-                          </div>
-                          <div style={{ flex: 1 }}>
-                            <audio controls src={msg.content} style={{ height: "32px", width: "100%", outline: "none" }} />
-                          </div>
-                          <span style={{ fontSize: "11px", opacity: 0.8, flexShrink: 0, fontFamily: "monospace" }}>
                             {formatDuration(msg.duration)}
                           </span>
                         </div>
@@ -760,7 +836,6 @@ export default function MessagesContent() {
                       )}
                     </div>
                     
-                    {/* Timestamp et statut de lecture */}
                     <div style={{ 
                       display: "flex", 
                       alignItems: "center", 
@@ -784,7 +859,6 @@ export default function MessagesContent() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* FOOTER - Input + boutons */}
             <div className="chat-footer" style={{ 
               padding: "12px 16px", 
               flexShrink: 0,
@@ -861,7 +935,6 @@ export default function MessagesContent() {
                 </div>
               ) : (
                 <div style={{ display: "flex", alignItems: "flex-end", gap: "8px" }}>
-                  {/* Emoji button */}
                   <button 
                     style={{ 
                       background: "none", 
@@ -881,7 +954,6 @@ export default function MessagesContent() {
                     <Smile size={24} />
                   </button>
 
-                  {/* Input area */}
                   <div style={{ 
                     flex: 1, 
                     backgroundColor: colors.card, 
@@ -912,7 +984,6 @@ export default function MessagesContent() {
                     />
                   </div>
 
-                  {/* Attachment button */}
                   <button 
                     onClick={handleAttachment}
                     style={{ 
@@ -933,7 +1004,6 @@ export default function MessagesContent() {
                     <Paperclip size={22} />
                   </button>
 
-                  {/* Send or Record button */}
                   {inputText.trim() ? (
                     <button 
                       onClick={handleSend} 
@@ -955,7 +1025,7 @@ export default function MessagesContent() {
                       onMouseEnter={(e) => { if (!isSending) e.currentTarget.style.transform = "scale(1.05)"; }}
                       onMouseLeave={(e) => { if (!isSending) e.currentTarget.style.transform = "scale(1)"; }}
                     >
-                        {isSending ? <RefreshCw size={20} className="animate-spin" /> : <Send size={20} />}
+                      {isSending ? <RefreshCw size={20} className="animate-spin" /> : <Send size={20} />}
                     </button>
                   ) : (
                     <button 
@@ -1008,7 +1078,6 @@ export default function MessagesContent() {
         )}
       </div>
 
-      {/* MODALES (Context Menu & Settings) */}
       {contextMenu && (
         <div style={{ 
           position: "fixed", 
@@ -1112,7 +1181,6 @@ export default function MessagesContent() {
         </div>
       )}
 
-      {/* CSS */}
       <style>{`
         @keyframes pulse { 
           0% { opacity: 1; transform: scale(1); } 
@@ -1183,13 +1251,6 @@ export default function MessagesContent() {
 
         .mobile-back-btn {
           display: none !important;
-        }
-
-        audio::-webkit-media-controls-panel {
-          background-color: ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)"};
-        }
-        audio::-webkit-media-controls-play-button {
-          filter: ${isDark ? "invert(1)" : "none"};
         }
 
         @media (max-width: 768px) {
