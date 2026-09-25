@@ -304,8 +304,9 @@ function CreatorProfileContent() {
 
   // ✅ NOUVELLE LOGIQUE : On ne verrouille le contenu que si le profil a des abonnements payants ET que le visiteur n'est pas abonné.
   // Si c'est un utilisateur normal (prix = 0), tout le monde peut voir son contenu.
-  const isContentLocked = (premiumPrice > 0 || proPrice > 0) && !isSubscribed;
-
+const isCreator = creator.role === 'creator';
+const isContentLocked = isCreator && !isSubscribed;
+const isProSubscriber = currentSubscription?.tier_type === 'pro';
   return (
     <Box minH="100vh" bg={colors.bg} color={colors.text}>
       
@@ -386,8 +387,7 @@ function CreatorProfileContent() {
                 <Button bg={isFollowing ? "transparent" : colors.primary} color={isFollowing ? colors.text : colors.primaryText} border={isFollowing ? `1px solid ${colors.border}` : "none"} _hover={{ opacity: 0.9 }} px={8} onClick={toggleFollow}>
                   {isFollowing ? "✓ Suivi" : "Suivre"}
                 </Button>
-                <Button bg={colors.card} border={`1px solid ${colors.border}`} color={colors.text} _hover={{ bg: colors.hover }} px={6} onClick={() => router.push(`/messages?to=${creatorId}`)}>
-                  Message
+<Button bg={colors.card} border={`1px solid ${colors.border}`} color={colors.text} _hover={{ bg: colors.hover }} px={6} onClick={() => { if (!isCreator || isProSubscriber) { router.push(`/messages?to=${creatorId}`); } else { router.push(`/subscribe/${creatorId}?tier=pro&price=${proPrice}&name=${encodeURIComponent(creatorDisplayName)}&reason=messages`); } }}>                  Message
                 </Button>
                 <Button bg={colors.card} border={`1px solid ${colors.border}`} color={colors.text} _hover={{ bg: colors.hover }} w="40px" p={0} onClick={() => setShowTipModal(true)}>
                   <Icons.Tip size={20} color={colors.primary} />
@@ -443,8 +443,7 @@ function CreatorProfileContent() {
                       colors={colors} 
                       onClick={() => {
                         // ✅ On ne redirige vers l'abonnement que si le contenu est verrouillé ET que ce n'est pas du texte
-                        if (isContentLocked && post.media_type !== 'text') {
-                          router.push(`/subscribe/${creatorId}?tier=premium&price=${premiumPrice}&name=${encodeURIComponent(creatorDisplayName)}`);
+if (isContentLocked) {                          router.push(`/subscribe/${creatorId}?tier=premium&price=${premiumPrice}&name=${encodeURIComponent(creatorDisplayName)}`);
                         } else {
                           router.push(`/post/${post.id}?creatorId=${creatorId}&index=${index}`);
                         }
@@ -614,8 +613,7 @@ function PostCard({ post, isContentLocked, colors, onClick }: any) {
       )}
 
       {/* ✅ On affiche le cadenas SEULEMENT si le contenu est verrouillé (créateur payant + non abonné) ET que ce n'est pas un post texte */}
-      {isContentLocked && !isTextPost && (
-        <Center position="absolute" inset={0} flexDirection="column" backdropFilter="blur(2px)">
+{isContentLocked && (        <Center position="absolute" inset={0} flexDirection="column" backdropFilter="blur(2px)">
           <Box p={3} borderRadius="full" bg="rgba(0,0,0,0.6)" mb={2}>
             <Icons.Lock size={24} color="white" />
           </Box>
