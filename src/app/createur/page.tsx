@@ -383,17 +383,19 @@ const isProSubscriber = currentSubscription?.tier_type === 'pro';
                 <VStack spacing={1}><Text fontWeight="bold" fontSize="18px">{formatCount(likesCount)}</Text><Text color={colors.textMuted} fontSize="13px">J'aime</Text></VStack>
               </Flex>
 
-              <Flex gap={2} justify={{ base: "center", md: "flex-start" }} flexWrap="wrap" mb={4}>
+                         <Flex gap={2} justify={{ base: "center", md: "flex-start" }} flexWrap="wrap" mb={4}>
                 <Button bg={isFollowing ? "transparent" : colors.primary} color={isFollowing ? colors.text : colors.primaryText} border={isFollowing ? `1px solid ${colors.border}` : "none"} _hover={{ opacity: 0.9 }} px={8} onClick={toggleFollow}>
                   {isFollowing ? "✓ Suivi" : "Suivre"}
                 </Button>
-<Button bg={colors.card} border={`1px solid ${colors.border}`} color={colors.text} _hover={{ bg: colors.hover }} px={6} onClick={() => { if (!isCreator || isProSubscriber) { router.push(`/messages?to=${creatorId}`); } else { router.push(`/subscribe/${creatorId}?tier=pro&price=${proPrice}&name=${encodeURIComponent(creatorDisplayName)}&reason=messages`); } }}>                  Message
+                <Button bg={colors.card} border={`1px solid ${colors.border}`} color={colors.text} _hover={{ bg: colors.hover }} px={6} onClick={() => { if (!isCreator || isProSubscriber) { router.push(`/messages?to=${creatorId}`); } else { router.push(`/subscribe/${creatorId}?tier=pro&price=${proPrice}&name=${encodeURIComponent(creatorDisplayName)}&reason=messages`); } }}>
+                  Message
                 </Button>
-                                            <Button bg={`linear-gradient(135deg, #2563EB 0%, #06B6D4 100%)`} color="white" border="none" _hover={{ opacity: 0.9, transform: "translateY(-2px)", boxShadow: "0 6px 16px rgba(37,99,235,0.35)" }} transition="all 0.2s" px={5} h="40px" borderRadius="full" fontWeight="600" fontSize="14px" leftIcon={<Icons.Tip size={18} color="white" />} onClick={() => setShowTipModal(true)}>
-                  Soutenir
-                </Button>
+                {isCreator && (
+                  <Button bg={`linear-gradient(135deg, #2563EB 0%, #06B6D4 100%)`} color="white" border="none" _hover={{ opacity: 0.9, transform: "translateY(-2px)", boxShadow: "0 6px 16px rgba(37,99,235,0.35)" }} transition="all 0.2s" px={5} h="40px" borderRadius="full" fontWeight="600" fontSize="14px" leftIcon={<Icons.Tip size={18} color="white" />} onClick={() => setShowTipModal(true)}>
+                    Soutenir
+                  </Button>
+                )}
               </Flex>
-
               {creator.bio && (
                 <Text color={colors.text} fontSize="14px" lineHeight="1.6" textAlign={{ base: "center", md: "left" }} maxW="500px">
                   {creator.bio}
