@@ -52,6 +52,7 @@ export default function MessagesContent() {
   const [allowFanRequests, setAllowFanRequests] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [confirmPopup, setConfirmPopup] = useState<{ title: string; message: string; onConfirm: () => void; } | null>(null);
+  const [showStickers, setShowStickers] = useState(false);
       const colors = {
     bg: isDark ? "#000000" : "#FFFFFF",
     card: isDark ? "#1E1E1E" : "#F3F4F6", // Bulles reçues : gris clair en clair, gris foncé en sombre
@@ -454,7 +455,13 @@ recordingTimerRef.current = setInterval(() => {
       router.push(`/createur?id=${selectedUserId}`);
     }
   };
-
+const STICKERS = [
+  "😀","😂","🥰","😍","😎","🤔","😴","🥳",
+  "😭","😡","🤯","🤗","😇","🤩","😜","🙃",
+  "👍","👎","❤️","🔥","✨","🎉","💯","⭐",
+  "🐶","🐱","🦊","🐻","🐼","🦁","🐸","🐵",
+  "🍕","🍔","🍟","🍩","🍰","🍎","🍓","☕",
+];
   const handleAttachment = () => {
     alert("Fonctionnalité de pièce jointe à implémenter");
   };
@@ -905,6 +912,37 @@ recordingTimerRef.current = setInterval(() => {
               backgroundColor: colors.bg,
               borderTop: `1px solid ${colors.border}`
             }}>
+                            {showStickers && (
+                <div style={{
+                  backgroundColor: colors.card,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: "16px",
+                  padding: "10px",
+                  marginBottom: "8px",
+                  maxHeight: "180px",
+                  overflowY: "auto",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(8, 1fr)",
+                  gap: "6px",
+                }}>
+                  {STICKERS.map((s, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setInputText(inputText + s); setShowStickers(false); }}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        fontSize: "26px",
+                        cursor: "pointer",
+                        padding: "4px",
+                        borderRadius: "8px",
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
               {replyTo && (
                 <div style={{ 
                   display: "flex", 
@@ -975,9 +1013,10 @@ recordingTimerRef.current = setInterval(() => {
                 </div>
               ) : (
                 <div style={{ display: "flex", alignItems: "flex-end", gap: "8px" }}>
-                  <button 
+                                  <button 
+                    onClick={() => setShowStickers(!showStickers)}
                     style={{ 
-                      background: "none", 
+                      background: showStickers ? colors.hover : "none", 
                       border: "none", 
                       color: colors.textMuted, 
                       cursor: "pointer", 
