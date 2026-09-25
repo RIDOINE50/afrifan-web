@@ -33,7 +33,7 @@ export default function MessagesContent() {
   const mediaRecorderRef = useRef<any>(null);
   const audioChunksRef = useRef<any[]>([]);
   const recordingTimerRef = useRef<any>(null);
-
+  const recordingTimeRef = useRef(0);
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const [audioProgress, setAudioProgress] = useState<Record<string, number>>({});
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
@@ -279,8 +279,7 @@ export default function MessagesContent() {
               receiver_id: selectedUserId,
               type: "voice",
               content: publicUrl,
-              duration: recordingTime,
-              is_read: false,
+duration: recordingTimeRef.current,              is_read: false,
             })
             .select()
             .single();
@@ -298,8 +297,11 @@ export default function MessagesContent() {
       recorder.start();
       setIsRecording(true);
       setRecordingTime(0);
-      recordingTimerRef.current = setInterval(() => setRecordingTime((prev) => prev + 1), 1000);
-    } catch (err) {
+recordingTimeRef.current = 0;
+recordingTimerRef.current = setInterval(() => {
+  recordingTimeRef.current += 1;
+  setRecordingTime(recordingTimeRef.current);
+}, 1000);    } catch (err) {
       alert("Veuillez autoriser l'accès au microphone.");
     }
   };
