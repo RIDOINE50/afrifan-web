@@ -52,15 +52,15 @@ export default function MessagesContent() {
   const [allowFanRequests, setAllowFanRequests] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-    const colors = {
-    bg: isDark ? "#000000" : theme.bg,
-    card: isDark ? "#1E1E1E" : theme.card, // Fond des bulles reçues en sombre (gris foncé)
-    border: isDark ? "#333333" : theme.border,
-    primary: isDark ? "#7C3AED" : theme.primary, // Fond des bulles envoyées en sombre (violet)
-    primaryText: isDark ? "#FFFFFF" : theme.primaryText, // Texte des bulles envoyées
-    text: isDark ? "#FFFFFF" : theme.text, // Texte des bulles reçues (blanc sur gris foncé)
-    textMuted: isDark ? "#A1A1AA" : theme.textMuted,
-    hover: isDark ? "#27272A" : theme.hover,
+      const colors = {
+    bg: isDark ? "#000000" : "#FFFFFF",
+    card: isDark ? "#1E1E1E" : "#F3F4F6", // Bulles reçues : gris clair en clair, gris foncé en sombre
+    border: isDark ? "#333333" : "#E5E7EB",
+    primary: isDark ? "#7C3AED" : "#2563EB", // Bulles envoyées : Bleu en clair, Violet en sombre
+    primaryText: "#FFFFFF", // TOUJOURS blanc sur les bulles envoyées
+    text: isDark ? "#FFFFFF" : "#111827", // Texte : Blanc en sombre, Noir en clair
+    textMuted: isDark ? "#A1A1AA" : "#6B7280",
+    hover: isDark ? "#27272A" : "#F9FAFB",
     green: "#22C55E",
     red: "#EF4444",
   };
