@@ -52,15 +52,15 @@ export default function MessagesContent() {
   const [allowFanRequests, setAllowFanRequests] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const colors = {
-    bg: theme.bg,
-    card: theme.card,
-    border: theme.border,
-    primary: theme.primary,
-    primaryText: theme.primaryText,
-    text: theme.text,
-    textMuted: theme.textMuted,
-    hover: theme.hover,
+    const colors = {
+    bg: isDark ? "#000000" : theme.bg,
+    card: isDark ? "#1E1E1E" : theme.card, // Fond des bulles reçues en sombre (gris foncé)
+    border: isDark ? "#333333" : theme.border,
+    primary: isDark ? "#7C3AED" : theme.primary, // Fond des bulles envoyées en sombre (violet)
+    primaryText: isDark ? "#FFFFFF" : theme.primaryText, // Texte des bulles envoyées
+    text: isDark ? "#FFFFFF" : theme.text, // Texte des bulles reçues (blanc sur gris foncé)
+    textMuted: isDark ? "#A1A1AA" : theme.textMuted,
+    hover: isDark ? "#27272A" : theme.hover,
     green: "#22C55E",
     red: "#EF4444",
   };
