@@ -628,22 +628,13 @@ export default function PostDetailPage() {
                   </div>
                 ) : (
                   <>
-                    <ActionButton 
-                      icon={<MoneyIcon />} 
-                      label="Tip" 
-                      color="#F97316" 
-                      onClick={() => { setCurrentTipPost(post); setShowTipModal(true); }} 
-                    />
+                  
                     <ActionButton 
                       icon={<ShareIcon />} 
                       label="Partager" 
                       onClick={() => handleShare(post)} 
                     />
-                    <ActionButton 
-                      icon={<FlagIcon />} 
-                      label="Signaler" 
-                      onClick={() => { setReportPostId(post.id); setIsReportOpen(true); setShowMoreMenu(null); }} 
-                    />
+                   
                     <ActionButton 
                       icon={<DownloadIcon />} 
                       label="Télécharger" 
