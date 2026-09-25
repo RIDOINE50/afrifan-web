@@ -389,7 +389,7 @@ const isProSubscriber = currentSubscription?.tier_type === 'pro';
                 </Button>
 <Button bg={colors.card} border={`1px solid ${colors.border}`} color={colors.text} _hover={{ bg: colors.hover }} px={6} onClick={() => { if (!isCreator || isProSubscriber) { router.push(`/messages?to=${creatorId}`); } else { router.push(`/subscribe/${creatorId}?tier=pro&price=${proPrice}&name=${encodeURIComponent(creatorDisplayName)}&reason=messages`); } }}>                  Message
                 </Button>
-                              <Button bg={`linear-gradient(135deg, ${colors.primary} 0%, #EC4899 100%)`} color="white" border="none" _hover={{ opacity: 0.9, transform: "translateY(-2px)", boxShadow: "0 6px 16px rgba(236,72,153,0.35)" }} transition="all 0.2s" px={5} h="40px" borderRadius="full" fontWeight="600" fontSize="14px" leftIcon={<Icons.Tip size={18} color="white" />} onClick={() => setShowTipModal(true)}>
+                                            <Button bg={`linear-gradient(135deg, #2563EB 0%, #06B6D4 100%)`} color="white" border="none" _hover={{ opacity: 0.9, transform: "translateY(-2px)", boxShadow: "0 6px 16px rgba(37,99,235,0.35)" }} transition="all 0.2s" px={5} h="40px" borderRadius="full" fontWeight="600" fontSize="14px" leftIcon={<Icons.Tip size={18} color="white" />} onClick={() => setShowTipModal(true)}>
                   Soutenir
                 </Button>
               </Flex>
