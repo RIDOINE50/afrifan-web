@@ -13,6 +13,20 @@ declare global {
   }
 }
 
+// === ICÔNES SVG ===
+const SvgIcon = ({ path, size = 20, color = "currentColor", fill = "none" }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    {path}
+  </svg>
+);
+
+const Icons = {
+  Coffee: (p: any) => <SvgIcon {...p} path={<><path d="M18 8h1a4 4 0 0 1 0 8h-1" /><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" /><line x1="6" y1="1" x2="6" y2="4" /><line x1="10" y1="1" x2="10" y2="4" /><line x1="14" y1="1" x2="14" y2="4" /></>} />,
+  Lock:   (p: any) => <SvgIcon {...p} path={<><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>} />,
+  Check:  (p: any) => <SvgIcon {...p} path={<><polyline points="20 6 9 17 4 12" /></>} />,
+  Heart:  (p: any) => <SvgIcon {...p} path={<><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></>} />,
+};
+
 interface TipDialogProps {
   creatorId: string;
   creatorName: string;
@@ -32,12 +46,10 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
 
   const quickAmounts = [500, 1000, 2000, 5000];
 
-  // ⚠️ Kkiapay garde toujours son violet (interface externe)
   const kkiapayPublicKey = "72fc173fbe56f0f477e6bfcaa7349471c844e893";
   const isSandbox = false;
   const brandViolet = "#8B5CF6";
 
-  // ✅ Couleurs dynamiques
   const colors = {
     bg: theme.bg,
     card: theme.card,
@@ -114,7 +126,6 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
       return;
     }
 
-    // ✅ Le widget Kkiapay garde son thème violet (interface externe)
     window.openKkiapayWidget({
       amount: Math.round(numAmount),
       key: kkiapayPublicKey,
@@ -184,7 +195,9 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
           textAlign: "center",
           boxShadow: isDark ? "0 20px 50px rgba(0,0,0,0.5)" : "0 20px 50px rgba(0,0,0,0.15)"
         }}>
-          <div style={{ fontSize: "56px", marginBottom: "16px" }}>🎉</div>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px", color: colors.primary }}>
+            <Icons.Heart size={56} color={colors.primary} />
+          </div>
           <h2 style={{ color: colors.text, fontSize: "20px", fontWeight: "bold", marginBottom: "12px" }}>
             Merci pour ton soutien !
           </h2>
@@ -232,7 +245,9 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
         boxShadow: isDark ? "0 20px 50px rgba(0,0,0,0.5)" : "0 20px 50px rgba(0,0,0,0.15)"
       }}>
         <div style={{ textAlign: "center", marginBottom: "24px" }}>
-          <div style={{ fontSize: "40px", marginBottom: "12px" }}>☕</div>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px", color: colors.primary }}>
+            <Icons.Coffee size={40} color={colors.primary} />
+          </div>
           <h2 style={{ color: colors.text, fontSize: "20px", fontWeight: "bold", margin: "0 0 8px 0" }}>
             Soutenir ce créateur
           </h2>
@@ -311,7 +326,9 @@ export default function TipDialog({ creatorId, creatorName, onClose, onSuccess }
           gap: "12px",
           alignItems: "flex-start"
         }}>
-          <span style={{ fontSize: "20px" }}>🔒</span>
+          <span style={{ color: colors.primary, display: "flex" }}>
+            <Icons.Lock size={20} />
+          </span>
           <div style={{ color: colors.textMuted, fontSize: "13px", lineHeight: 1.5 }}>
             Le paiement est sécurisé par <strong style={{ color: colors.text }}>Kkiapay</strong>. 
             Vous choisirez votre opérateur et entrerez votre numéro dans l'interface Kkiapay.
