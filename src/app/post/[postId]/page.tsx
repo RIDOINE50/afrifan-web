@@ -629,12 +629,12 @@ export default function PostDetailPage() {
                 ) : (
                   <>
                   
-                    <ActionButton 
-                      icon={<ShareIcon />} 
-                      label="Partager" 
-                      onClick={() => handleShare(post)} 
-                    />
                    
+                    <ActionButton 
+                      icon={<FlagIcon />} 
+                      label="Signaler" 
+                      onClick={() => { setReportPostId(post.id); setIsReportOpen(true); setShowMoreMenu(null); }} 
+                    />
                     <ActionButton 
                       icon={<DownloadIcon />} 
                       label="Télécharger" 
