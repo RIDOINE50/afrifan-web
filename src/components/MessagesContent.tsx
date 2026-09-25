@@ -34,7 +34,6 @@ export default function MessagesContent() {
   const audioChunksRef = useRef<any[]>([]);
   const recordingTimerRef = useRef<any>(null);
 
-  // ✅ NOUVEAU : États pour le lecteur audio personnalisé
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const [audioProgress, setAudioProgress] = useState<Record<string, number>>({});
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
@@ -100,7 +99,6 @@ export default function MessagesContent() {
     return () => window.removeEventListener("click", closeMenu);
   }, []);
 
-  // ✅ NOUVEAU : Fonction pour contrôler la lecture audio
   const toggleAudioPlay = (msgId: string, audioUrl: string) => {
     if (playingAudioId === msgId) {
       audioRefs.current[msgId]?.pause();
@@ -425,7 +423,6 @@ export default function MessagesContent() {
 
   return (
     <div className="msg-layout">
-      {/* COLONNE GAUCHE : LISTE DES CONVERSATIONS */}
       <div className="msg-list-col">
         <div className="chat-header" style={{ padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
           <h1 style={{ margin: 0, fontSize: "22px", fontWeight: "bold", color: colors.text }}>Messages</h1>
@@ -584,7 +581,6 @@ export default function MessagesContent() {
         </div>
       </div>
 
-      {/* COLONNE DROITE : ZONE DE CHAT */}
       <div className="msg-chat-col">
         {selectedUserId && selectedUser ? (
           <>
@@ -740,108 +736,106 @@ export default function MessagesContent() {
                         boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
                       }}
                     >
-                    // Remplace la partie msg.type === "voice" par ceci :
+                      {msg.type === "voice" ? (
+                        <div style={{ 
+                          display: "flex", 
+                          alignItems: "center", 
+                          gap: "12px", 
+                          minWidth: "200px",
+                          maxWidth: "280px",
+                          padding: "4px 0"
+                        }}>
+                          <button
+                            onClick={() => toggleAudioPlay(msg.id, msg.content)}
+                            style={{
+                              width: "40px",
+                              height: "40px",
+                              borderRadius: "50%",
+                              backgroundColor: isMine 
+                                ? (isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)") 
+                                : colors.primary,
+                              border: "none",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: "pointer",
+                              flexShrink: 0,
+                              transition: "transform 0.1s"
+                            }}
+                            onMouseDown={(e) => e.currentTarget.style.transform = "scale(0.95)"}
+                            onMouseUp={(e) => e.currentTarget.style.transform = "scale(1)"}
+                          >
+                            {playingAudioId === msg.id ? (
+                              <Pause size={18} color={isMine ? (isDark ? "white" : "black") : "white"} />
+                            ) : (
+                              <Play size={18} color={isMine ? (isDark ? "white" : "black") : "white"} style={{ marginLeft: "2px" }} />
+                            )}
+                          </button>
 
-{msg.type === "voice" ? (
-  <div style={{ 
-    display: "flex", 
-    alignItems: "center", 
-    gap: "12px", 
-    minWidth: "200px",
-    maxWidth: "280px",
-    padding: "4px 0"
-  }}>
-    <button
-      onClick={() => toggleAudioPlay(msg.id, msg.content)}
-      style={{
-        width: "40px",
-        height: "40px",
-        borderRadius: "50%",
-        backgroundColor: isMine 
-          ? (isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)") 
-          : colors.primary,
-        border: "none",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        cursor: "pointer",
-        flexShrink: 0,
-        transition: "transform 0.1s"
-      }}
-      onMouseDown={(e) => e.currentTarget.style.transform = "scale(0.95)"}
-      onMouseUp={(e) => e.currentTarget.style.transform = "scale(1)"}
-    >
-      {playingAudioId === msg.id ? (
-        <Pause size={18} color={isMine ? (isDark ? "white" : "black") : "white"} />
-      ) : (
-        <Play size={18} color={isMine ? (isDark ? "white" : "black") : "white"} style={{ marginLeft: "2px" }} />
-      )}
-    </button>
+                          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
+                            <div style={{
+                              height: "4px",
+                              backgroundColor: isMine 
+                                ? (isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)") 
+                                : "rgba(255,255,255,0.1)",
+                              borderRadius: "2px",
+                              overflow: "hidden",
+                              position: "relative"
+                            }}>
+                              <div style={{
+                                height: "100%",
+                                width: `${audioProgress[msg.id] || 0}%`,
+                                backgroundColor: isMine 
+                                  ? (isDark ? "white" : "black") 
+                                  : colors.primary,
+                                borderRadius: "2px",
+                                transition: "width 0.1s linear"
+                              }} />
+                            </div>
+                            
+                            <div style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "2px",
+                              height: "20px"
+                            }}>
+                              {Array.from({ length: 20 }).map((_, i) => {
+                                const height = Math.random() * 16 + 4;
+                                const isActive = playingAudioId === msg.id && (i / 20) * 100 <= (audioProgress[msg.id] || 0);
+                                return (
+                                  <div
+                                    key={i}
+                                    style={{
+                                      width: "3px",
+                                      height: `${height}px`,
+                                      backgroundColor: isActive 
+                                        ? (isMine ? (isDark ? "white" : "black") : colors.primary) 
+                                        : (isMine ? (isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.2)") : "rgba(255,255,255,0.15)"),
+                                      borderRadius: "2px",
+                                      transition: "background-color 0.2s"
+                                    }}
+                                  />
+                                );
+                              })}
+                            </div>
+                          </div>
 
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
-      <div style={{
-        height: "4px",
-        backgroundColor: isMine 
-          ? (isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)") 
-          : "rgba(255,255,255,0.1)",
-        borderRadius: "2px",
-        overflow: "hidden",
-        position: "relative"
-      }}>
-        <div style={{
-          height: "100%",
-          width: `${audioProgress[msg.id] || 0}%`,
-          backgroundColor: isMine 
-            ? (isDark ? "white" : "black") 
-            : colors.primary,
-          borderRadius: "2px",
-          transition: "width 0.1s linear"
-        }} />
-      </div>
-      
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "2px",
-        height: "20px"
-      }}>
-        {Array.from({ length: 20 }).map((_, i) => {
-          const height = Math.random() * 16 + 4;
-          const isActive = playingAudioId === msg.id && (i / 20) * 100 <= (audioProgress[msg.id] || 0);
-          return (
-            <div
-              key={i}
-              style={{
-                width: "3px",
-                height: `${height}px`,
-                backgroundColor: isActive 
-                  ? (isMine ? (isDark ? "white" : "black") : colors.primary) 
-                  : (isMine ? (isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.2)") : "rgba(255,255,255,0.15)"),
-                borderRadius: "2px",
-                transition: "background-color 0.2s"
-              }}
-            />
-          );
-        })}
-      </div>
-    </div>
-
-    <span style={{ 
-      fontSize: "12px", 
-      opacity: 0.8, 
-      flexShrink: 0,
-      fontFamily: "monospace",
-      color: isMine ? (isDark ? "white" : "black") : colors.textMuted
-    }}>
-      {formatDuration(msg.duration)}
-    </span>
-  </div>
-) : (
-  <span style={{ fontSize: "15px", lineHeight: "1.4" }}>
-    {msg.content} 
-    {msg.is_edited && <span style={{ fontSize: "10px", opacity: 0.7, marginLeft: "4px" }}>(modifié)</span>}
-  </span>
-)}
+                          <span style={{ 
+                            fontSize: "12px", 
+                            opacity: 0.8, 
+                            flexShrink: 0,
+                            fontFamily: "monospace",
+                            color: isMine ? (isDark ? "white" : "black") : colors.textMuted
+                          }}>
+                            {formatDuration(msg.duration)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: "15px", lineHeight: "1.4" }}>
+                          {msg.content} 
+                          {msg.is_edited && <span style={{ fontSize: "10px", opacity: 0.7, marginLeft: "4px" }}>(modifié)</span>}
+                        </span>
+                      )}
                     </div>
                     
                     <div style={{ 
