@@ -215,24 +215,37 @@ export default function MessagesContent() {
     markConversationAsRead(otherUserId);
   };
 
-  const handleSend = async () => {
+    const handleSend = async () => {
     if (!inputText.trim() && !editingMsg) return;
     setIsSending(true);
     try {
       if (editingMsg) {
         await supabase.from("messages").update({ content: inputText.trim(), is_edited: true }).eq("id", editingMsg.id);
+        setMessages((prev) => prev.map((m) => m.id === editingMsg.id ? { ...m, content: inputText.trim(), is_edited: true } : m));
         setEditingMsg(null);
       } else {
-        await supabase.from("messages").insert({
-          sender_id: user.id,
-          receiver_id: selectedUserId,
-          type: "text",
-          content: inputText.trim(),
-          reply_to_id: replyTo?.id || null,
-          reply_to_content: replyTo?.content || null,
-          reply_to_name: replyTo?.name || null,
-          is_read: false,
-        });
+        const { data, error } = await supabase
+          .from("messages")
+          .insert({
+            sender_id: user.id,
+            receiver_id: selectedUserId,
+            type: "text",
+            content: inputText.trim(),
+            reply_to_id: replyTo?.id || null,
+            reply_to_content: replyTo?.content || null,
+            reply_to_name: replyTo?.name || null,
+            is_read: false,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        if (data) {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === data.id)) return prev;
+            return [...prev, data];
+          });
+        }
         setReplyTo(null);
       }
       setInputText("");
@@ -253,20 +266,31 @@ export default function MessagesContent() {
       recorder.ondataavailable = (event: any) => {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };
-      recorder.onstop = async () => {
+            recorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         const fileName = `voice_${Date.now()}.webm`;
         const { error: uploadError } = await supabase.storage.from("voice_messages").upload(fileName, audioBlob);
         if (!uploadError) {
           const { data: { publicUrl } } = supabase.storage.from("voice_messages").getPublicUrl(fileName);
-          await supabase.from("messages").insert({
-            sender_id: user.id,
-            receiver_id: selectedUserId,
-            type: "voice",
-            content: publicUrl,
-            duration: recordingTime,
-            is_read: false,
-          });
+          const { data, error } = await supabase
+            .from("messages")
+            .insert({
+              sender_id: user.id,
+              receiver_id: selectedUserId,
+              type: "voice",
+              content: publicUrl,
+              duration: recordingTime,
+              is_read: false,
+            })
+            .select()
+            .single();
+
+          if (!error && data) {
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === data.id)) return prev;
+              return [...prev, data];
+            });
+          }
           fetchInbox(user.id);
         }
         stream.getTracks().forEach(track => track.stop());
