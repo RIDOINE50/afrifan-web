@@ -798,24 +798,9 @@ export default function HomePage() {
                     <Text fontSize="xs" fontWeight="bold" textShadow="0 1px 2px black" mt="1">{formatCount(post.comments_count)}</Text>
                   </Flex>
 
-                  <Flex direction="column" align="center" cursor="pointer" onClick={(e) => {
-                    e.stopPropagation();
-                    const url = typeof window !== 'undefined' ? window.location.href : '';
-                    navigator.clipboard.writeText(`${url}\n\n${post.content || ''} - par ${creator.full_name || creator.username}`);
-                    toast({ title: "Lien copié !", status: "success", duration: 2000 });
-                  }}>
-                    <Box w="48px" h="48px" borderRadius="full" bg="whiteAlpha.200" backdropFilter="blur(10px)" display="flex" alignItems="center" justifyContent="center" _hover={{ transform: "scale(1.1)", transition: "0.2s" }}>
-                      <ShareIcon />
-                    </Box>
-                    <Text fontSize="xs" fontWeight="bold" textShadow="0 1px 2px black" mt="1">{formatCount(post.shares_count || 0)}</Text>
-                  </Flex>
+                 
 
-                  <Flex direction="column" align="center" cursor="pointer" onClick={(e) => { e.stopPropagation(); setTipCreator({ id: post.user_id, name: creator.full_name || creator.username }); onTipOpen(); }}>
-                    <Box w="48px" h="48px" borderRadius="full" bg="whiteAlpha.200" backdropFilter="blur(10px)" display="flex" alignItems="center" justifyContent="center" _hover={{ transform: "scale(1.1)", transition: "0.2s" }}>
-                      <MoneyIcon />
-                    </Box>
-                    <Text fontSize="xs" fontWeight="bold" textShadow="0 1px 2px black" mt="1">Tips</Text>
-                  </Flex>
+                
 
                   <Menu>
                     <MenuButton>
