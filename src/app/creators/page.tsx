@@ -5,6 +5,21 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppTheme } from "@/contexts/ThemeContext";
 
+// === ICÔNES SVG ===
+const SvgIcon = ({ path, size = 20, color = "currentColor", fill = "none" }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    {path}
+  </svg>
+);
+
+const Icons = {
+  ChevronLeft: (p: any) => <SvgIcon {...p} path={<><path d="m15 18-6-6 6-6" /></>} />,
+  Refresh:     (p: any) => <SvgIcon {...p} path={<><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></>} />,
+  User:        (p: any) => <SvgIcon {...p} path={<><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>} />,
+  Search:      (p: any) => <SvgIcon {...p} path={<><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>} />,
+  Check:       (p: any) => <SvgIcon {...p} path={<><polyline points="20 6 9 17 4 12" /></>} />,
+};
+
 export default function TrendingCreatorsPage() {
   const router = useRouter();
   const { isDark, theme } = useAppTheme();
@@ -16,7 +31,6 @@ export default function TrendingCreatorsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
-  // ✅ Couleurs dynamiques
   const colors = {
     bg: theme.bg,
     card: theme.card,
@@ -140,7 +154,9 @@ export default function TrendingCreatorsPage() {
         display: "flex", alignItems: "center", justifyContent: "space-between"
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <button onClick={() => router.back()} style={{ background: "none", border: "none", color: colors.text, fontSize: "24px", cursor: "pointer", padding: "4px" }}>←</button>
+          <button onClick={() => router.back()} style={{ background: "none", border: "none", color: colors.text, cursor: "pointer", padding: "4px", display: "flex" }}>
+            <Icons.ChevronLeft size={24} />
+          </button>
           <h1 style={{ margin: 0, fontSize: "18px", fontWeight: "bold" }}>Créateurs Populaires</h1>
         </div>
         <button 
@@ -148,11 +164,11 @@ export default function TrendingCreatorsPage() {
           disabled={isRefreshing}
           style={{ 
             background: "none", border: "none", color: colors.textMuted, 
-            fontSize: "20px", cursor: isRefreshing ? "wait" : "pointer",
+            cursor: isRefreshing ? "wait" : "pointer", padding: "4px", display: "flex",
             animation: isRefreshing ? "spin 1s linear infinite" : "none"
           }}
         >
-          🔄
+          <Icons.Refresh size={22} />
         </button>
       </div>
 
@@ -160,7 +176,9 @@ export default function TrendingCreatorsPage() {
       <div style={{ maxWidth: "800px", margin: "0 auto", padding: "12px 16px" }}>
         {creators.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 20px", color: colors.textMuted }}>
-            <div style={{ fontSize: "48px", marginBottom: "16px" }}>🔍</div>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
+              <Icons.Search size={48} />
+            </div>
             <p>Aucun créateur trouvé.</p>
           </div>
         ) : (
@@ -196,10 +214,11 @@ export default function TrendingCreatorsPage() {
                       backgroundColor: colors.hover, flexShrink: 0, cursor: "pointer",
                       backgroundImage: avatarUrl ? `url(${avatarUrl})` : undefined,
                       backgroundSize: "cover", backgroundPosition: "center",
-                      display: "flex", alignItems: "center", justifyContent: "center"
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: colors.textMuted
                     }}
                   >
-                    {!avatarUrl && <span style={{ fontSize: "24px", color: colors.textMuted }}>👤</span>}
+                    {!avatarUrl && <Icons.User size={24} />}
                   </div>
 
                   {/* Nom et Username */}
@@ -214,7 +233,11 @@ export default function TrendingCreatorsPage() {
                       <span style={{ fontWeight: "bold", fontSize: "15px", color: colors.text }}>
                         {fullName || username}
                       </span>
-                      {isVerified && <span style={{ color: colors.primary, fontSize: "16px" }}>✓</span>}
+                      {isVerified && (
+                        <span style={{ color: colors.primary, display: "flex" }}>
+                          <Icons.Check size={16} />
+                        </span>
+                      )}
                     </div>
                     <div style={{ 
                       whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
