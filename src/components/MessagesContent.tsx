@@ -998,26 +998,6 @@ export default function MessagesContent() {
                     />
                   </div>
 
-                  <button 
-                    onClick={handleAttachment}
-                    style={{ 
-                      background: "none", 
-                      border: "none", 
-                      color: colors.textMuted, 
-                      cursor: "pointer", 
-                      padding: "8px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderRadius: "50%",
-                      transition: "background-color 0.2s"
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.hover}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
-                  >
-                    <Paperclip size={22} />
-                  </button>
-
                   {inputText.trim() ? (
                     <button 
                       onClick={handleSend} 
