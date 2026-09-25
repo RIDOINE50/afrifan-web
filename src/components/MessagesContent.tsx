@@ -1337,7 +1337,17 @@ recordingTimerRef.current = setInterval(() => {
           display: none !important;
         }
 
-        @media (max-width: 768px) {
+               @media (max-width: 768px) {
+          .msg-layout {
+            position: fixed !important;
+            top: 55px !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 65px !important;
+            height: auto !important;
+            max-height: none !important;
+            z-index: 5;
+          }
           .msg-list-col {
             width: 100% !important;
             border-right: none !important;
