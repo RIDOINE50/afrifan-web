@@ -557,9 +557,8 @@ function ShopProductCard({ product, colors, onClick }: { product: any, colors: a
   return (
     <Box bg={colors.card} borderRadius="12px" border={`1px solid ${colors.border}`} overflow="hidden" cursor="pointer" onClick={onClick} _hover={{ transform: "translateY(-4px)", transition: "transform 0.2s", borderColor: colors.primary }}>
       <Box aspectRatio="4/3" bg={colors.hover} display="flex" alignItems="center" justifyContent="center">
-        {product.media_url ? (
-          <Box as="img" src={product.media_url} alt={title} w="100%" h="100%" objectFit="cover" />
-        ) : (
+       {product.preview_url ? (
+<Box as="img" src={product.preview_url} alt={title} w="100%" h="100%" objectFit="cover" />        ) : (
           <Icons.FileText size={40} color={colors.textMuted} />
         )}
       </Box>
