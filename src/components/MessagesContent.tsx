@@ -51,7 +51,7 @@ export default function MessagesContent() {
   const [showOnlineStatus, setShowOnlineStatus] = useState(true);
   const [allowFanRequests, setAllowFanRequests] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
+  const [confirmPopup, setConfirmPopup] = useState<{ title: string; message: string; onConfirm: () => void; } | null>(null);
       const colors = {
     bg: isDark ? "#000000" : "#FFFFFF",
     card: isDark ? "#1E1E1E" : "#F3F4F6", // Bulles reçues : gris clair en clair, gris foncé en sombre
@@ -288,10 +288,16 @@ export default function MessagesContent() {
     }
   };
 
-  const deleteMessage = async (msgId: string) => {
-    if (!confirm("Supprimer ce message ?")) return;
-    await supabase.from("messages").delete().eq("id", msgId);
-    setMessages((prev) => prev.filter((m) => m.id !== msgId));
+    const deleteMessage = (msgId: string) => {
+    setConfirmPopup({
+      title: "Supprimer le message",
+      message: "Voulez-vous vraiment supprimer ce message ?",
+      onConfirm: async () => {
+        await supabase.from("messages").delete().eq("id", msgId);
+        setMessages((prev) => prev.filter((m) => m.id !== msgId));
+        setConfirmPopup(null);
+      }
+    });
   };
 
   const markAsRead = async (msgId: string) => {
@@ -381,18 +387,24 @@ export default function MessagesContent() {
     alert("Utilisateur bloqué");
   };
 
-  const deleteConversation = (conv: any) => {
-    if (!confirm("Supprimer cette conversation ? Cette action est irréversible.")) return;
-    setConversations((prev) => prev.filter((c) => c.other_user_id !== conv.other_user_id));
-    setPinnedIds((prev) => { const n = new Set(prev); n.delete(conv.other_user_id); return n; });
-    setMutedIds((prev) => { const n = new Set(prev); n.delete(conv.other_user_id); return n; });
-    setBlockedIds((prev) => { const n = new Set(prev); n.delete(conv.other_user_id); return n; });
-    if (selectedUserId === conv.other_user_id) {
-      setSelectedUserId(null);
-      setSelectedUser(null);
-      setMessages([]);
-    }
-    setContextMenu(null);
+   const deleteConversation = (conv: any) => {
+    setConfirmPopup({
+      title: "Supprimer la conversation",
+      message: "Cette action est irréversible. Voulez-vous vraiment supprimer cette conversation ?",
+      onConfirm: () => {
+        setConversations((prev) => prev.filter((c) => c.other_user_id !== conv.other_user_id));
+        setPinnedIds((prev) => { const n = new Set(prev); n.delete(conv.other_user_id); return n; });
+        setMutedIds((prev) => { const n = new Set(prev); n.delete(conv.other_user_id); return n; });
+        setBlockedIds((prev) => { const n = new Set(prev); n.delete(conv.other_user_id); return n; });
+        if (selectedUserId === conv.other_user_id) {
+          setSelectedUserId(null);
+          setSelectedUser(null);
+          setMessages([]);
+        }
+        setContextMenu(null);
+        setConfirmPopup(null);
+      }
+    });
   };
 
   const handleContextMenu = (e: React.MouseEvent, conv: any) => {
@@ -1114,7 +1126,67 @@ export default function MessagesContent() {
           </div>
         </div>
       )}
-
+      {confirmPopup && (
+        <div style={{ 
+          position: "fixed", 
+          inset: 0, 
+          backgroundColor: "rgba(0,0,0,0.6)", 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "center", 
+          zIndex: 2000,
+          padding: "20px"
+        }} onClick={() => setConfirmPopup(null)}>
+          <div style={{ 
+            backgroundColor: colors.card, 
+            padding: "24px", 
+            borderRadius: "16px", 
+            width: "100%", 
+            maxWidth: "340px", 
+            border: `1px solid ${colors.border}`, 
+            boxShadow: "0 10px 25px rgba(0,0,0,0.3)" 
+          }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ margin: "0 0 8px", fontSize: "18px", color: colors.text, fontWeight: "bold" }}>
+              {confirmPopup.title}
+            </h3>
+            <p style={{ margin: "0 0 24px", fontSize: "14px", color: colors.textMuted, lineHeight: "1.4" }}>
+              {confirmPopup.message}
+            </p>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+              <button 
+                onClick={() => setConfirmPopup(null)} 
+                style={{ 
+                  padding: "10px 16px", 
+                  borderRadius: "12px", 
+                  border: "none", 
+                  backgroundColor: colors.hover, 
+                  color: colors.text, 
+                  fontWeight: "600", 
+                  cursor: "pointer", 
+                  fontSize: "14px" 
+                }}
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={confirmPopup.onConfirm} 
+                style={{ 
+                  padding: "10px 16px", 
+                  borderRadius: "12px", 
+                  border: "none", 
+                  backgroundColor: colors.red, 
+                  color: "white", 
+                  fontWeight: "600", 
+                  cursor: "pointer", 
+                  fontSize: "14px" 
+                }}
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showSettings && (
         <div style={{ 
           position: "fixed", 
