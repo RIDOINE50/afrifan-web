@@ -1275,8 +1275,9 @@ recordingTimerRef.current = setInterval(() => {
           animation: spin 1s linear infinite; 
         }
         
-        .msg-layout {
+               .msg-layout {
           height: 100dvh;
+          max-height: 100dvh;
           background-color: ${colors.bg};
           color: ${colors.text};
           display: flex;
@@ -1292,13 +1293,15 @@ recordingTimerRef.current = setInterval(() => {
           background-color: ${colors.bg};
         }
         
-        .msg-chat-col {
+               .msg-chat-col {
           flex: 1;
           display: flex;
           flex-direction: column;
           background-color: ${colors.bg};
           height: 100%;
           position: relative;
+          overflow: hidden;
+          min-height: 0;
         }
 
         .messages-scroll-area {
