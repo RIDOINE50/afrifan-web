@@ -5,26 +5,48 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppTheme } from "@/contexts/ThemeContext";
 
+// === ICÔNES SVG ===
+const SvgIcon = ({ path, size = 20, color = "currentColor", fill = "none" }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    {path}
+  </svg>
+);
+
+const Icons = {
+  User:      (p: any) => <SvgIcon {...p} path={<><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>} />,
+  Mail:      (p: any) => <SvgIcon {...p} path={<><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></>} />,
+  Image:     (p: any) => <SvgIcon {...p} path={<><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></>} />,
+  Check:     (p: any) => <SvgIcon {...p} path={<><polyline points="20 6 9 17 4 12" /></>} />,
+  X:         (p: any) => <SvgIcon {...p} path={<><path d="M18 6 6 18" /><path d="m6 6 12 12" /></>} />,
+  Alert:     (p: any) => <SvgIcon {...p} path={<><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></>} />,
+  Megaphone: (p: any) => <SvgIcon {...p} path={<><path d="m3 11 18-5v12L3 14v-3z" /><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" /></>} />,
+  Bell:      (p: any) => <SvgIcon {...p} path={<><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></>} />,
+  BellOff:   (p: any) => <SvgIcon {...p} path={<><path d="M13.73 21a2 2 0 0 1-3.46 0" /><path d="M18.63 13A17.89 17.89 0 0 1 18 8" /><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" /><path d="M18 8a6 6 0 0 0-9.33-5" /><line x1="1" y1="1" x2="23" y2="23" /></>} />,
+  Trash:     (p: any) => <SvgIcon {...p} path={<><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></>} />,
+  ChevronLeft: (p: any) => <SvgIcon {...p} path={<><path d="m15 18-6-6 6-6" /></>} />,
+};
+
+// === FONCTION QUI RETOURNE L'ICÔNE SVG SELON LE TYPE ===
 const getNotificationConfig = (type: string, title?: string, actorName?: string) => {
   const name = actorName || "Utilisateur";
   
   switch (type) {
     case "new_follower":
-      return { icon: "👤", color: "#3B82F6", title: `${name} vous suit maintenant` };
+      return { icon: <Icons.User size={24} color="#3B82F6" />, smallIcon: <Icons.User size={12} color="white" />, color: "#3B82F6", title: `${name} vous suit maintenant` };
     case "message":
-      return { icon: "✉️", color: "#22C55E", title: `${name} vous a envoyé un message` };
+      return { icon: <Icons.Mail size={24} color="#22C55E" />, smallIcon: <Icons.Mail size={12} color="white" />, color: "#22C55E", title: `${name} vous a envoyé un message` };
     case "new_post":
-      return { icon: "🖼️", color: "#F97316", title: `${name} a publié un nouveau contenu` };
+      return { icon: <Icons.Image size={24} color="#F97316" />, smallIcon: <Icons.Image size={12} color="white" />, color: "#F97316", title: `${name} a publié un nouveau contenu` };
     case "withdrawal_approved":
-      return { icon: "✅", color: "#22C55E", title: "Retrait validé ✅" };
+      return { icon: <Icons.Check size={24} color="#22C55E" />, smallIcon: <Icons.Check size={12} color="white" />, color: "#22C55E", title: "Retrait validé" };
     case "withdrawal_rejected":
-      return { icon: "❌", color: "#EF4444", title: "Retrait refusé 🚫" };
+      return { icon: <Icons.X size={24} color="#EF4444" />, smallIcon: <Icons.X size={12} color="white" />, color: "#EF4444", title: "Retrait refusé" };
     case "withdrawal_failed":
-      return { icon: "⚠️", color: "#F97316", title: "Échec du transfert ❌" };
+      return { icon: <Icons.Alert size={24} color="#F97316" />, smallIcon: <Icons.Alert size={12} color="white" />, color: "#F97316", title: "Échec du transfert" };
     case "admin_campaign":
-      return { icon: "📢", color: "#8B5CF6", title: title || "Nouvelle annonce" };
+      return { icon: <Icons.Megaphone size={24} color="#8B5CF6" />, smallIcon: <Icons.Megaphone size={12} color="white" />, color: "#8B5CF6", title: title || "Nouvelle annonce" };
     default:
-      return { icon: "🔔", color: "#9CA3AF", title: title || "Nouvelle notification" };
+      return { icon: <Icons.Bell size={24} color="#9CA3AF" />, smallIcon: <Icons.Bell size={12} color="white" />, color: "#9CA3AF", title: title || "Nouvelle notification" };
   }
 };
 
@@ -50,7 +72,6 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ✅ Couleurs dynamiques selon le thème
   const colors = {
     bg: theme.bg,
     cardRead: theme.card,
@@ -239,7 +260,9 @@ export default function NotificationsPage() {
       {/* Header */}
       <div style={{ padding: "16px 24px", borderBottom: `1px solid ${colors.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, backgroundColor: colors.bg, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <button onClick={() => router.back()} style={{ background: "none", border: "none", color: colors.text, fontSize: "24px", cursor: "pointer" }}>←</button>
+          <button onClick={() => router.back()} style={{ background: "none", border: "none", color: colors.text, cursor: "pointer", padding: "4px", display: "flex" }}>
+            <Icons.ChevronLeft size={24} />
+          </button>
           <h1 style={{ margin: 0, fontSize: "20px", fontWeight: "bold" }}>Notifications</h1>
         </div>
         {notifications.some((n) => !n.is_read) && (
@@ -253,7 +276,9 @@ export default function NotificationsPage() {
       <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
         {notifications.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 20px", color: colors.textMuted }}>
-            <div style={{ fontSize: "64px", marginBottom: "16px" }}>🔕</div>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px", color: colors.textMuted }}>
+              <Icons.BellOff size={64} />
+            </div>
             <p style={{ fontSize: "18px", color: colors.text, fontWeight: "bold", marginBottom: "8px" }}>Aucune notification</p>
             <p style={{ fontSize: "14px" }}>Les notifications apparaîtront ici</p>
           </div>
@@ -288,7 +313,7 @@ export default function NotificationsPage() {
                       backgroundColor: colors.border,
                       backgroundImage: avatarUrl ? `url(${avatarUrl})` : undefined,
                       backgroundSize: "cover", backgroundPosition: "center",
-                      display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px"
+                      display: "flex", alignItems: "center", justifyContent: "center"
                     }}>
                       {!avatarUrl && config.icon}
                     </div>
@@ -297,10 +322,9 @@ export default function NotificationsPage() {
                       width: "20px", height: "20px", borderRadius: "50%",
                       backgroundColor: config.color,
                       border: `2px solid ${colors.bg}`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: "10px"
+                      display: "flex", alignItems: "center", justifyContent: "center"
                     }}>
-                      {config.icon}
+                      {config.smallIcon}
                     </div>
                   </div>
 
@@ -332,11 +356,11 @@ export default function NotificationsPage() {
                     onClick={(e) => { e.stopPropagation(); deleteNotification(notif.id); }}
                     style={{ 
                       background: "none", border: "none", color: colors.textMuted, 
-                      cursor: "pointer", padding: "4px", fontSize: "16px", alignSelf: "flex-start"
+                      cursor: "pointer", padding: "4px", alignSelf: "flex-start", display: "flex"
                     }}
                     title="Supprimer"
                   >
-                    🗑️
+                    <Icons.Trash size={16} />
                   </button>
                 </div>
               );
