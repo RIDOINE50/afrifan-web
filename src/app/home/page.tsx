@@ -783,8 +783,7 @@ export default function HomePage() {
                   {isMuted ? <VolumeOffIcon /> : <VolumeOnIcon />}
                 </Button>
 
-                <VStack position="absolute" right={{ base: "2", md: "3" }} bottom={{ base: "28", md: "24" }} spacing="4" zIndex="30">
-                  <Flex direction="column" align="center" cursor="pointer" onClick={() => handleLike(post.id)}>
+<VStack position="absolute" right={{ base: "2", md: "3" }} bottom={{ base: "40", md: "36" }} spacing="4" zIndex="30">                  <Flex direction="column" align="center" cursor="pointer" onClick={() => handleLike(post.id)}>
                     <Box w="48px" h="48px" borderRadius="full" bg={isLiked ? "pink.500/40" : "whiteAlpha.200"} backdropFilter="blur(10px)" display="flex" alignItems="center" justifyContent="center" _hover={{ transform: "scale(1.1)", transition: "0.2s" }}>
                       <HeartIcon filled={isLiked} />
                     </Box>
