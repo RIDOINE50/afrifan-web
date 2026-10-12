@@ -74,6 +74,7 @@ export default function GoLivePage() {
       // ⚠️ REMPLACE CECI PAR TON VRAI APP ID AGORA
       const APP_ID = "cb6d0b31fe534c92a619c224ba714e2b"; 
       
+      
       clientRef.current = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
       
       // En mode live, le créateur est le "host" (celui qui diffuse)
