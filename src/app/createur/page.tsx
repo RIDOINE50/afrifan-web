@@ -36,7 +36,7 @@ import {
 } from "@chakra-ui/react";
 
 // ==========================================
-// ✅ VRAIES ICÔNES SVG PROFESSIONNELLES
+// ✅ ICÔNES SVG
 // ==========================================
 const Icon = ({ path, size = 20, className = "", fill = "none", color = "currentColor" }: any) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -91,6 +91,10 @@ function CreatorProfileContent() {
 
   const [isReporting, setIsReporting] = useState(false);
 
+  // ✅ NOUVEAU : gestion du live
+  const [activeLive, setActiveLive] = useState<any>(null);
+  const [isLiveLoading, setIsLiveLoading] = useState(true);
+
   const { isOpen: isAvatarOpen, onOpen: onAvatarOpen, onClose: onAvatarClose } = useDisclosure();
   const { isOpen: isReportOpen, onOpen: onReportOpen, onClose: onReportClose } = useDisclosure();
   
@@ -134,6 +138,33 @@ function CreatorProfileContent() {
     init();
   }, [creatorId]);
 
+  // ✅ Écoute en temps réel du live
+  useEffect(() => {
+    if (!creatorId) return;
+
+    const channel = supabase
+      .channel(`live-status-${creatorId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'live_streams',
+          filter: `creator_id=eq.${creatorId}`,
+        },
+        () => {
+          console.log('🔴 Changement live détecté');
+          loadActiveLive();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [creatorId, currentSubscription]);
+
   const loadCreatorData = async (currentUser: any) => {
     setIsLoading(true);
     try {
@@ -148,6 +179,8 @@ function CreatorProfileContent() {
         loadLikesCount(),
         checkSubscriptionStatus(currentUser),
       ]);
+      // ⚠️ Après le chargement de la subscription, charger le live
+      await loadActiveLive();
     } catch (error) {
       console.error("❌ Erreur chargement profil:", error);
     } finally {
@@ -223,6 +256,59 @@ function CreatorProfileContent() {
       if (calculatedDays < 0) calculatedDays = 0;
       setCurrentSubscription(data);
       setDaysRemaining(calculatedDays);
+    }
+  };
+
+  // ✅ NOUVELLE FONCTION : Charger le live actif + vérifier l'accès
+  const loadActiveLive = async () => {
+    if (!creatorId) return;
+    setIsLiveLoading(true);
+    try {
+      // 1. Récupérer le live en cours
+      const { data: liveData } = await supabase
+        .from('live_streams')
+        .select('id, title, status, started_at, viewer_count, is_exclusive, requires_subscription')
+        .eq('creator_id', creatorId)
+        .eq('status', 'live')
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!liveData) {
+        setActiveLive(null);
+        return;
+      }
+
+      // 2. Vérifier l'accès de l'utilisateur
+      let canView = true;
+
+      // Si le live est réservé aux abonnés
+      if (liveData.requires_subscription) {
+        // Vérifier si l'utilisateur a un abonnement actif ET valide
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          canView = false;
+        } else {
+          const { data: subData } = await supabase
+            .from('subscriptions')
+            .select('id, tier_type, status, end_date')
+            .eq('fan_id', session.user.id)
+            .eq('creator_id', creatorId)
+            .eq('status', 'active')
+            .gte('end_date', new Date().toISOString())
+            .limit(1)
+            .maybeSingle();
+          canView = !!subData;
+        }
+      }
+
+      console.log('🔴 Live actif détecté:', liveData.id, '| Accès:', canView ? '✅' : '🔒');
+      setActiveLive({ ...liveData, canView });
+    } catch (error) {
+      console.error("❌ Erreur chargement live actif:", error);
+      setActiveLive(null);
+    } finally {
+      setIsLiveLoading(false);
     }
   };
 
@@ -302,11 +388,13 @@ function CreatorProfileContent() {
   const proPrice = creator.pro_price || 0;
   const creatorDisplayName = creator.full_name || creator.username;
 
-  // ✅ NOUVELLE LOGIQUE : On ne verrouille le contenu que si le profil a des abonnements payants ET que le visiteur n'est pas abonné.
-  // Si c'est un utilisateur normal (prix = 0), tout le monde peut voir son contenu.
-const isCreator = creator.role === 'creator';
-const isContentLocked = isCreator && !isSubscribed;
-const isProSubscriber = currentSubscription?.tier_type === 'pro';
+  const isCreator = creator.role === 'creator';
+  const isContentLocked = isCreator && !isSubscribed;
+  const isProSubscriber = currentSubscription?.tier_type === 'pro';
+
+  // ✅ Booléen final : est-ce qu'on doit afficher le bouton live ?
+  const showLiveButton = activeLive && activeLive.canView;
+
   return (
     <Box minH="100vh" bg={colors.bg} color={colors.text}>
       
@@ -351,10 +439,18 @@ const isProSubscriber = currentSubscription?.tier_type === 'pro';
               <Box
                 p="3px"
                 borderRadius="full"
-                bg={hasActiveStories ? `linear-gradient(135deg, ${colors.primary}, #EC4899, ${colors.primary})` : "transparent"}
+                bg={
+                  showLiveButton
+                    ? "linear-gradient(135deg, #EF4444, #DC2626)" // 🔴 LIVE
+                    : hasActiveStories
+                    ? `linear-gradient(135deg, ${colors.primary}, #EC4899, ${colors.primary})` // 🟣 Story
+                    : "transparent"
+                }
                 cursor="pointer"
                 onClick={() => {
-                  if (hasActiveStories) {
+                  if (showLiveButton) {
+                    router.push(`/live/${activeLive.id}`);
+                  } else if (hasActiveStories) {
                     router.push(`/stories/view?creatorId=${creatorId}`);
                   } else {
                     onAvatarOpen();
@@ -364,9 +460,26 @@ const isProSubscriber = currentSubscription?.tier_type === 'pro';
               >
                 <Avatar size="xl" name={creatorDisplayName} src={creator.avatar_url || undefined} border={`3px solid ${colors.bg}`} />
               </Box>
-              {hasActiveStories && (
+              
+              {showLiveButton ? (
+                <Box 
+                  position="absolute" 
+                  bottom="8px" 
+                  right="8px" 
+                  px={2} 
+                  py="2px" 
+                  borderRadius="full" 
+                  bg="#EF4444" 
+                  border={`2px solid ${colors.bg}`} 
+                  fontSize="10px" 
+                  fontWeight="bold" 
+                  color="white"
+                >
+                  LIVE
+                </Box>
+              ) : hasActiveStories ? (
                 <Box position="absolute" bottom="8px" right="8px" w="20px" h="20px" borderRadius="full" bg={colors.success} border={`3px solid ${colors.bg}`} />
-              )}
+              ) : null}
             </Box>
 
             {/* INFO ET STATS */}
@@ -383,7 +496,42 @@ const isProSubscriber = currentSubscription?.tier_type === 'pro';
                 <VStack spacing={1}><Text fontWeight="bold" fontSize="18px">{formatCount(likesCount)}</Text><Text color={colors.textMuted} fontSize="13px">J'aime</Text></VStack>
               </Flex>
 
-                         <Flex gap={2} justify={{ base: "center", md: "flex-start" }} flexWrap="wrap" mb={4}>
+              <Flex gap={2} justify={{ base: "center", md: "flex-start" }} flexWrap="wrap" mb={4}>
+                
+                {/* 🔴 BOUTON EN DIRECT — en PREMIER si actif */}
+                {showLiveButton && (
+                  <Button
+                    bg="linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
+                    color="white"
+                    border="none"
+                    _hover={{ opacity: 0.9, transform: "translateY(-2px)", boxShadow: "0 6px 16px rgba(239,68,68,0.5)" }}
+                    transition="all 0.2s"
+                    px={5}
+                    h="40px"
+                    borderRadius="full"
+                    fontWeight="700"
+                    fontSize="14px"
+                    leftIcon={
+                      <Box
+                        w="10px"
+                        h="10px"
+                        bg="white"
+                        borderRadius="full"
+                        sx={{
+                          animation: "pulseDot 1.5s infinite",
+                          "@keyframes pulseDot": {
+                            "0%, 100%": { opacity: 1, transform: "scale(1)" },
+                            "50%": { opacity: 0.6, transform: "scale(1.3)" },
+                          },
+                        }}
+                      />
+                    }
+                    onClick={() => router.push(`/live/${activeLive.id}`)}
+                  >
+                    EN DIRECT
+                  </Button>
+                )}
+
                 <Button bg={isFollowing ? "transparent" : colors.primary} color={isFollowing ? colors.text : colors.primaryText} border={isFollowing ? `1px solid ${colors.border}` : "none"} _hover={{ opacity: 0.9 }} px={8} onClick={toggleFollow}>
                   {isFollowing ? "✓ Suivi" : "Suivre"}
                 </Button>
@@ -404,7 +552,7 @@ const isProSubscriber = currentSubscription?.tier_type === 'pro';
             </Box>
           </Flex>
 
-          {/* ABONNEMENTS (Affiché seulement s'il y a des prix) */}
+          {/* ABONNEMENTS */}
           {(premiumPrice > 0 || proPrice > 0) && (
             <Box mb={6} p={4} bg={colors.card} borderRadius="12px" border={`1px solid ${colors.border}`}>
               <Text fontSize="16px" fontWeight="bold" mb={3}>{isSubscribed ? '💎 Votre abonnement' : '💎 Devenir abonné'}</Text>
@@ -429,7 +577,6 @@ const isProSubscriber = currentSubscription?.tier_type === 'pro';
           </TabList>
 
           <TabPanels>
-            {/* ONGLET 0 : PUBLICATIONS */}
             <TabPanel p={0} pt={4}>
               {posts.length === 0 ? (
                 <Center py={16} color={colors.textMuted}>
@@ -441,11 +588,11 @@ const isProSubscriber = currentSubscription?.tier_type === 'pro';
                     <PostCard 
                       key={post.id} 
                       post={post} 
-                      isContentLocked={isContentLocked} // ✅ On passe la nouvelle variable
+                      isContentLocked={isContentLocked}
                       colors={colors} 
                       onClick={() => {
-                        // ✅ On ne redirige vers l'abonnement que si le contenu est verrouillé ET que ce n'est pas du texte
-if (isContentLocked) {                          router.push(`/subscribe/${creatorId}?tier=premium&price=${premiumPrice}&name=${encodeURIComponent(creatorDisplayName)}`);
+                        if (isContentLocked) {
+                          router.push(`/subscribe/${creatorId}?tier=premium&price=${premiumPrice}&name=${encodeURIComponent(creatorDisplayName)}`);
                         } else {
                           router.push(`/post/${post.id}?creatorId=${creatorId}&index=${index}`);
                         }
@@ -456,7 +603,6 @@ if (isContentLocked) {                          router.push(`/subscribe/${creato
               )}
             </TabPanel>
 
-            {/* ONGLET 1 : BOUTIQUE */}
             <TabPanel p={0} pt={4}>
               {isLoadingShop ? (
                 <Center py={16}><Spinner thickness="3px" color={colors.primary} size="md" /></Center>
@@ -473,7 +619,6 @@ if (isContentLocked) {                          router.push(`/subscribe/${creato
               )}
             </TabPanel>
 
-            {/* ONGLET 2 : À PROPOS */}
             <TabPanel p={0} pt={4}>
               <Box p={5} bg={colors.card} borderRadius="12px" border={`1px solid ${colors.border}`}>
                 <Text fontWeight="bold" mb={4} fontSize="18px">À propos</Text>
@@ -493,7 +638,7 @@ if (isContentLocked) {                          router.push(`/subscribe/${creato
         </Tabs>
       </Box>
 
-      {/* MODAL POUR VOIR LA PHOTO DE PROFIL EN GRAND */}
+      {/* MODAL AVATAR */}
       <Modal isOpen={isAvatarOpen} onClose={onAvatarClose} size="xl" isCentered>
         <ModalOverlay bg="blackAlpha.900" />
         <ModalContent bg="transparent" border="none">
@@ -504,7 +649,7 @@ if (isContentLocked) {                          router.push(`/subscribe/${creato
         </ModalContent>
       </Modal>
 
-      {/* MODAL DE SIGNALEMENT */}
+      {/* MODAL SIGNALEMENT */}
       <Modal isOpen={isReportOpen} onClose={onReportClose} isCentered>
         <ModalOverlay bg="blackAlpha.700" />
         <ModalContent 
@@ -560,7 +705,8 @@ function ShopProductCard({ product, colors, onClick }: { product: any, colors: a
     <Box bg={colors.card} borderRadius="12px" border={`1px solid ${colors.border}`} overflow="hidden" cursor="pointer" onClick={onClick} _hover={{ transform: "translateY(-4px)", transition: "transform 0.2s", borderColor: colors.primary }}>
       <Box aspectRatio="4/3" bg={colors.hover} display="flex" alignItems="center" justifyContent="center">
        {product.preview_url ? (
-<Box as="img" src={product.preview_url} alt={title} w="100%" h="100%" objectFit="cover" />        ) : (
+        <Box as="img" src={product.preview_url} alt={title} w="100%" h="100%" objectFit="cover" />
+        ) : (
           <Icons.FileText size={40} color={colors.textMuted} />
         )}
       </Box>
@@ -613,8 +759,8 @@ function PostCard({ post, isContentLocked, colors, onClick }: any) {
         <Center w="100%" h="100%" color={colors.textMuted}><Icons.FileText size={40} /></Center>
       )}
 
-      {/* ✅ On affiche le cadenas SEULEMENT si le contenu est verrouillé (créateur payant + non abonné) ET que ce n'est pas un post texte */}
-{isContentLocked && (        <Center position="absolute" inset={0} flexDirection="column" backdropFilter="blur(2px)">
+      {isContentLocked && (
+        <Center position="absolute" inset={0} flexDirection="column" backdropFilter="blur(2px)">
           <Box p={3} borderRadius="full" bg="rgba(0,0,0,0.6)" mb={2}>
             <Icons.Lock size={24} color="white" />
           </Box>
