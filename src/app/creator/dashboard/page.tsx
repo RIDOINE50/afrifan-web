@@ -171,8 +171,43 @@ export default function CreatorDashboard() {
     }
   };
 
-  const handleGoLive = () => {
-    router.push("/creator/go-live");
+    const [isGoingLive, setIsGoingLive] = useState(false); // ✅ Ajoute cet état en haut avec les autres useState
+
+  const handleGoLive = async () => {
+    if (!user) return;
+    
+    setIsGoingLive(true); // Désactive le bouton pour éviter les doubles clics
+
+    try {
+      // 1. Générer un titre par défaut et une date
+      const defaultTitle = `Live de ${userName}`;
+      
+      // 2. Insérer la session de live dans Supabase
+      const { data, error } = await supabase
+        .from('live_streams')
+        .insert({
+          creator_id: user.id,
+          title: defaultTitle,
+          status: 'live',
+          viewer_count: 0,
+          is_exclusive: false,
+          started_at: new Date().toISOString(),
+        })
+        .select()
+        .single(); // On récupère la ligne créée pour avoir son ID
+
+      if (error) throw error;
+
+      // 3. Rediriger vers la page de streaming avec l'ID du live en paramètre
+      console.log("✅ Live créé avec succès, ID:", data.id);
+      router.push(`/creator/go-live?streamId=${data.id}`);
+      
+    } catch (error) {
+      console.error("❌ Erreur lors du lancement du live:", error);
+      alert("Impossible de lancer le live. Vérifiez votre connexion ou vos permissions.");
+    } finally {
+      setIsGoingLive(false); // Réactive le bouton en cas d'erreur
+    }
   };
 
   const handleTabChange = (tab: string) => {
@@ -242,18 +277,37 @@ export default function CreatorDashboard() {
           <SidebarItem icon={<Icons.Settings size={18} />} label="Paramètres" isActive={activeTab === "settings"} onClick={() => handleTabChange("settings")} colors={colors} />
         </nav>
 
-        <div style={{ padding: "20px", borderTop: `1px solid ${colors.border}` }}>
+             <div style={{ padding: "20px", borderTop: `1px solid ${colors.border}` }}>
           <button 
-            onClick={() => { handleGoLive(); setIsMobileMenuOpen(false); }}
+            onClick={handleGoLive}
+            disabled={isGoingLive} // ✅ Empêche de cliquer 2 fois
             style={{ 
-              width: "100%", padding: "12px", borderRadius: "12px", 
-              backgroundColor: "rgba(239, 68, 68, 0.15)", 
-              border: `1px solid ${colors.red}`, color: colors.red, 
-              fontWeight: "bold", fontSize: "14px", cursor: "pointer", 
-              display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" 
+              width: "100%", 
+              padding: "12px", 
+              borderRadius: "12px", 
+              backgroundColor: isGoingLive ? "rgba(239, 68, 68, 0.05)" : "rgba(239, 68, 68, 0.15)", 
+              border: `1px solid ${colors.red}`, 
+              color: colors.red, 
+              fontWeight: "bold", 
+              fontSize: "14px", 
+              cursor: isGoingLive ? "not-allowed" : "pointer", // ✅ Change le curseur
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center", 
+              gap: "8px",
+              transition: "all 0.2s"
             }}
           >
-            <Icons.Radio size={18} color={colors.red} /> Lancer un Live
+            {isGoingLive ? (
+              <>
+                <div style={{ width: "16px", height: "16px", border: "2px solid transparent", borderTop: `2px solid ${colors.red}`, borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
+                Lancement...
+              </>
+            ) : (
+              <>
+                <Icons.Radio size={18} color={colors.red} /> Lancer un Live
+              </>
+            )}
           </button>
         </div>
       </aside>
