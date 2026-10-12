@@ -273,11 +273,9 @@ export default function GoLiveClient() {
       }
 
       // 3. Redirection
-      router.push("/creator?tab=overview");
-    } catch (err) {
+router.push("/creator/dashboard");    } catch (err) {
       console.error("❌ Erreur lors de l'arrêt du live:", err);
-      router.push("/creator?tab=overview");
-    }
+router.push("/creator/dashboard");    }
   };
 
   // ===== UI =====
