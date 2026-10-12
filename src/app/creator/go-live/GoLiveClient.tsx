@@ -112,7 +112,12 @@ export default function GoLiveClient() {
   };
 
   const startAgoraStream = async (channelName: string, AgoraRTC: any) => {
-  const APP_ID = process.env.cb6d0b31fe534c92a619c224ba714e2b!;
+  // ✅ APRÈS (correct)
+const APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID;
+
+if (!APP_ID) {
+  throw new Error("NEXT_PUBLIC_AGORA_APP_ID manquant dans les variables d'env");
+}
 
   // ✅ 1. Récupérer le token depuis ton API route
   const tokenRes = await fetch("/api/agora-token", {
