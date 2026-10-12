@@ -94,8 +94,8 @@ export default function GoLiveClient() {
       const AgoraRTCModule = await import("agora-rtc-sdk-ng");
       const AgoraRTC = AgoraRTCModule.default;
 
+         setHasStarted(true); // 👈 AVANT : pour que le div soit monté dans le DOM
       await startAgoraStream(streamData.id.toString(), AgoraRTC);
-      setHasStarted(true);
     } catch (err: any) {
       console.error("❌ Erreur getUserMedia:", err);
       let msg = "Erreur d'accès aux périphériques.";
@@ -152,13 +152,25 @@ if (!APP_ID) {
   videoTrackRef.current = videoTrack;
   audioTrackRef.current = audioTrack;
 
-  await clientRef.current.publish([videoTrack, audioTrack]);
+   await clientRef.current.publish([videoTrack, audioTrack]);
+  console.log("📡 Publish success");
+
+  // ✅ Attendre que React ait monté le div dans le DOM
+  await new Promise((resolve) => setTimeout(resolve, 800));
+
+  console.log("🔍 localVideoRef.current =", localVideoRef.current);
+  console.log("🔍 div dimensions =", localVideoRef.current ? {
+    width: localVideoRef.current.clientWidth,
+    height: localVideoRef.current.clientHeight,
+  } : "NULL");
 
   if (localVideoRef.current) {
     videoTrack.play(localVideoRef.current);
+    console.log("▶️ Play lancé");
+  } else {
+    console.error("❌ localVideoRef est NULL après 800ms !");
   }
 };
-
   const cleanupAgora = async () => {
     if (videoTrackRef.current) {
       videoTrackRef.current.close();
