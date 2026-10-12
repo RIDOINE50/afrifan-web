@@ -14,8 +14,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const appId = process.env.cb6d0b31fe534c92a619c224ba714e2b;
-    const appCertificate = process.env.60ab3735550d414f9f6bfb91e67bc7e6;
+    const appId = process.env.NEXT_PUBLIC_AGORA_APP_ID;
+    const appCertificate = process.env.AGORA_APP_CERTIFICATE;
 
     if (!appId || !appCertificate) {
       console.error("❌ Variables d'env Agora manquantes");
