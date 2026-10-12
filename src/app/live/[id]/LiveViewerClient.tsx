@@ -27,13 +27,11 @@ export default function LiveViewerClient() {
 
     const init = async () => {
       try {
-        // Utilisateur connecté ?
         const {
           data: { session },
         } = await supabase.auth.getSession();
         setUser(session?.user || null);
 
-        // Charger le live
         const { data: live, error: liveErr } = await supabase
           .from("live_streams")
           .select("*")
@@ -55,12 +53,9 @@ export default function LiveViewerClient() {
         setLiveData(live);
         setViewerCount(live.viewer_count || 0);
 
-        // Charger le créateur
         const { data: creator } = await supabase
           .from("profiles")
-          .select(
-            "id, username, full_name, avatar_url, is_verified, role, premium_price, pro_price"
-          )
+          .select("id, username, full_name, avatar_url, is_verified, role, premium_price, pro_price")
           .eq("id", live.creator_id)
           .maybeSingle();
 
@@ -107,7 +102,7 @@ export default function LiveViewerClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveId]);
 
-  // 2. Rejoindre le channel Agora en audience (APRÈS un clic)
+  // 2. Rejoindre le live : rejoint en AUDIENCE (peut juste regarder/écouter)
   const handleJoinLive = async () => {
     if (!liveData || isJoining) return;
     setIsJoining(true);
@@ -120,14 +115,14 @@ export default function LiveViewerClient() {
       const APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID;
       if (!APP_ID) throw new Error("NEXT_PUBLIC_AGORA_APP_ID manquant");
 
-      // Récupérer un token en rôle AUDIENCE (subscriber)
+      // ✅ Token en rôle AUDIENCE (peut seulement regarder/écouter)
       const tokenRes = await fetch("/api/agora-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           channelName: liveData.id.toString(),
           uid: 0,
-          role: "audience", // 👈 À ajouter dans ton API route
+          role: "audience", // 👈 SUBSCRIBER : pas de micro
         }),
       });
 
@@ -137,22 +132,54 @@ export default function LiveViewerClient() {
       }
       const { token } = await tokenRes.json();
 
-      // Créer le client Agora
+      // ✅ Créer le client en mode "live" et rôle "audience"
       clientRef.current = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
-      await clientRef.current.setClientRole("audience"); // 👈 rôLE SPECTATEUR
+      await clientRef.current.setClientRole("audience"); // 👈 SPECTATEUR
       await clientRef.current.join(APP_ID, liveData.id.toString(), token, 0);
 
-      // Compter les spectateurs
-      clientRef.current.on("user-joined", () => setViewerCount((p: number) => p + 1));
-      clientRef.current.on("user-left", () => setViewerCount((p: number) => Math.max(0, p - 1)));
+      console.log("✅ Rejoint le channel en audience:", liveData.id);
 
-      // S'abonner au flux vidéo du host
+      // ✅ Compter les spectateurs
+      clientRef.current.on("user-joined", () => {
+        setViewerCount((p: number) => p + 1);
+      });
+      clientRef.current.on("user-left", () => {
+        setViewerCount((p: number) => Math.max(0, p - 1));
+      });
+
+      // ✅ S'abonner à la vidéo + audio du créateur (quand il publie)
       clientRef.current.on("user-published", async (remoteUser: any, mediaType: string) => {
+        console.log("👤 user-published:", remoteUser.uid, mediaType);
         await clientRef.current.subscribe(remoteUser, mediaType);
+
         if (mediaType === "video" && remoteVideoRef.current) {
           remoteUser.videoTrack.play(remoteVideoRef.current);
         }
+        if (mediaType === "audio") {
+          remoteUser.audioTrack.play();
+          console.log("🔊 Audio du créateur en lecture");
+        }
       });
+
+      // ✅ S'abonner aux utilisateurs DÉJÀ présents (si le créateur publie AVANT)
+      clientRef.current.remoteUsers.forEach(async (remoteUser: any) => {
+        if (remoteUser.hasVideo) {
+          await clientRef.current.subscribe(remoteUser, "video");
+          if (remoteVideoRef.current) {
+            remoteUser.videoTrack.play(remoteVideoRef.current);
+          }
+        }
+        if (remoteUser.hasAudio) {
+          await clientRef.current.subscribe(remoteUser, "audio");
+          remoteUser.audioTrack.play();
+        }
+      });
+
+      // ✅ Mettre à jour viewer_count
+      await supabase
+        .from("live_streams")
+        .update({ viewer_count: (liveData.viewer_count || 0) + 1 })
+        .eq("id", liveData.id);
 
       setHasJoined(true);
     } catch (err: any) {
@@ -171,6 +198,12 @@ export default function LiveViewerClient() {
   };
 
   const handleLeave = async () => {
+    if (liveData?.id) {
+      await supabase
+        .from("live_streams")
+        .update({ viewer_count: Math.max(0, (liveData.viewer_count || 1) - 1) })
+        .eq("id", liveData.id);
+    }
     await cleanupAgora();
     router.back();
   };
@@ -185,7 +218,7 @@ export default function LiveViewerClient() {
     );
   }
 
-  if (error) {
+  if (error && !hasJoined) {
     return (
       <div style={{ height: "100vh", backgroundColor: "#000", color: "white", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px", textAlign: "center", gap: "20px" }}>
         <h2 style={{ color: "#EF4444" }}>Accès impossible</h2>
@@ -208,7 +241,7 @@ export default function LiveViewerClient() {
     );
   }
 
-  // Écran "Rejoindre le live"
+  // Écran "Rejoindre le live" (1 clic)
   if (!hasJoined) {
     return (
       <div style={{ height: "100vh", backgroundColor: "#000", color: "white", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px", textAlign: "center", gap: "20px" }}>
@@ -231,6 +264,7 @@ export default function LiveViewerClient() {
           <span style={{ fontWeight: "bold" }}>EN DIRECT</span>
           <span style={{ color: "rgba(255,255,255,0.7)" }}>• {viewerCount} spectateurs</span>
         </div>
+
         <button
           onClick={handleJoinLive}
           disabled={isJoining}
@@ -247,13 +281,13 @@ export default function LiveViewerClient() {
             boxShadow: "0 4px 15px rgba(239,68,68,0.4)",
           }}
         >
-          {isJoining ? "Connexion..." : "🎥 Rejoindre le live"}
+          {isJoining ? "Connexion..." : "🎥 Regarder le live"}
         </button>
       </div>
     );
   }
 
-  // Vue live (le spectateur regarde)
+  // Vue live (le spectateur regarde et écoute)
   return (
     <div style={{ height: "100vh", backgroundColor: "#000", position: "relative", display: "flex", flexDirection: "column" }}>
       <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
