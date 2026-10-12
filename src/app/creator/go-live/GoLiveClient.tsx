@@ -112,26 +112,47 @@ export default function GoLiveClient() {
   };
 
   const startAgoraStream = async (channelName: string, AgoraRTC: any) => {
-    const APP_ID = "cb6d0b31fe534c92a619c224ba714e2b";
+  const APP_ID = process.env.cb6d0b31fe534c92a619c224ba714e2b!;
 
-    clientRef.current = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
-    await clientRef.current.setClientRole("host");
-    await clientRef.current.join(APP_ID, channelName, null, null);
+  // ✅ 1. Récupérer le token depuis ton API route
+  const tokenRes = await fetch("/api/agora-token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      channelName,
+      uid: 0, // 0 = Agora choisit un uid automatiquement
+    }),
+  });
 
-    const [videoTrack, audioTrack] = await Promise.all([
-      AgoraRTC.createCameraVideoTrack(),
-      AgoraRTC.createMicrophoneAudioTrack(),
-    ]);
+  if (!tokenRes.ok) {
+    const err = await tokenRes.json();
+    throw new Error(err.error || "Impossible de récupérer le token");
+  }
 
-    videoTrackRef.current = videoTrack;
-    audioTrackRef.current = audioTrack;
+  const { token } = await tokenRes.json();
 
-    await clientRef.current.publish([videoTrack, audioTrack]);
+  // ✅ 2. Créer le client Agora
+  clientRef.current = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
+  await clientRef.current.setClientRole("host");
 
-    if (localVideoRef.current) {
-      videoTrack.play(localVideoRef.current);
-    }
-  };
+  // ✅ 3. Rejoindre avec le TOKEN (3ème paramètre)
+  await clientRef.current.join(APP_ID, channelName, token, null);
+
+  // ✅ 4. Créer et publier les tracks
+  const [videoTrack, audioTrack] = await Promise.all([
+    AgoraRTC.createCameraVideoTrack(),
+    AgoraRTC.createMicrophoneAudioTrack(),
+  ]);
+
+  videoTrackRef.current = videoTrack;
+  audioTrackRef.current = audioTrack;
+
+  await clientRef.current.publish([videoTrack, audioTrack]);
+
+  if (localVideoRef.current) {
+    videoTrack.play(localVideoRef.current);
+  }
+};
 
   const cleanupAgora = async () => {
     if (videoTrackRef.current) {

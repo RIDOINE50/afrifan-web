@@ -1,34 +1,55 @@
-import { NextResponse } from 'next/server';
-import { RtcTokenBuilder, RtcRole } from 'agora-token';
+import { NextRequest, NextResponse } from "next/server";
+import { RtcTokenBuilder, RtcRole } from "agora-token";
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { channelName } = await request.json();
-    
-    const appId = process.env.NEXT_PUBLIC_AGORA_APP_ID || '18d7051c40f14cea8953b23824683c0b';
-    const appCertificate = process.env.AGORA_APP_CERTIFICATE || 'ea5e4a39245d4849bfd84a99d5100632';
-    
-    const uid = 0;
-    const role = RtcRole.PUBLISHER;
-    const expirationTimeInSeconds = 3600;
-    
+    const body = await req.json();
+    const { channelName, uid } = body;
+
+    // ✅ Validation
+    if (!channelName) {
+      return NextResponse.json(
+        { error: "channelName est requis" },
+        { status: 400 }
+      );
+    }
+
+    const appId = process.env.cb6d0b31fe534c92a619c224ba714e2b;
+    const appCertificate = process.env.60ab3735550d414f9f6bfb91e67bc7e6;
+
+    if (!appId || !appCertificate) {
+      console.error("❌ Variables d'env Agora manquantes");
+      return NextResponse.json(
+        { error: "Configuration serveur manquante" },
+        { status: 500 }
+      );
+    }
+
+    // ✅ Token valide 24h (en secondes)
+    const expirationTimeInSeconds = 24 * 60 * 60;
     const currentTimestamp = Math.floor(Date.now() / 1000);
     const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
-    
-    // ✅ La fonction attend 7 arguments : (appId, appCertificate, channelName, uid, role, privilegeExpire, tokenExpire)
-    // Nous fournissons les deux timestamps (ils peuvent être identiques)
+
+    // ✅ uid = 0 signifie "n'importe quel uid"
+    const userUid = uid ? parseInt(uid.toString(), 10) : 0;
+
+    // ✅ Génère le token pour un PUBLISHER (host qui diffuse)
     const token = RtcTokenBuilder.buildTokenWithUid(
       appId,
       appCertificate,
       channelName,
-      uid,
-      role,
-      privilegeExpiredTs,   // privilegeExpire
-      privilegeExpiredTs    // tokenExpire (7ème argument)
+      userUid,
+      RtcRole.PUBLISHER,
+      privilegeExpiredTs,
+      privilegeExpiredTs
     );
-    
-    return NextResponse.json({ token });
+
+    return NextResponse.json({ token, uid: userUid });
   } catch (error) {
-    return NextResponse.json({ error: 'Erreur génération token' }, { status: 500 });
+    console.error("❌ Erreur génération token Agora:", error);
+    return NextResponse.json(
+      { error: "Erreur lors de la génération du token" },
+      { status: 500 }
+    );
   }
 }

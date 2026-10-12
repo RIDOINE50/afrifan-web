@@ -14,7 +14,7 @@
     "@emotion/styled": "^11.14.1",
     "@supabase/supabase-js": "^2.112.4",
     "agora-rtc-sdk-ng": "^4.24.8",
-    "agora-token": "^2.0.6",
+    "agora-token": "^2.0.7",
     "framer-motion": "^11.0.0",
     "idb": "^8.0.3",
     "kkiapay-react": "^0.0.7",
