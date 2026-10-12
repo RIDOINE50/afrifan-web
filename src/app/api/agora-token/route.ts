@@ -4,7 +4,7 @@ import { RtcTokenBuilder, RtcRole } from "agora-token";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { channelName, uid } = body;
+    const { channelName, uid, role } = body; // 👈 AJOUT de "role"
 
     // ✅ Validation
     if (!channelName) {
@@ -33,18 +33,23 @@ export async function POST(req: NextRequest) {
     // ✅ uid = 0 signifie "n'importe quel uid"
     const userUid = uid ? parseInt(uid.toString(), 10) : 0;
 
-    // ✅ Génère le token pour un PUBLISHER (host qui diffuse)
+    // ✅ NOUVEAU : choisir le rôle selon la demande
+    // - "audience" → SUBSCRIBER (peut seulement REGARDER)
+    // - tout le reste (ou rien) → PUBLISHER (peut DIFFUSER)
+    const agoraRole = role === "audience" ? RtcRole.SUBSCRIBER : RtcRole.PUBLISHER;
+
+    // ✅ Génère le token avec le bon rôle
     const token = RtcTokenBuilder.buildTokenWithUid(
       appId,
       appCertificate,
       channelName,
       userUid,
-      RtcRole.PUBLISHER,
+      agoraRole,
       privilegeExpiredTs,
       privilegeExpiredTs
     );
 
-    return NextResponse.json({ token, uid: userUid });
+    return NextResponse.json({ token, uid: userUid, role: agoraRole });
   } catch (error) {
     console.error("❌ Erreur génération token Agora:", error);
     return NextResponse.json(
