@@ -1,12 +1,12 @@
 "use client";
 
+// ✅ 1. CETTE LIGNE EST LA CLÉ : Elle interdit à Next.js de pré-rendre cette page sur le serveur
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAppTheme } from "@/contexts/ThemeContext";
-
-// ❌ SUPPRIME L'IMPORT DIRECT D'AGORA EN HAUT DU FICHIER
-// import AgoraRTC from "agora-rtc-sdk-ng"; 
 
 export default function GoLivePage() {
   const router = useRouter();
@@ -35,33 +35,39 @@ export default function GoLivePage() {
     }
 
     const verifyAndStartStream = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        router.push("/login");
-        return;
-      }
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          router.push("/login");
+          return;
+        }
 
-      const { data, error: dbError } = await supabase
-        .from("live_streams")
-        .select("*")
-        .eq("id", streamId)
-        .eq("creator_id", session.user.id)
-        .single();
+        const { data, error: dbError } = await supabase
+          .from("live_streams")
+          .select("*")
+          .eq("id", streamId)
+          .eq("creator_id", session.user.id)
+          .single();
 
-      if (dbError || !data || data.status !== "live") {
-        setError("Session de live introuvable, non autorisée ou déjà terminée.");
+        if (dbError || !data || data.status !== "live") {
+          setError("Session de live introuvable, non autorisée ou déjà terminée.");
+          setIsLoading(false);
+          return;
+        }
+
+        setStreamData(data);
         setIsLoading(false);
-        return;
+        
+        // ✅ 2. Import dynamique d'Agora UNIQUEMENT dans le navigateur
+        const AgoraRTCModule = await import("agora-rtc-sdk-ng");
+        const AgoraRTC = AgoraRTCModule.default;
+        
+        startAgoraStream(data.id.toString(), AgoraRTC);
+      } catch (err) {
+        console.error("❌ Erreur critique:", err);
+        setError("Une erreur est survenue lors du chargement du live.");
+        setIsLoading(false);
       }
-
-      setStreamData(data);
-      setIsLoading(false);
-      
-      // ✅ IMPORT DYNAMIQUE : Charge Agora UNIQUEMENT dans le navigateur
-      const AgoraRTCModule = await import("agora-rtc-sdk-ng");
-      const AgoraRTC = AgoraRTCModule.default;
-      
-      startAgoraStream(data.id.toString(), AgoraRTC);
     };
 
     verifyAndStartStream();
@@ -95,7 +101,7 @@ export default function GoLivePage() {
       }
     } catch (err) {
       console.error("❌ Erreur Agora:", err);
-      setError("Impossible d'accéder à la caméra/microphone. Vérifiez les permissions de votre navigateur.");
+      setError("Impossible d'accéder à la caméra/microphone. Vérifiez les permissions.");
     }
   };
 
@@ -131,7 +137,6 @@ export default function GoLivePage() {
       router.push("/creator?tab=overview");
     } catch (err) {
       console.error("❌ Erreur lors de l'arrêt du live:", err);
-      alert("Une erreur est survenue, mais votre flux est coupé.");
       router.push("/creator?tab=overview");
     }
   };
