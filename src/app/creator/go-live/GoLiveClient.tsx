@@ -226,6 +226,18 @@ export default function GoLiveClient() {
     }
   };
 
+    // 🔄 Basculer caméra avant ↔ arrière
+  const switchCamera = async () => {
+    if (!videoTrackRef.current) return;
+    try {
+      await videoTrackRef.current.switchCamera();
+      console.log("🔄 Caméra basculée");
+    } catch (err) {
+      console.error("❌ Impossible de basculer la caméra:", err);
+    }
+  };
+
+
   const cleanupAgora = async () => {
     try {
       if (videoTrackRef.current) {
@@ -448,6 +460,29 @@ router.push("/creator/dashboard");    }
             </span>
           )}
         </button>
+                {/* 🔄 Bouton basculer caméra */}
+        <button
+          onClick={switchCamera}
+          style={{
+            position: "absolute",
+            bottom: "40px",
+            right: "90px",
+            width: "56px",
+            height: "56px",
+            borderRadius: "50%",
+            backgroundColor: "rgba(0,0,0,0.7)",
+            color: "white",
+            border: "1px solid rgba(255,255,255,0.2)",
+            cursor: "pointer",
+            fontSize: "22px",
+            zIndex: 10,
+            backdropFilter: "blur(6px)",
+          }}
+          title="Basculer caméra"
+        >
+          🔄
+        </button>
+
 
         {/* 🔴 Bouton terminer */}
         <div style={{ position: "absolute", bottom: "40px", left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 10, pointerEvents: "none" }}>
