@@ -74,6 +74,9 @@ export default function GoLiveClient() {
   const videoTrackRef = useRef<any>(null);
   const audioTrackRef = useRef<any>(null);
   const isEndingRef = useRef(false);
+  // 🔄 Caméra switching
+const cameraIndexRef = useRef(0);
+const camerasRef = useRef<any[]>([]);
 
   const colors = {
     red: "#EF4444",
@@ -237,16 +240,35 @@ export default function GoLiveClient() {
     }
   };
 
-  // 🔄 Basculer caméra
-  const switchCamera = async () => {
-    if (!videoTrackRef.current) return;
-    try {
-      await videoTrackRef.current.switchCamera();
-      console.log("🔄 Caméra basculée");
-    } catch (err) {
-      console.error("❌ Impossible de basculer la caméra:", err);
+
+
+const switchCamera = async () => {
+  if (!videoTrackRef.current) return;
+  
+  try {
+    const AgoraRTCModule = await import("agora-rtc-sdk-ng");
+    const AgoraRTC = AgoraRTCModule.default;
+
+    // 1. Récupérer la liste des caméras (à refaire à chaque fois, le deviceId peut changer)
+    const cameras = await AgoraRTC.getCameras();
+    if (cameras.length < 2) {
+      console.warn("⚠️ Une seule caméra disponible, impossible de basculer");
+      return;
     }
-  };
+    camerasRef.current = cameras;
+
+    // 2. Passer à la caméra suivante (cyclique)
+    cameraIndexRef.current = (cameraIndexRef.current + 1) % cameras.length;
+    const targetCamera = cameras[cameraIndexRef.current];
+
+    // 3. Changer de caméra avec setDevice
+    await videoTrackRef.current.setDevice(targetCamera.deviceId);
+    
+    console.log("🔄 Caméra basculée vers:", targetCamera.label);
+  } catch (err) {
+    console.error("❌ Impossible de basculer la caméra:", err);
+  }
+};
 
   const cleanupAgora = async () => {
     try {
