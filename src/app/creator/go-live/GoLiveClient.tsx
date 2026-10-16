@@ -162,8 +162,38 @@ const camerasRef = useRef<any[]>([]);
       supabase.removeChannel(channel);
     };
   }, [streamId]);
+    // 👥 Écouter le viewer_count en temps réel
+  useEffect(() => {
+    if (!streamId) return;
+
+    const viewerChannel = supabase
+      .channel(`live-viewers-creator-${streamId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "live_streams",
+          filter: `id=eq.${streamId}`,
+        },
+        (payload: any) => {
+          if (typeof payload.new?.viewer_count === "number") {
+            setStreamData((prev: any) =>
+              prev ? { ...prev, viewer_count: payload.new.viewer_count } : prev
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(viewerChannel);
+    };
+  }, [streamId]);
+
 
   // 🔔 Arrêter le live si fermeture onglet
+  
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (streamData?.id && !isEndingRef.current) {
@@ -289,26 +319,40 @@ const switchCamera = async () => {
     }
   };
 
-  // 🔴 Terminer le live
   const handleStopLive = async () => {
-    if (!streamData || isEndingRef.current) return;
-    isEndingRef.current = true;
+  if (!streamData || isEndingRef.current) return;
+  isEndingRef.current = true;
 
-    try {
-      await cleanupAgora();
+  try {
+    console.log("🛑 Arrêt du live...");
 
-      const { error: updateErr } = await supabase
-        .from("live_streams")
-        .update({ status: "ended", ended_at: new Date().toISOString() })
-        .eq("id", streamData.id);
+    // 1️⃣ D'ABORD : prévenir les spectateurs en DB
+    //    (update AVANT le cleanup pour que Realtime propage vite)
+    const { error: updateErr } = await supabase
+      .from("live_streams")
+      .update({ status: "ended", ended_at: new Date().toISOString() })
+      .eq("id", streamData.id);
 
-      if (updateErr) console.error("❌ Erreur update DB:", updateErr);
-      router.push("/creator/dashboard");
-    } catch (err) {
-      console.error("❌ Erreur arrêt live:", err);
-      router.push("/creator/dashboard");
+    if (updateErr) {
+      console.error("❌ Erreur update DB:", updateErr);
+    } else {
+      console.log("✅ Status = ended en DB");
     }
-  };
+
+    // 2️⃣ LAISSER 1s à Realtime pour propager aux spectateurs
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // 3️⃣ ENSUITE : cleanup Agora propre
+    await cleanupAgora();
+
+    // 4️⃣ Enfin : redirection
+    router.push("/creator/dashboard");
+  } catch (err) {
+    console.error("❌ Erreur arrêt live:", err);
+    await cleanupAgora();
+    router.push("/creator/dashboard");
+  }
+};
 
   // ===== UI =====
 

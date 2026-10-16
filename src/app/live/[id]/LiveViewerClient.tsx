@@ -315,16 +315,12 @@ export default function LiveViewerClient() {
         }
       });
 
-      // 👥 Incrémenter le viewer count (via RPC atomique)
+           // 👥 Incrémenter (atomique via RPC)
       const { error: rpcErr } = await supabase.rpc("increment_viewer_count", {
         stream_id: liveData.id,
       });
       if (rpcErr) {
-        console.warn("⚠️ RPC increment_viewer_count indisponible, fallback manuel");
-        await supabase
-          .from("live_streams")
-          .update({ viewer_count: (liveData.viewer_count || 0) + 1 })
-          .eq("id", liveData.id);
+        console.error("❌ Erreur increment_viewer_count:", rpcErr.message);
       }
 
       setHasJoined(true);
@@ -347,17 +343,13 @@ export default function LiveViewerClient() {
     }
   };
 
-  const handleLeave = async () => {
+    const handleLeave = async () => {
     if (liveData?.id && hasJoined) {
       const { error: rpcErr } = await supabase.rpc("decrement_viewer_count", {
         stream_id: liveData.id,
       });
       if (rpcErr) {
-        console.warn("⚠️ RPC decrement_viewer_count indisponible, fallback manuel");
-        await supabase
-          .from("live_streams")
-          .update({ viewer_count: Math.max(0, (liveData.viewer_count || 1) - 1) })
-          .eq("id", liveData.id);
+        console.error("❌ Erreur decrement_viewer_count:", rpcErr.message);
       }
       setHasJoined(false);
     }

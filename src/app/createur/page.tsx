@@ -139,6 +139,7 @@ function CreatorProfileContent() {
   }, [creatorId]);
 
   // ✅ Écoute en temps réel du live
+   // ✅ Écoute en temps réel du live (fin/start)
   useEffect(() => {
     if (!creatorId) return;
 
@@ -152,18 +153,46 @@ function CreatorProfileContent() {
           table: 'live_streams',
           filter: `creator_id=eq.${creatorId}`,
         },
-        () => {
-          console.log('🔴 Changement live détecté');
+        (payload: any) => {
+          console.log('🔴 Changement live détecté:', payload.eventType, payload.new);
+
+          // 🔴 Si le live passe à "ended" → cacher IMMÉDIATEMENT le bouton
+          if (payload.new?.status === 'ended') {
+            console.log('🔴 Live terminé → setActiveLive(null)');
+            setActiveLive(null);
+            return;
+          }
+
+          // 🟢 Si un live passe à "live" → recharger
+          if (payload.new?.status === 'live') {
+            loadActiveLive();
+            return;
+          }
+
+          // 👥 Pour tout autre changement (viewer_count, etc.) → recharger
           loadActiveLive();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 Realtime status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [creatorId, currentSubscription]);
+  }, [creatorId]);
+    // 🔄 Rafraîchir le live quand on revient sur la page
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && creatorId) {
+        loadActiveLive();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [creatorId]);
 
   const loadCreatorData = async (currentUser: any) => {
     setIsLoading(true);
