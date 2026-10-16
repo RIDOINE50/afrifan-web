@@ -15,14 +15,23 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    await supabase
+    // ✅ 1. Marquer le live comme terminé + reset le viewer_count
+    const { error: updateErr } = await supabase
       .from("live_streams")
       .update({
         status: "ended",
         ended_at: new Date().toISOString(),
+        viewer_count: 0, // 👈 reset à 0
       })
-      .eq("id", streamId);
+      .eq("id", streamId)
+      .eq("status", "live"); // 👈 sécurité : ne touche que les lives actifs
 
+    if (updateErr) {
+      console.error("❌ Erreur update end live:", updateErr);
+      return NextResponse.json({ error: updateErr.message }, { status: 500 });
+    }
+
+    console.log("✅ Live terminé via sendBeacon:", streamId);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("❌ Erreur end live:", error);

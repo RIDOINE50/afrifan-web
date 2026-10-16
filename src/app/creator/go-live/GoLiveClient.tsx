@@ -300,24 +300,44 @@ const switchCamera = async () => {
   }
 };
 
-  const cleanupAgora = async () => {
-    try {
-      if (videoTrackRef.current) {
-        videoTrackRef.current.close();
-        videoTrackRef.current = null;
+ const cleanupAgora = async () => {
+  try {
+    // 1. Unpublish les tracks (prévient Agora + les spectateurs)
+    if (clientRef.current) {
+      const tracksToUnpublish: any[] = [];
+      if (videoTrackRef.current) tracksToUnpublish.push(videoTrackRef.current);
+      if (audioTrackRef.current) tracksToUnpublish.push(audioTrackRef.current);
+
+      if (tracksToUnpublish.length > 0) {
+        try {
+          await clientRef.current.unpublish(tracksToUnpublish);
+          console.log("📴 Tracks unpublish");
+        } catch (err) {
+          console.warn("⚠️ Erreur unpublish (déjà fait ?)", err);
+        }
       }
-      if (audioTrackRef.current) {
-        audioTrackRef.current.close();
-        audioTrackRef.current = null;
-      }
-      if (clientRef.current) {
-        await clientRef.current.leave();
-        clientRef.current = null;
-      }
-    } catch (err) {
-      console.error("❌ Erreur cleanup Agora:", err);
     }
-  };
+
+    // 2. Close les tracks locaux
+    if (videoTrackRef.current) {
+      videoTrackRef.current.close();
+      videoTrackRef.current = null;
+    }
+    if (audioTrackRef.current) {
+      audioTrackRef.current.close();
+      audioTrackRef.current = null;
+    }
+
+    // 3. Leave le channel
+    if (clientRef.current) {
+      await clientRef.current.leave();
+      clientRef.current = null;
+      console.log("✅ Agora cleanup terminé");
+    }
+  } catch (err) {
+    console.error("❌ Erreur cleanup Agora:", err);
+  }
+};
 
   const handleStopLive = async () => {
   if (!streamData || isEndingRef.current) return;
@@ -326,11 +346,13 @@ const switchCamera = async () => {
   try {
     console.log("🛑 Arrêt du live...");
 
-    // 1️⃣ D'ABORD : prévenir les spectateurs en DB
-    //    (update AVANT le cleanup pour que Realtime propage vite)
-    const { error: updateErr } = await supabase
+        const { error: updateErr } = await supabase
       .from("live_streams")
-      .update({ status: "ended", ended_at: new Date().toISOString() })
+      .update({
+        status: "ended",
+        ended_at: new Date().toISOString(),
+        viewer_count: 0, // 👈 reset le compteur
+      })
       .eq("id", streamData.id);
 
     if (updateErr) {
