@@ -28,6 +28,7 @@ export default function LiveViewerClient() {
   const [isJoining, setIsJoining] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
+  const [liveEnded, setLiveEnded] = useState(false);
 
   // 💬 Chat
   const [messages, setMessages] = useState<LiveMessage[]>([]);
@@ -41,6 +42,12 @@ export default function LiveViewerClient() {
 
   const remoteVideoRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<any>(null);
+  const hasJoinedRef = useRef(false); // 👈 évite les doubles décréments
+
+  // Sync hasJoined avec ref (pour beforeunload)
+  useEffect(() => {
+    hasJoinedRef.current = hasJoined;
+  }, [hasJoined]);
 
   // Auto-scroll du chat
   useEffect(() => {
@@ -153,7 +160,6 @@ export default function LiveViewerClient() {
           filter: `live_stream_id=eq.${liveId}`,
         },
         (payload: any) => {
-          console.log("💬 Nouveau message:", payload.new);
           setMessages((prev) => [...prev, payload.new as LiveMessage]);
         }
       )
@@ -161,6 +167,44 @@ export default function LiveViewerClient() {
 
     return () => {
       supabase.removeChannel(channel);
+    };
+  }, [liveId]);
+
+  // 🔴 Écoute la fin du live (créateur a cliqué "Terminer")
+  useEffect(() => {
+    if (!liveId) return;
+
+    const statusChannel = supabase
+      .channel(`live-status-${liveId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "live_streams",
+          filter: `id=eq.${liveId}`,
+        },
+        (payload: any) => {
+          // Statut du live changé → "ended"
+          if (payload.new?.status === "ended") {
+            console.log("🔴 Le créateur a terminé le live");
+            setLiveEnded(true);
+            setError("Le live est terminé.");
+            if (hasJoinedRef.current) {
+              cleanupAgora();
+              setHasJoined(false);
+            }
+          }
+          // 👥 Mettre à jour le viewer count en temps réel
+          if (typeof payload.new?.viewer_count === "number") {
+            setViewerCount(payload.new.viewer_count);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(statusChannel);
     };
   }, [liveId]);
 
@@ -232,27 +276,36 @@ export default function LiveViewerClient() {
 
       console.log("✅ Rejoint le channel en audience:", liveData.id);
 
-      clientRef.current.on("user-joined", () => {
-        setViewerCount((p: number) => p + 1);
-      });
-      clientRef.current.on("user-left", () => {
-        setViewerCount((p: number) => Math.max(0, p - 1));
-      });
-
+      // 🎥 Gestion publication / dépublication (rotation caméra du créateur)
       clientRef.current.on("user-published", async (remoteUser: any, mediaType: string) => {
-        await clientRef.current.subscribe(remoteUser, mediaType);
-        if (mediaType === "video" && remoteVideoRef.current) {
-          remoteUser.videoTrack.play(remoteVideoRef.current);
-        }
-        if (mediaType === "audio") {
-          remoteUser.audioTrack.play();
+        try {
+          await clientRef.current.subscribe(remoteUser, mediaType);
+
+          if (mediaType === "video" && remoteVideoRef.current) {
+            // Vider le conteneur au cas où un ancien track y traîne
+            remoteVideoRef.current.innerHTML = "";
+            remoteUser.videoTrack.play(remoteVideoRef.current);
+            console.log("🎥 Vidéo du créateur (re)jouée");
+          }
+          if (mediaType === "audio") {
+            remoteUser.audioTrack.play();
+          }
+        } catch (err) {
+          console.error("❌ Erreur subscribe user-published:", err);
         }
       });
 
+      clientRef.current.on("user-unpublished", (remoteUser: any, mediaType: string) => {
+        console.log("⏸️ Track unpublish:", mediaType);
+        // Rien à faire : le prochain user-published va reprendre le relais
+      });
+
+      // Si le créateur publie déjà avant qu'on rejoigne
       clientRef.current.remoteUsers.forEach(async (remoteUser: any) => {
         if (remoteUser.hasVideo) {
           await clientRef.current.subscribe(remoteUser, "video");
           if (remoteVideoRef.current) {
+            remoteVideoRef.current.innerHTML = "";
             remoteUser.videoTrack.play(remoteVideoRef.current);
           }
         }
@@ -262,10 +315,17 @@ export default function LiveViewerClient() {
         }
       });
 
-      await supabase
-        .from("live_streams")
-        .update({ viewer_count: (liveData.viewer_count || 0) + 1 })
-        .eq("id", liveData.id);
+      // 👥 Incrémenter le viewer count (via RPC atomique)
+      const { error: rpcErr } = await supabase.rpc("increment_viewer_count", {
+        stream_id: liveData.id,
+      });
+      if (rpcErr) {
+        console.warn("⚠️ RPC increment_viewer_count indisponible, fallback manuel");
+        await supabase
+          .from("live_streams")
+          .update({ viewer_count: (liveData.viewer_count || 0) + 1 })
+          .eq("id", liveData.id);
+      }
 
       setHasJoined(true);
     } catch (err: any) {
@@ -277,36 +337,77 @@ export default function LiveViewerClient() {
   };
 
   const cleanupAgora = async () => {
-    if (clientRef.current) {
-      await clientRef.current.leave();
-      clientRef.current = null;
+    try {
+      if (clientRef.current) {
+        await clientRef.current.leave();
+        clientRef.current = null;
+      }
+    } catch (err) {
+      console.error("❌ Erreur cleanup Agora:", err);
     }
   };
 
   const handleLeave = async () => {
-    if (liveData?.id) {
-      await supabase
-        .from("live_streams")
-        .update({ viewer_count: Math.max(0, (liveData.viewer_count || 1) - 1) })
-        .eq("id", liveData.id);
+    if (liveData?.id && hasJoined) {
+      const { error: rpcErr } = await supabase.rpc("decrement_viewer_count", {
+        stream_id: liveData.id,
+      });
+      if (rpcErr) {
+        console.warn("⚠️ RPC decrement_viewer_count indisponible, fallback manuel");
+        await supabase
+          .from("live_streams")
+          .update({ viewer_count: Math.max(0, (liveData.viewer_count || 1) - 1) })
+          .eq("id", liveData.id);
+      }
+      setHasJoined(false);
     }
     await cleanupAgora();
     router.back();
   };
 
+  // 🚪 Décrémenter si on ferme l'onglet directement
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (liveData?.id && hasJoinedRef.current) {
+        navigator.sendBeacon?.(`/api/live/leave?streamId=${liveData.id}`);
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [liveData]);
+
   // ===== UI =====
 
   if (isLoading) {
     return (
-      <div style={{ height: "100vh", backgroundColor: "#000", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
+      <div style={{ height: "100dvh", backgroundColor: "#000", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
         Chargement du live...
+      </div>
+    );
+  }
+
+  // 🔴 Live terminé (créateur a quitté)
+  if (liveEnded) {
+    return (
+      <div style={{ height: "100dvh", backgroundColor: "#000", color: "white", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px", textAlign: "center", gap: "20px" }}>
+        <div style={{ fontSize: "60px" }}>📴</div>
+        <h2 style={{ color: "#EF4444", margin: 0 }}>Le live est terminé</h2>
+        <p style={{ color: "rgba(255,255,255,0.7)" }}>
+          {creatorData?.full_name || creatorData?.username || "Le créateur"} a mis fin à la diffusion.
+        </p>
+        <button
+          onClick={() => router.back()}
+          style={{ padding: "12px 24px", backgroundColor: "#EF4444", color: "white", border: "none", borderRadius: "24px", cursor: "pointer", fontWeight: "bold", fontSize: "15px" }}
+        >
+          Retour
+        </button>
       </div>
     );
   }
 
   if (error && !hasJoined) {
     return (
-      <div style={{ height: "100vh", backgroundColor: "#000", color: "white", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px", textAlign: "center", gap: "20px" }}>
+      <div style={{ height: "100dvh", backgroundColor: "#000", color: "white", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px", textAlign: "center", gap: "20px" }}>
         <h2 style={{ color: "#EF4444" }}>Accès impossible</h2>
         <p>{error}</p>
         <button
@@ -321,7 +422,7 @@ export default function LiveViewerClient() {
 
   if (!hasJoined) {
     return (
-      <div style={{ height: "100vh", backgroundColor: "#000", color: "white", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px", textAlign: "center", gap: "20px" }}>
+      <div style={{ height: "100dvh", backgroundColor: "#000", color: "white", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px", textAlign: "center", gap: "20px" }}>
         {creatorData?.avatar_url && (
           <img
             src={creatorData.avatar_url}
@@ -366,16 +467,14 @@ export default function LiveViewerClient() {
 
   // ===== Vue live avec CHAT + CADEAU =====
   return (
-    <div style={{ height: "100vh", backgroundColor: "#000", position: "relative", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div style={{ height: "100dvh", backgroundColor: "#000", position: "relative", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Vidéo */}
       <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div
           ref={remoteVideoRef}
           style={{
             width: "100%",
-            maxWidth: "500px",
             height: "100%",
-            maxHeight: "900px",
             backgroundColor: "#111",
           }}
         />
@@ -393,18 +492,19 @@ export default function LiveViewerClient() {
             alignItems: "center",
             justifyContent: "space-between",
             zIndex: 10,
+            gap: "12px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
             {creatorData?.avatar_url && (
               <img
                 src={creatorData.avatar_url}
                 alt=""
-                style={{ width: "40px", height: "40px", borderRadius: "50%", border: "2px solid #EF4444" }}
+                style={{ width: "40px", height: "40px", borderRadius: "50%", border: "2px solid #EF4444", flexShrink: 0 }}
               />
             )}
-            <div>
-              <div style={{ color: "white", fontWeight: "bold", fontSize: "14px" }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: "white", fontWeight: "bold", fontSize: "14px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {creatorData?.full_name || creatorData?.username}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "rgba(255,255,255,0.8)" }}>
@@ -425,6 +525,8 @@ export default function LiveViewerClient() {
               cursor: "pointer",
               fontSize: "14px",
               fontWeight: "bold",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
             }}
           >
             ✕ Quitter
@@ -437,25 +539,25 @@ export default function LiveViewerClient() {
             position: "absolute",
             bottom: "90px",
             left: "16px",
-            right: "16px",
-            maxWidth: "400px",
-            maxHeight: "35vh",
+            right: "90px",
+            maxHeight: "30vh",
             overflowY: "auto",
             zIndex: 8,
             pointerEvents: "none",
             display: "flex",
             flexDirection: "column",
             gap: "6px",
-            maskImage: "linear-gradient(to bottom, transparent, black 20%)",
-            WebkitMaskImage: "linear-gradient(to bottom, transparent, black 20%)",
+            maskImage: "linear-gradient(to bottom, transparent, black 25%)",
+            WebkitMaskImage: "linear-gradient(to bottom, transparent, black 25%)",
           }}
         >
           {messages.slice(-10).map((msg) => (
             <div
               key={msg.id}
               style={{
-                backgroundColor: "rgba(0,0,0,0.5)",
-                backdropFilter: "blur(6px)",
+                backgroundColor: "rgba(0,0,0,0.55)",
+                backdropFilter: "blur(8px)",
+                WebkitBackdropFilter: "blur(8px)",
                 borderRadius: "16px",
                 padding: "6px 12px",
                 color: "white",
@@ -467,9 +569,9 @@ export default function LiveViewerClient() {
               }}
             >
               {msg.user_avatar ? (
-                <img src={msg.user_avatar} alt="" style={{ width: "20px", height: "20px", borderRadius: "50%" }} />
+                <img src={msg.user_avatar} alt="" style={{ width: "20px", height: "20px", borderRadius: "50%", flexShrink: 0 }} />
               ) : (
-                <div style={{ width: "20px", height: "20px", borderRadius: "50%", backgroundColor: "#3B82F6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "bold" }}>
+                <div style={{ width: "20px", height: "20px", borderRadius: "50%", backgroundColor: "#3B82F6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "bold", flexShrink: 0 }}>
                   {(msg.user_name || "?")[0].toUpperCase()}
                 </div>
               )}
@@ -528,21 +630,25 @@ export default function LiveViewerClient() {
         >
           💬
           {messages.length > 0 && (
-            <span style={{
-              position: "absolute",
-              top: "-4px",
-              right: "-4px",
-              backgroundColor: "#EF4444",
-              color: "white",
-              borderRadius: "50%",
-              width: "20px",
-              height: "20px",
-              fontSize: "11px",
-              fontWeight: "bold",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}>
+            <span
+              style={{
+                position: "absolute",
+                top: "-4px",
+                right: "-4px",
+                backgroundColor: "#EF4444",
+                color: "white",
+                borderRadius: "50%",
+                minWidth: "20px",
+                height: "20px",
+                padding: "0 5px",
+                fontSize: "11px",
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxSizing: "border-box",
+              }}
+            >
               {messages.length > 99 ? "99+" : messages.length}
             </span>
           )}
@@ -565,7 +671,7 @@ export default function LiveViewerClient() {
           <div
             style={{
               width: "100%",
-              maxHeight: "70vh",
+              maxHeight: "75dvh",
               backgroundColor: "#111",
               borderTopLeftRadius: "20px",
               borderTopRightRadius: "20px",
@@ -573,6 +679,7 @@ export default function LiveViewerClient() {
               display: "flex",
               flexDirection: "column",
               gap: "12px",
+              paddingBottom: "calc(16px + env(safe-area-inset-bottom))",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -610,7 +717,7 @@ export default function LiveViewerClient() {
                         {(msg.user_name || "?")[0].toUpperCase()}
                       </div>
                     )}
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ color: "#93C5FD", fontSize: "13px", fontWeight: "600" }}>
                         {msg.user_name || "Anonyme"}
                       </div>
@@ -639,6 +746,7 @@ export default function LiveViewerClient() {
                 disabled={!user || isSending}
                 style={{
                   flex: 1,
+                  minWidth: 0,
                   padding: "12px 16px",
                   borderRadius: "24px",
                   border: "1px solid rgba(255,255,255,0.1)",
@@ -661,6 +769,7 @@ export default function LiveViewerClient() {
                   fontSize: "14px",
                   fontWeight: "bold",
                   cursor: newMessage.trim() && user ? "pointer" : "not-allowed",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {isSending ? "..." : "Envoyer"}
